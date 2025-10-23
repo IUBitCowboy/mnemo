@@ -4,6 +4,30 @@ Decision Log for Mnemo
 
 ---
 
+## 2025-10-19 @ 13:00 EDT - Introducing Policy as Code (GitHub Rulesets/Branch Protection)
+
+**Scope:** Lecture 12 (Automated Deployment) or Lecture 13 (GenAI Integration) / Software Governance
+
+**Decision:**
+The concept of **Policy as Code (PaC)**, specifically implemented via **GitHub Rulesets** (or similar features in other platforms), will be formally introduced into the course schedule between **Week 12 (CD)** and **Week 13 (GenAI Integration)**.
+
+### Rationale:
+The timing is chosen to present Rulesets as the final layer of **Governance Automation**, which sits directly on top of the CI/CD pipeline built in Week 12:
+
+1.  **Architectural Necessity:** After automating code *delivery* (CD), Rulesets automate the **governance** of that delivery. This answers the question: "How do we prevent a human from manually overriding the pipeline's findings?"
+2.  **Pedagogical Link:** It enforces critical techniques already taught: **Code Review (CR)** and **Continuous Integration (CI)** success (e.g., "CI must pass," "Require 2 approvals"). This moves process requirements from a team rule into a repository configuration.
+3.  **Project Alignment:** This provides context for the **Extra Credit** option in the MoJ Project (Section 7: "Enforce Branch Protection"), encouraging students to implement the technical solution for PaC.
+
+### Action Item:
+The lecture material must be designed to teach the general **PaC technique** rather than focusing exclusively on the specific GitHub product.
+
+---
+
+### 🛑 Reminder: Pre-Finalization Check
+
+**This decision must be cross-checked with 2.5 Pro** to ensure the integration point does not conflict with advanced topics or architectural assumptions being made in Week 13/14 regarding the GenAI model integration or final deployment strategy.
+---
+
 ## 2025-10-22 @ 00:08 EDT - Mnemo Log: Review of Muse (Clio) Log & Generalization of Pedagogical Patterns
 
 **Scope:** General Pedagogy, Assessment Design, Workflow Templates
