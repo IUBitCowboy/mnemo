@@ -2,6 +2,61 @@ Decision Log for Mnemo
 
 ---
 
+
+---
+
+## 2025-10-24 @ 09:35 EDT - Adding Canvas-Ready HTML to Build Pipeline
+
+**Scope:** Core Process, Pipeline, Artifact Deployment, Canvas
+
+**Description:**
+This decision addresses the problem of student-facing artifacts (like ICEs) being "hostile" to copy-pasting code. The current pipeline, which generates a `.pdf`, is excellent for human reading but fails when students need to copy indentation-sensitive code (e.g., Python, YAML).
+
+We are adding a new, deterministic build step to the `pipeline/` to solve this.
+
+### The New Pipeline Artifact: Canvas HTML
+
+1.  **New Script:** A new script, `pipeline/build_canvas_page.sh`, will be created.
+2.  **Function:** This script will use `pandoc` to perform a standard, deterministic conversion from a curated Markdown file (`cmods/`) into a standalone, clean HTML file (`dist/canvas_pages/`).
+3.  **Deployment:** This generated HTML source will be pasted directly into the Canvas Rich Content Editor's (RCE) `<>` HTML view.
+
+**Rationale:**
+This solution maintains our "Single Source of Truth" principle. The `cmods/` file remains the canonical source. The pipeline, not the AI, is correctly used for a deterministic conversion.
+
+This creates two distinct "build artifacts" from one source, each optimized for its purpose:
+* **`.pdf` (from `build_pdf.sh`):** For human reading, printing, and offline access.
+* **`.html` (from `build_canvas_page.sh`):** For copy-paste-friendly code blocks and native rendering within the Canvas LMS.
+
+This avoids brittle, manual "Save as HTML" steps or inappropriate, non-deterministic use of AI for a simple file conversion.
+
+**Reference:** Discussion between Instructor and Clio, 2025-10-24.
+---
+
+## 2025-10-24 @ 09:27 EDT - Formalizing the "Curriculum Factory" MLOps Workflow
+
+**Scope:** Core Process, Mnemo, Artifact Management, Evidence-Driven Design
+
+**Description:**
+This decision formalizes the core "curriculum factory" workflow, applying MLOps principles to solve critical friction points in the AI-assisted development process. The previous method of logging entire, monolithic chat sessions created a "junk drawer" problem, making artifact curation, recovery, and auditing nearly impossible.
+
+This new workflow, based on a `RAW -> Curated -> PPR (Production Pipeline Ready)` model, is adopted to solve these specific problems:
+1.  **"Useless Tries" Clutter:** Iterative development within a single chat session cluttered logs with failed or dead-end artifact versions.
+2.  **Multi-Artifact Curation:** A single session used to create multiple, unrelated artifacts (e.g., an ICE and a Quiz) resulted in a raw log that was difficult to separate.
+3.  **Lack of Traceability:** It was impossible to determine where AI generation ended and human curation began, failing our "Evidence-Driven Design" goal.
+
+### The New "Curation-First" Workflow
+
+1.  **Artifact-Centric Raw Logs:** The `sessions/` directory is now formally defined as a log for **artifact-centric raw text** (e.g., `sessions/ice1.raw.md`). It does **not** store chat histories. This is the `RAW` stage.
+2.  **Canonical Curated Source:** The `cmods/` directory remains the canonical "Production Pipeline Ready" (`PPR`) source. This is the *only* source used by build pipelines (e.g., `pandoc`).
+3.  **"Curation Audit" via `diff`:** This two-file system (`sessions/artifact.raw.md` and `cmods/artifact.md`) enables a "Curation Audit." Running a `diff` between the two files provides a perfect, machine-readable log of all human-only curation.
+4.  **Embedded Design Rationale:** To capture the "why" of curation, all `cmods/` files will now embed design rationale and instructor notes within `` HTML comment blocks.
+
+**Rationale:**
+This process provides the "best of both worlds." It maintains low friction for the instructor's creative flow (who can "dump-and-run" a messy session to a *local* `.raw.md` file before cleaning it) while ensuring high integrity for the *version-controlled repository* (which only accepts the final, clean raw artifact).
+
+This makes the curation process itself a formal, auditable piece of evidence, fully aligning our development workflow with our core pedagogical goal of "Evidence-Driven Design."
+
+**Reference:** Discussion between Instructor and Clio, 2025-10-24.
 ---
 
 ## 2025-10-19 @ 13:00 EDT - Introducing Policy as Code (GitHub Rulesets/Branch Protection)
