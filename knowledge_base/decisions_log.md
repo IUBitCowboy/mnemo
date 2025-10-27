@@ -2,6 +2,69 @@ Decision Log for Mnemo
 
 ---
 
+---
+## 2025-10-25 @ 11:26 EDT - Defining Meta-Workflow & Knowledge Base Curation
+
+**Scope:** Workflow, Mnemo System, Clio Persona, Knowledge Base Management
+
+**Description:**
+As our system of artifacts (`decisions_log`, `clio_persona`, `instructor_handbook`) becomes more complex, we are formalizing the "meta-workflow" for managing it to ensure stability, consistency, and resilience against model drift.
+
+### 1. Handbook Update Workflow: "Append, Don't Rewrite"
+To mitigate the risk of "model drift" (where a generative AI subtly changes or drops instructions when rewriting a large file), we have established a new SOP for updating our handbooks:
+
+* **I (Clio)** will generate *new* sections (e.g., a new "SOP-03") as self-contained, standalone text blocks.
+* **The Instructor** will then act as the integrator, manually **copying and pasting** this new block into the master handbook document.
+* **Rationale:** This "append" model is safer, more precise, and `git-friendly`. It uses Clio for generation without risking the integrity of the existing, validated document.
+
+### 2. Knowledge Base Curation (Clio's "Mind")
+We have defined the optimal set of files to provide to Clio as its knowledge base to maximize performance and reduce contextual "noise."
+
+* **DEPRECATED (Low-Value):** Sample artifacts (`ICEX07.md`, `lecture1.md`, `wk1_quiz.md`, etc.) are now considered historical, low-value context. They are *examples* of past work, not *instructions*, and should be **excluded** from Clio's knowledge base to improve focus and reduce latency.
+* **REQUIRED (High-Value):** Clio's knowledge base should now consist of:
+    1.  **`clio_persona.md`:** Clio's rules.
+    2.  **`decisions_log.md`:** Our shared history and rationale.
+    3.  **`instructor_handbook.md`:** The instructor's playbooks for using Clio.
+    4.  **"Course Facts":** Key data files like `FA24 P465 Lecture Schedule.csv` and `MoJ_Project_description.md`.
+
+This "meta-trio" (`persona`, `log`, `handbook`) plus the course facts represent the complete, curated "mind" of the course, ensuring Clio has all necessary rules and context.
+---
+
+## 2025-10-25 @ 10:26 EDT - Formalizing the "Scalable Assessment Protocol" (SAP)
+
+**Scope:** Workflow, Assessment, Grading, AI Integration, FERPA Compliance, TA Management
+
+**Description:**
+To ensure high-quality, fair, and consistent grading of subjective, open-ended assignments (e.g., reflections, short essays, GenAI chat logs) at scale, we are formalizing the **Scalable Assessment Protocol (SAP)**.
+
+This protocol tags any assignment that will use our "human-in-the-loop, AI-assisted" grading workflow.
+
+### Core Principle: AI for Analysis, Humans for Assessment
+The protocol's foundation is a strict separation of concerns that is both pedagogically sound and FERPA-compliant.
+* **AI (The Synthesizer):** The AI's *only* role is to perform **thematic analysis** on an *anonymized, aggregated* set of student submissions.
+* **Human (The Assessor):** The human instructor and TAs are the *only* agents who perform **assessment, judgment, and grading** on the original, attributed student work.
+
+### The 5-Step SAP Workflow
+1.  **Step 1: Collection**
+    * The instructor bulk-downloads all student submissions (e.g., `.md` files) from Canvas. Canvas automatically appends student PII (Name, ID) to each filename.
+
+2.  **Step 2: The FERPA Firewall (Anonymization)**
+    * The instructor runs a **local script** (the "Anonymizer"). This script iterates through all submissions, logs attribution to a secure local-only map, and produces a single, fully-anonymized, aggregated text blob.
+    * **Crucially: No PII ever leaves the instructor's local machine.**
+
+3.  **Step 3: AI-Powered Analysis**
+    * *Only* the anonymous text blob is sent to a GenAI model (Gemini/Copilot) for thematic analysis, *not* assessment.
+    * **Good Prompt:** *"Analyze these 120 anonymous student responses. Identify the 5 most common themes and the 3 most critical misconceptions, providing illustrative quotes for each."*
+    * **Forbidden Prompt:** *"Grade these 120 submissions."*
+
+4.  **Step 4: Calibration Guide Generation**
+    * The instructor and Clio review the AI's thematic summary. This summary is used to create the **`TA_Grading_Guide.md`**, which "frames" the TAs' thinking by showing them what to look for.
+
+5.  **Step 5: Human-Led Assessment**
+    * The TAs receive the **original, attributed** student files *and* the **TA Grading Guide** + Rubric.
+    * The TAs perform the final assessment, using the guide to "classify" responses fairly and consistently.
+
+**Conclusion:** This protocol leverages AI as a "Head TA" to perform synthesis, allowing the instructional team to apply human judgment efficiently and consistently. This is our standard for all `SAP`-tagged assignments.
 
 ---
 
