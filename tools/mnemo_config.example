@@ -1,0 +1,25 @@
+# mnemo_config.example — Copy to ~/.mnemo_config (global) or .mnemo_config (project).
+# Local (.mnemo_config) overrides global (~/.mnemo_config).
+# Both are optional. Do not commit either to version control.
+
+# ── Python / tool paths ───────────────────────────────────────────────────────
+# Override if your venv is not at mnemo/.venv/
+# MNEMO_PYTHON="/Users/yourname/devops/teaching/SE1/mnemo/.venv/bin/python"
+# MNEMO_CHAT_SCRIPT="/Users/yourname/devops/teaching/SE1/mnemo/tools/chat.py"
+
+# ── Provider defaults ─────────────────────────────────────────────────────────
+MNEMO_PROVIDER="anthropic"
+# MNEMO_MODEL="claude-sonnet-4-6"   # leave blank to use provider default
+
+# ── Sessions output directory ─────────────────────────────────────────────────
+# Set this in the project-level .mnemo_config, relative to where you source it.
+MNEMO_SESSIONS_DIR="./sessions/"
+
+# ── Persona aliases ───────────────────────────────────────────────────────────
+# Define aliases used by: chat with <name>
+# MNEMO_PERSONA_CLIO="/Users/yourname/devops/teaching/SE1/mnemo/Clio/clio_persona.md"
+# MNEMO_PERSONA_CALLIOPE="/Users/yourname/devops/teaching/SE1/mnemo/Calliope/calliope_persona_v2.md"
+
+# ── Generation mode default ───────────────────────────────────────────────────
+# "off" = conversational/chat mode  |  "on" = full artifact generation
+MNEMO_GENERATION="off"
