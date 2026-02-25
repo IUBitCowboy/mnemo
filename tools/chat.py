@@ -11,6 +11,7 @@ user's own prompts. It never reads, processes, or transmits student data.
 Usage:
     python tools/chat.py --persona <path> [--provider anthropic|gemini|ollama]
                          [--model <name>] [--sessions-dir <dir>]
+                         [--context <file> [<file> ...]]
 
 Environment variables:
     ANTHROPIC_API_KEY   — required for Anthropic provider
@@ -72,6 +73,13 @@ def parse_args():
         default=None,
         help="Directory for session files (env: MNEMO_SESSIONS_DIR, default: ./sessions/)",
     )
+    parser.add_argument(
+        "--context", "-c",
+        nargs="+",
+        metavar="FILE",
+        default=[],
+        help="Knowledge base files to append to the system prompt (e.g. decision_log.md)",
+    )
     return parser.parse_args()
 
 
@@ -106,6 +114,17 @@ def main():
         sys.exit(1)
     system_prompt = persona_path.read_text(encoding="utf-8").strip()
 
+    # Append knowledge base context files
+    context_paths = []
+    for ctx in args.context:
+        ctx_path = Path(ctx)
+        if not ctx_path.exists():
+            print(f"Error: context file not found: {ctx_path}", file=sys.stderr)
+            sys.exit(1)
+        system_prompt += f"\n\n---\n\n# Knowledge Base: {ctx_path.name}\n\n"
+        system_prompt += ctx_path.read_text(encoding="utf-8").strip()
+        context_paths.append(ctx_path)
+
     # Resolve provider, model, sessions dir
     provider_name, model = resolve_provider_and_model(args.provider, args.model)
     sessions_dir = resolve_sessions_dir(args.sessions_dir)
@@ -131,6 +150,8 @@ def main():
     print(f"  Provider : {provider_name}")
     print(f"  Model    : {model}")
     print(f"  Persona  : {persona_path}")
+    for ctx_path in context_paths:
+        print(f"  Context  : {ctx_path}")
     print(f"  Sessions : {session.path}")
     print(f"{'='*60}")
     print("  Type your message and press Enter. 'quit' or Ctrl+D to exit.")
