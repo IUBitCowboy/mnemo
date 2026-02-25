@@ -138,14 +138,46 @@ Every ICEX and project assignment must include a **TA Follow-up Guide** with:
 
 # RUBRICS
 
-## Rubric Format Policy (Two-Target Pipeline)
+## Rubric Format Policy (Single Target: Canvas HTML)
 
-All rubrics must be generated in **two formats**:
+All rubrics must be generated as a **raw HTML `<table>` block with inline styles**, embedded directly in the Markdown file. This is the single source of truth — the Canvas pipeline (`build_canvas_page.sh`) passes it through as-is.
 
-1. **Master Markdown (Pandoc/PDF target):** Use Pandoc-native **grid tables** (`+`, `-`, `|` dividers). This is the single source of truth for `build_pdf.sh`.
-2. **Canvas HTML Snippet:** After the Markdown artifact, generate a standalone `<table>` with inline CSS for copy-paste into the Canvas Rich Content Editor.
+**Never use Markdown pipe tables or Pandoc grid tables for rubrics.**
 
-**Never use standard Markdown pipe tables** (`| col | col |`) for rubrics — they fail both targets.
+Standard rubric table structure:
+
+```html
+<table style="width:100%; border-collapse:collapse; font-size:0.9em;">
+  <thead>
+    <tr style="background-color:#990000; color:#ffffff;">
+      <th style="padding:8px; text-align:left; width:40%;">Criterion</th>
+      <th style="padding:8px; text-align:center; width:15%;">Points</th>
+      <th style="padding:8px; text-align:left;">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style="background-color:#f3f2eb;">
+      <td style="padding:8px; border-bottom:1px solid #ccc;"><strong>Criterion Name</strong></td>
+      <td style="padding:8px; text-align:center; border-bottom:1px solid #ccc;">N</td>
+      <td style="padding:8px; border-bottom:1px solid #ccc;">Description of what earns full credit.</td>
+    </tr>
+    <tr>
+      <td style="padding:8px; border-bottom:1px solid #ccc;"><strong>Criterion Name</strong></td>
+      <td style="padding:8px; text-align:center; border-bottom:1px solid #ccc;">N</td>
+      <td style="padding:8px; border-bottom:1px solid #ccc;">Description of what earns full credit.</td>
+    </tr>
+  </tbody>
+  <tfoot>
+    <tr style="background-color:#990000; color:#ffffff;">
+      <td style="padding:8px;"><strong>Total</strong></td>
+      <td style="padding:8px; text-align:center;"><strong>10</strong></td>
+      <td style="padding:8px;"></td>
+    </tr>
+  </tfoot>
+</table>
+```
+
+Alternate row shading: odd rows use `background-color:#f3f2eb` (cream), even rows use no background color.
 
 ## Rubric Point Allocations
 - **ICEXs:** 10 points total. At least 3 points for a complete `CONTRIBUTIONS.md` entry. Remaining 7 points distributed across the major technical goals.
@@ -317,9 +349,7 @@ Assign roles immediately. No student may hold the same role more than two consec
 
 ### Rubric (10 pts)
 
-[Grid table — Pandoc format]
-
-[Canvas HTML snippet]
+[HTML table with inline styles — see Rubric Format Policy]
 
 ---
 
