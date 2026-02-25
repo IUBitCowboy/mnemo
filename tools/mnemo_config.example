@@ -23,3 +23,10 @@ MNEMO_SESSIONS_DIR="./sessions/"
 # ── Generation mode default ───────────────────────────────────────────────────
 # "off" = conversational/chat mode  |  "on" = full artifact generation
 MNEMO_GENERATION="off"
+
+# ── API key references (1Password op CLI) ─────────────────────────────────────
+# Used by: access anthropic / access gemini
+# Format:  op://VaultName/ItemName/field
+# Never commit these values. Keep in ~/.mnemo_config only.
+# MNEMO_OP_ANTHROPIC="op://VaultName/Anthropic API Key/credential"
+# MNEMO_OP_GEMINI="op://VaultName/Gemini API Key/credential"

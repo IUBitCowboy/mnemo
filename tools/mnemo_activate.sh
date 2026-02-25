@@ -11,6 +11,8 @@
 #   provider <name>        — set provider: anthropic | gemini | ollama
 #   model <name>           — set model (empty = provider default)
 #   generation on|off      — toggle artifact generation mode (default: off)
+#   access anthropic       — load ANTHROPIC_API_KEY from 1Password (requires op CLI)
+#   access gemini          — load GEMINI_API_KEY from 1Password (requires op CLI)
 #   mnemo                  — show current session configuration
 #   mnemo reset            — reset all session state to config defaults
 #
@@ -20,6 +22,10 @@
 #
 # Persona aliases are defined in config as:
 #   MNEMO_PERSONA_<NAME>=/path/to/persona.md   (NAME is case-insensitive)
+#
+# API key op references (set in ~/.mnemo_config — never commit these):
+#   MNEMO_OP_ANTHROPIC="op://VaultName/ItemName/field"
+#   MNEMO_OP_GEMINI="op://VaultName/ItemName/field"
 
 # ── Internal bookkeeping ──────────────────────────────────────────────────────
 
@@ -209,6 +215,55 @@ generation() {
     esac
 }
 
+access() {
+    # access anthropic  — load ANTHROPIC_API_KEY from 1Password
+    # access gemini     — load GEMINI_API_KEY from 1Password
+    #
+    # Requires op (1Password CLI) and the corresponding MNEMO_OP_* reference
+    # set in ~/.mnemo_config. The key value is never printed.
+    local provider="$1"
+    if [[ -z "$provider" ]]; then
+        echo "usage: access anthropic|gemini" >&2; return 1
+    fi
+
+    if ! command -v op &>/dev/null; then
+        echo "mnemo: 'op' not found. Install: brew install 1password-cli" >&2
+        return 1
+    fi
+
+    local op_ref env_var
+    case "$provider" in
+        anthropic)
+            op_ref="$MNEMO_OP_ANTHROPIC"
+            env_var="ANTHROPIC_API_KEY"
+            ;;
+        gemini)
+            op_ref="$MNEMO_OP_GEMINI"
+            env_var="GEMINI_API_KEY"
+            ;;
+        *)
+            echo "mnemo: unknown provider '$provider'. Choose: anthropic, gemini" >&2
+            return 1
+            ;;
+    esac
+
+    if [[ -z "$op_ref" ]]; then
+        echo "mnemo: MNEMO_OP_${provider^^} not set." >&2
+        echo "       Add to ~/.mnemo_config:  MNEMO_OP_$(echo "$provider" | tr '[:lower:]' '[:upper:]')=\"op://Vault/Item/field\"" >&2
+        return 1
+    fi
+
+    # Read from 1Password — value goes directly into env var, never echoed
+    local _key
+    if ! _key="$(op read "$op_ref" 2>&1)"; then
+        echo "mnemo: op read failed: $_key" >&2
+        return 1
+    fi
+    export "$env_var"="$_key"
+    unset _key
+    echo "  $env_var set"
+}
+
 mnemo() {
     case "$1" in
         reset)
@@ -223,10 +278,13 @@ mnemo() {
             local gen_label="off (chat mode)"
             [[ "$MNEMO_GENERATION" == "on" ]] && gen_label="ON (generation mode)"
             echo ""
+            local key_status="not set — run: access anthropic"
+            [[ -n "$ANTHROPIC_API_KEY" ]] && key_status="set"
             echo "  ┌─ Mnemo Session ──────────────────────────────"
             echo "  │  Persona    : ${MNEMO_PERSONA:-<not set>}"
             echo "  │  Provider   : $MNEMO_PROVIDER"
             echo "  │  Model      : ${MNEMO_MODEL:-<provider default>}"
+            echo "  │  API key    : $key_status"
             echo "  │  Sessions   : $MNEMO_SESSIONS_DIR"
             echo "  │  Generation : $gen_label"
             echo "  │  KB files   :"
