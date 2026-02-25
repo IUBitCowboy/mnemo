@@ -177,7 +177,7 @@ def main():
 
         # Call provider
         try:
-            response = provider.chat(system_prompt, messages)
+            response, usage = provider.chat(system_prompt, messages)
         except Exception as e:
             print(f"\nError from provider: {e}\n", file=sys.stderr)
             # Remove the failed user message so history stays consistent
@@ -188,11 +188,18 @@ def main():
 
         # Print response
         print(f"\nAssistant: {response}\n")
+        if usage:
+            print(f"  [tokens — in: {usage['input_tokens']:,}  out: {usage['output_tokens']:,}  turn: {usage['input_tokens'] + usage['output_tokens']:,}]\n")
 
         # Append to session file immediately
-        session.append_turn(user_input, response)
+        session.append_turn(user_input, response, usage)
+
+    session.write_summary()
 
     if session._initialized:
+        if session._total_input or session._total_output:
+            total = session._total_input + session._total_output
+            print(f"Session totals — in: {session._total_input:,}  out: {session._total_output:,}  total: {total:,} tokens")
         print(f"Session saved to: {session.path}")
     else:
         print("No messages exchanged — no session file created.")

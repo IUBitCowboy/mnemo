@@ -1,8 +1,10 @@
 """
 Provider adapters for Mnemo CLI chat tool.
 
-Each provider implements: chat(system_prompt: str, messages: list[dict]) -> str
-where messages is the standard [{"role": "user"|"assistant", "content": "..."}] format.
+Each provider implements: chat(system_prompt: str, messages: list[dict]) -> (str, dict)
+where the tuple is (response_text, usage) and usage is:
+  {"input_tokens": int, "output_tokens": int}
+or None if the provider does not report usage.
 """
 
 import os
@@ -35,14 +37,18 @@ class AnthropicProvider:
         self.client = anthropic_sdk.Anthropic(api_key=api_key)
         self.model = model
 
-    def chat(self, system_prompt: str, messages: list[dict]) -> str:
+    def chat(self, system_prompt: str, messages: list[dict]) -> tuple:
         response = self.client.messages.create(
             model=self.model,
             max_tokens=8192,
             system=system_prompt,
             messages=messages,
         )
-        return response.content[0].text
+        usage = {
+            "input_tokens": response.usage.input_tokens,
+            "output_tokens": response.usage.output_tokens,
+        }
+        return response.content[0].text, usage
 
 
 class GeminiProvider:
@@ -60,7 +66,7 @@ class GeminiProvider:
         self.genai = genai
         self.model = model
 
-    def chat(self, system_prompt: str, messages: list[dict]) -> str:
+    def chat(self, system_prompt: str, messages: list[dict]) -> tuple:
         model = self.genai.GenerativeModel(
             model_name=self.model,
             system_instruction=system_prompt,
@@ -73,7 +79,13 @@ class GeminiProvider:
 
         chat = model.start_chat(history=history)
         response = chat.send_message(messages[-1]["content"])
-        return response.text
+        usage = None
+        if hasattr(response, "usage_metadata") and response.usage_metadata:
+            usage = {
+                "input_tokens": response.usage_metadata.prompt_token_count,
+                "output_tokens": response.usage_metadata.candidates_token_count,
+            }
+        return response.text, usage
 
 
 class OllamaProvider:
@@ -83,7 +95,7 @@ class OllamaProvider:
         self.model = model
         self.host = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
 
-    def chat(self, system_prompt: str, messages: list[dict]) -> str:
+    def chat(self, system_prompt: str, messages: list[dict]) -> tuple:
         # Prepend system prompt as a system message
         full_messages = [{"role": "system", "content": system_prompt}] + messages
         payload = {
@@ -100,4 +112,11 @@ class OllamaProvider:
             response.raise_for_status()
         except requests.ConnectionError:
             raise ConnectionError(f"Cannot connect to Ollama at {self.host}. Is Ollama running?")
-        return response.json()["message"]["content"]
+        data = response.json()
+        usage = None
+        if "prompt_eval_count" in data and "eval_count" in data:
+            usage = {
+                "input_tokens": data["prompt_eval_count"],
+                "output_tokens": data["eval_count"],
+            }
+        return data["message"]["content"], usage
