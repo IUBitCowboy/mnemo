@@ -78,7 +78,7 @@ def parse_args():
         nargs="+",
         metavar="FILE",
         default=[],
-        help="Knowledge base files to append to the system prompt (e.g. decision_log.md)",
+        help="Knowledge base files to inject as a priming exchange before the conversation (e.g. clio_kb_SP26.md)",
     )
     return parser.parse_args()
 
@@ -114,15 +114,24 @@ def main():
         sys.exit(1)
     system_prompt = persona_path.read_text(encoding="utf-8").strip()
 
-    # Append knowledge base context files
+    # Build priming messages from context files (injected as a synthetic
+    # user/assistant exchange so the system prompt stays constant and cacheable)
     context_paths = []
+    priming_messages = []
     for ctx in args.context:
         ctx_path = Path(ctx)
         if not ctx_path.exists():
             print(f"Error: context file not found: {ctx_path}", file=sys.stderr)
             sys.exit(1)
-        system_prompt += f"\n\n---\n\n# Knowledge Base: {ctx_path.name}\n\n"
-        system_prompt += ctx_path.read_text(encoding="utf-8").strip()
+        content = ctx_path.read_text(encoding="utf-8").strip()
+        priming_messages.append({
+            "role": "user",
+            "content": f"Here is the knowledge base for this session ({ctx_path.name}):\n\n{content}",
+        })
+        priming_messages.append({
+            "role": "assistant",
+            "content": "Understood. I have reviewed the knowledge base and am ready to assist.",
+        })
         context_paths.append(ctx_path)
 
     # Resolve provider, model, sessions dir
@@ -157,7 +166,7 @@ def main():
     print("  Type your message and press Enter. 'quit' or Ctrl+D to exit.")
     print(f"{'='*60}\n")
 
-    messages = []
+    messages = priming_messages.copy()
 
     while True:
         # Read user input
