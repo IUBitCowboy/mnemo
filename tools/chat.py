@@ -23,7 +23,15 @@ Environment variables:
 import argparse
 import os
 import sys
+import time
 from pathlib import Path
+
+try:
+    from prompt_toolkit import prompt as pt_prompt
+    from prompt_toolkit.formatted_text import HTML
+    HAS_PROMPT_TOOLKIT = True
+except ImportError:
+    HAS_PROMPT_TOOLKIT = False
 
 # Allow running from any directory by adding tools/ to path
 sys.path.insert(0, str(Path(__file__).parent))
@@ -104,6 +112,73 @@ def resolve_provider_and_model(provider_arg: str | None, model_arg: str | None) 
     return provider, model
 
 
+def _cache_toolbar(last_response_time: float, cache_ttl: int):
+    """Return a prompt_toolkit HTML toolbar string showing cache countdown."""
+    remaining = cache_ttl - (time.time() - last_response_time)
+    if remaining <= 0:
+        return HTML('<style bg="ansired" fg="ansiwhite"> cache: EXPIRED </style>')
+    elif remaining <= 10:
+        label = f"cache: {int(remaining)}s"
+        return HTML(f'<style bg="ansired" fg="ansiwhite"> {label} </style>')
+    elif remaining <= 60:
+        # Round to nearest 5 so the display only visually steps every ~5 seconds
+        rounded = round(remaining / 5) * 5
+        label = f"cache: {rounded}s"
+        return HTML(f'<style bg="ansiyellow" fg="ansiblack"> {label} </style>')
+    else:
+        # Display in whole minutes — changes once per minute
+        label = f"cache: {int(remaining // 60)}m"
+        return HTML(f'<style bg="ansigreen" fg="ansiwhite"> {label} </style>')
+
+
+def read_input(last_response_time: float | None, cache_ttl: int) -> str:
+    """Read a line of user input, with live cache countdown toolbar when available."""
+    if HAS_PROMPT_TOOLKIT and last_response_time is not None:
+        def toolbar():
+            return _cache_toolbar(last_response_time, cache_ttl)
+        line = pt_prompt("You: ", bottom_toolbar=toolbar, refresh_interval=1.0).strip()
+        while line.endswith("\\"):
+            line = line[:-1] + "\n" + pt_prompt("... ").strip()
+    else:
+        line = input("You: ").strip()
+        while line.endswith("\\"):
+            line = line[:-1] + "\n" + input("... ").strip()
+    return line
+
+
+def mark_priming_for_cache(messages: list[dict]) -> list[dict]:
+    """Return a copy of messages with the last entry's content marked for caching.
+
+    Converts the last message's string content to the Anthropic list format
+    with cache_control so the entire system+priming prefix is cached as one block.
+    """
+    if not messages:
+        return messages
+    result = [dict(m) for m in messages]
+    last = result[-1]
+    if isinstance(last["content"], str):
+        last["content"] = [
+            {"type": "text", "text": last["content"], "cache_control": {"type": "ephemeral"}}
+        ]
+    return result
+
+
+def format_usage(usage: dict) -> str:
+    inp = usage.get("input_tokens", 0)
+    out = usage.get("output_tokens", 0)
+    hit = usage.get("cache_read", 0)
+    write = usage.get("cache_write", 0)
+
+    parts = [f"in: {inp:,}"]
+    if hit:
+        parts.append(f"cached: {hit:,}")
+    if write:
+        parts.append(f"cache_write: {write:,}")
+    parts.append(f"out: {out:,}")
+    parts.append(f"turn: {inp + out:,}")
+    return "  ".join(parts)
+
+
 def main():
     args = parse_args()
 
@@ -167,14 +242,18 @@ def main():
     print("  End a line with \\ to continue on the next line before sending.")
     print(f"{'='*60}\n")
 
+    # Mark last priming message for caching if the provider supports it
+    if priming_messages and hasattr(provider, "supports_caching") and provider.supports_caching():
+        priming_messages = mark_priming_for_cache(priming_messages)
+
+    cache_ttl = getattr(provider, "CACHE_TTL", 300)
     messages = priming_messages.copy()
+    last_response_time: float | None = None
 
     while True:
-        # Read user input, supporting backslash line continuation
+        # Read user input with live cache countdown (if prompt_toolkit available)
         try:
-            user_input = input("You: ").strip()
-            while user_input.endswith("\\"):
-                user_input = user_input[:-1] + "\n" + input("... ").strip()
+            user_input = read_input(last_response_time, cache_ttl)
         except (EOFError, KeyboardInterrupt):
             print()
             break
@@ -190,6 +269,7 @@ def main():
         # Call provider
         try:
             response, usage = provider.chat(system_prompt, messages)
+            last_response_time = time.time()
         except Exception as e:
             print(f"\nError from provider: {e}\n", file=sys.stderr)
             # Remove the failed user message so history stays consistent
@@ -201,7 +281,7 @@ def main():
         # Print response
         print(f"\nAssistant: {response}\n")
         if usage:
-            print(f"  [tokens — in: {usage['input_tokens']:,}  out: {usage['output_tokens']:,}  turn: {usage['input_tokens'] + usage['output_tokens']:,}]\n")
+            print(f"  [{format_usage(usage)}]\n")
 
         # Append to session file immediately
         session.append_turn(user_input, response, usage)

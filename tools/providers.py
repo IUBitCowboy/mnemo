@@ -25,6 +25,7 @@ def get_provider(name: str, model: str):
 
 class AnthropicProvider:
     DEFAULT_MODEL = "claude-sonnet-4-6"
+    CACHE_TTL = 300  # 5 minutes
 
     def __init__(self, model: str):
         try:
@@ -37,16 +38,24 @@ class AnthropicProvider:
         self.client = anthropic_sdk.Anthropic(api_key=api_key)
         self.model = model
 
+    def supports_caching(self) -> bool:
+        return True
+
     def chat(self, system_prompt: str, messages: list[dict]) -> tuple:
+        # Structured system prompt enables prompt caching for the persona/system content
+        system = [{"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}]
         response = self.client.messages.create(
             model=self.model,
             max_tokens=8192,
-            system=system_prompt,
+            system=system,
             messages=messages,
         )
+        u = response.usage
         usage = {
-            "input_tokens": response.usage.input_tokens,
-            "output_tokens": response.usage.output_tokens,
+            "input_tokens": u.input_tokens,
+            "output_tokens": u.output_tokens,
+            "cache_read": getattr(u, "cache_read_input_tokens", 0) or 0,
+            "cache_write": getattr(u, "cache_creation_input_tokens", 0) or 0,
         }
         return response.content[0].text, usage
 
