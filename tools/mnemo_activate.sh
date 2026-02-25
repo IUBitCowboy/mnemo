@@ -25,9 +25,9 @@
 
 _MNEMO_TOOLS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Load global config, then local config (local wins)
-[[ -f "$HOME/.mnemo_config" ]]  && source "$HOME/.mnemo_config"
-[[ -f ".mnemo_config" ]]        && source ".mnemo_config"
+# Load global config for machine-level defaults (Python path, etc.).
+# Project-specific config (persona paths, sessions dir) is handled by direnv .envrc.
+[[ -f "$HOME/.mnemo_config" ]] && source "$HOME/.mnemo_config"
 
 # Resolve Python and chat script (config can override)
 MNEMO_PYTHON="${MNEMO_PYTHON:-$_MNEMO_TOOLS_DIR/../.venv/bin/python}"
@@ -246,6 +246,4 @@ mnemo() {
     esac
 }
 
-# ── Activation banner ─────────────────────────────────────────────────────────
-
-echo "  Mnemo shell helpers loaded. Type 'mnemo' to see current state."
+# Helpers loaded silently. Type 'mnemo' to see current session state.
