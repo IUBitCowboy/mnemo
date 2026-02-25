@@ -164,14 +164,17 @@ def main():
     print(f"  Sessions : {session.path}")
     print(f"{'='*60}")
     print("  Type your message and press Enter. 'quit' or Ctrl+D to exit.")
+    print("  End a line with \\ to continue on the next line before sending.")
     print(f"{'='*60}\n")
 
     messages = priming_messages.copy()
 
     while True:
-        # Read user input
+        # Read user input, supporting backslash line continuation
         try:
             user_input = input("You: ").strip()
+            while user_input.endswith("\\"):
+                user_input = user_input[:-1] + "\n" + input("... ").strip()
         except (EOFError, KeyboardInterrupt):
             print()
             break
