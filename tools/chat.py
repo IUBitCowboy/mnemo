@@ -240,6 +240,7 @@ def main():
     print(f"{'='*60}")
     print("  Type your message and press Enter. 'quit' or Ctrl+D to exit.")
     print("  End a line with \\ to continue on the next line before sending.")
+    print("  /new  — save this session and start a fresh one  (// to send a literal /)")
     print(f"{'='*60}\n")
 
     # Mark last priming message for caching if the provider supports it
@@ -263,6 +264,29 @@ def main():
 
         if user_input.lower() in ("quit", "exit"):
             break
+
+        # Slash commands — // escapes to a literal /
+        if user_input.startswith("/"):
+            if user_input.startswith("//"):
+                user_input = user_input[1:]  # strip one slash, send the rest
+            elif user_input.lower() == "/new":
+                # Finalise current session and open a fresh one
+                session.write_summary()
+                if session._initialized:
+                    print(f"  Session saved: {session.path}\n")
+                session = Session(
+                    sessions_dir=sessions_dir,
+                    persona_path=str(persona_path),
+                    provider=provider_name,
+                    model=model,
+                )
+                messages = priming_messages.copy()
+                last_response_time = None
+                print(f"  New session — {session.path}\n")
+                continue
+            else:
+                print(f"  Unknown command '{user_input}'. Known: /new  (use // for a literal /)\n")
+                continue
 
         messages.append({"role": "user", "content": user_input})
 
