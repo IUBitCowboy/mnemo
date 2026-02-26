@@ -10,7 +10,10 @@
 #   kb clear               — clear all KB context files
 #   provider <name>        — set provider: anthropic | gemini | ollama
 #   model <name>           — set model (empty = provider default)
-#   generation on|off      — toggle artifact generation mode (default: off)
+#   generation [icex|slides|project]  — set artifact context layer
+#   generation [clear|focus on|off]   — clear layer or toggle full-output mode
+#   generation [on|off]               — aliases: on=focus on, off=clear+focus off
+#   generation                        — show current artifact and focus state
 #   access anthropic       — load ANTHROPIC_API_KEY from 1Password (requires op CLI)
 #   access gemini          — load GEMINI_API_KEY from 1Password (requires op CLI)
 #   mnemo                  — show current session configuration
@@ -26,6 +29,12 @@
 # API key op references (set in ~/.mnemo_config — never commit these):
 #   MNEMO_OP_ANTHROPIC="op://VaultName/ItemName/field"
 #   MNEMO_OP_GEMINI="op://VaultName/ItemName/field"
+#
+# Provider layer scope (override in ~/.mnemo_config to change defaults):
+#   MNEMO_LAYER_SCOPE_ANTHROPIC="*"       # assemble all artifact layers (default)
+#   MNEMO_LAYER_SCOPE_GEMINI="*"          # assemble all artifact layers (default)
+#   MNEMO_LAYER_SCOPE_OLLAMA="focused"    # use selected layer only (default)
+#   Values: "*" = all layers; "focused" = MNEMO_ARTIFACT_LAYER only
 
 # ── Internal bookkeeping ──────────────────────────────────────────────────────
 
@@ -44,8 +53,15 @@ MNEMO_PROVIDER="${MNEMO_PROVIDER:-anthropic}"
 MNEMO_MODEL="${MNEMO_MODEL:-}"
 MNEMO_SESSIONS_DIR="${MNEMO_SESSIONS_DIR:-./sessions/}"
 MNEMO_PERSONA="${MNEMO_PERSONA:-}"
-MNEMO_GENERATION="${MNEMO_GENERATION:-off}"
+MNEMO_ARTIFACT_LAYER=""                    # path to artifact layer file, or empty
+MNEMO_FOCUS="${MNEMO_FOCUS:-off}"          # "on" → inject mode_generate.md; "off" → inject mode_chat.md
 MNEMO_KB=()  # Always start with empty KB; use 'add kb' to populate
+
+# Provider layer scope defaults (override in ~/.mnemo_config)
+# "*" = assemble all artifact layers at launch; "focused" = MNEMO_ARTIFACT_LAYER only
+MNEMO_LAYER_SCOPE_ANTHROPIC="${MNEMO_LAYER_SCOPE_ANTHROPIC:-*}"
+MNEMO_LAYER_SCOPE_GEMINI="${MNEMO_LAYER_SCOPE_GEMINI:-*}"
+MNEMO_LAYER_SCOPE_OLLAMA="${MNEMO_LAYER_SCOPE_OLLAMA:-focused}"
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
@@ -64,6 +80,20 @@ _mnemo_resolve_persona() {
     else
         echo ""
     fi
+}
+
+_mnemo_discover_layers() {
+    # Find all artifact layer files for the current muse persona directory.
+    # Convention: <muse>_<type>.md — excludes *_base.md and *_persona.md.
+    # Prints one absolute path per line, alphabetically sorted.
+    local muse_dir muse_name
+    muse_dir="$(dirname "$MNEMO_PERSONA")"
+    muse_name="$(basename "$muse_dir" | tr '[:upper:]' '[:lower:]')"
+    for f in "$muse_dir"/${muse_name}_*.md; do
+        [[ "$f" == *_base.md ]] && continue
+        [[ "$f" == *_persona.md ]] && continue
+        [[ -f "$f" ]] && echo "$f"
+    done | sort
 }
 
 _mnemo_list_personas() {
@@ -110,10 +140,48 @@ chat() {
         return 1
     fi
 
-    # Build --context args: mode file first, then user KB files
+    # Assemble system prompt: base persona + artifact layer(s), baked in before launch.
+    # Resolution order:
+    #   1. Explicit MNEMO_ARTIFACT_LAYER → focused (one layer, overrides provider scope)
+    #   2. Provider scope "*"            → all discovered layers assembled
+    #   3. Provider scope "focused"/other → base only
+    local assembled_persona base_name
+    base_name="$(basename "$MNEMO_PERSONA" .md)"
+    if [[ -n "$MNEMO_ARTIFACT_LAYER" ]]; then
+        # Explicit selection: one layer, overrides provider scope default
+        local layer_name
+        layer_name="$(basename "$MNEMO_ARTIFACT_LAYER" .md)"
+        assembled_persona="/tmp/${base_name}+${layer_name}.md"
+        cat "$MNEMO_PERSONA" "$MNEMO_ARTIFACT_LAYER" > "$assembled_persona"
+        echo "  Assembled → $assembled_persona"
+    else
+        local pvar="MNEMO_LAYER_SCOPE_${MNEMO_PROVIDER^^}"
+        local layer_scope="${!pvar:-focused}"
+        if [[ "$layer_scope" == "*" ]]; then
+            # Provider scope: assemble all discovered artifact layers
+            local all_layers=() layer_names=""
+            while IFS= read -r f; do
+                all_layers+=("$f")
+                layer_names+="$(basename "$f" .md) "
+            done < <(_mnemo_discover_layers)
+            if [[ ${#all_layers[@]} -gt 0 ]]; then
+                assembled_persona="/tmp/${base_name}+all.md"
+                cat "$MNEMO_PERSONA" "${all_layers[@]}" > "$assembled_persona"
+                echo "  Assembled → $assembled_persona  [${#all_layers[@]} layers: ${layer_names% }]"
+            else
+                assembled_persona="$MNEMO_PERSONA"
+                echo "  Assembled → (no layers found — using base only)"
+            fi
+        else
+            # Provider scope "focused" with no explicit selection: base only
+            assembled_persona="$MNEMO_PERSONA"
+        fi
+    fi
+
+    # Build --context args: mode file, then user KB files
     local ctx_args=()
     local mode_file
-    if [[ "$MNEMO_GENERATION" == "on" ]]; then
+    if [[ "$MNEMO_FOCUS" == "on" ]]; then
         mode_file="$_MNEMO_TOOLS_DIR/modes/mode_generate.md"
     else
         mode_file="$_MNEMO_TOOLS_DIR/modes/mode_chat.md"
@@ -128,7 +196,7 @@ chat() {
 
     echo ""
     "$MNEMO_PYTHON" "$MNEMO_CHAT_SCRIPT" \
-        --persona "$MNEMO_PERSONA" \
+        --persona "$assembled_persona" \
         --provider "$MNEMO_PROVIDER" \
         --sessions-dir "$MNEMO_SESSIONS_DIR" \
         "${model_args[@]}" \
@@ -198,19 +266,72 @@ model() {
 
 generation() {
     case "$1" in
+        icex|slides|project)
+            # Resolve artifact layer from persona directory
+            if [[ -z "$MNEMO_PERSONA" ]]; then
+                echo "mnemo: no persona set — run 'chat with <name>' first" >&2; return 1
+            fi
+            local muse_dir artifact_type layer_file
+            muse_dir="$(dirname "$MNEMO_PERSONA")"
+            artifact_type="$1"
+            local muse_name
+            muse_name="$(basename "$muse_dir" | tr '[:upper:]' '[:lower:]')"
+            layer_file="$muse_dir/${muse_name}_${artifact_type}.md"
+            if [[ ! -f "$layer_file" ]]; then
+                echo "mnemo: artifact layer not found: $layer_file" >&2; return 1
+            fi
+            MNEMO_ARTIFACT_LAYER="$layer_file"
+            echo "  Artifact → $layer_file"
+            ;;
+        clear)
+            MNEMO_ARTIFACT_LAYER=""
+            echo "  Artifact layer cleared"
+            ;;
+        focus)
+            case "$2" in
+                on)
+                    MNEMO_FOCUS="on"
+                    echo "  Focus → on (generation mode)"
+                    ;;
+                off)
+                    MNEMO_FOCUS="off"
+                    echo "  Focus → off (conversational)"
+                    ;;
+                *)
+                    echo "usage: generation focus on|off" >&2; return 1
+                    ;;
+            esac
+            ;;
         on)
-            MNEMO_GENERATION="on"
-            echo "  Generation mode ON — Clio will produce complete artifacts"
+            # Alias: focus on (no artifact layer change)
+            MNEMO_FOCUS="on"
+            echo "  Focus → on (generation mode)"
             ;;
         off)
-            MNEMO_GENERATION="off"
-            echo "  Generation mode OFF — Clio will work conversationally"
+            # Alias: clear artifact layer + focus off
+            MNEMO_ARTIFACT_LAYER=""
+            MNEMO_FOCUS="off"
+            echo "  Artifact layer cleared, Focus → off (conversational)"
             ;;
         "")
-            echo "  Generation: $MNEMO_GENERATION"
+            # Status display
+            local artifact_label focus_label scope_label
+            artifact_label="${MNEMO_ARTIFACT_LAYER:-(none)}"
+            focus_label="off (conversational)"
+            [[ "$MNEMO_FOCUS" == "on" ]] && focus_label="on (generation mode)"
+            local pvar="MNEMO_LAYER_SCOPE_${MNEMO_PROVIDER^^}"
+            local scope="${!pvar:-focused}"
+            if [[ -n "$MNEMO_ARTIFACT_LAYER" ]]; then
+                scope_label="focused (explicit — overrides ${MNEMO_PROVIDER} default: ${scope})"
+            else
+                scope_label="${scope} (${MNEMO_PROVIDER} default)"
+            fi
+            echo "  Artifact   : $artifact_label"
+            echo "  Layer scope: $scope_label"
+            echo "  Focus      : $focus_label"
             ;;
         *)
-            echo "usage: generation on|off" >&2; return 1
+            echo "usage: generation [icex|slides|project|clear|focus on|off|on|off]" >&2; return 1
             ;;
     esac
 }
@@ -270,13 +391,23 @@ mnemo() {
             MNEMO_PROVIDER="${MNEMO_PROVIDER_DEFAULT:-anthropic}"
             MNEMO_MODEL=""
             MNEMO_PERSONA=""
-            MNEMO_GENERATION="off"
+            MNEMO_ARTIFACT_LAYER=""
+            MNEMO_FOCUS="off"
             MNEMO_KB=()
             echo "  Session state reset to defaults"
             ;;
         ""|status)
-            local gen_label="off (chat mode)"
-            [[ "$MNEMO_GENERATION" == "on" ]] && gen_label="ON (generation mode)"
+            local focus_label="off (conversational)"
+            [[ "$MNEMO_FOCUS" == "on" ]] && focus_label="on (generation mode)"
+            local artifact_label="${MNEMO_ARTIFACT_LAYER:-(none)}"
+            local pvar="MNEMO_LAYER_SCOPE_${MNEMO_PROVIDER^^}"
+            local scope="${!pvar:-focused}"
+            local scope_label
+            if [[ -n "$MNEMO_ARTIFACT_LAYER" ]]; then
+                scope_label="focused (explicit — overrides ${MNEMO_PROVIDER} default: ${scope})"
+            else
+                scope_label="${scope} (${MNEMO_PROVIDER} default)"
+            fi
             echo ""
             local key_status="not set — run: access anthropic"
             [[ -n "$ANTHROPIC_API_KEY" ]] && key_status="set"
@@ -286,7 +417,9 @@ mnemo() {
             echo "  │  Model      : ${MNEMO_MODEL:-<provider default>}"
             echo "  │  API key    : $key_status"
             echo "  │  Sessions   : $MNEMO_SESSIONS_DIR"
-            echo "  │  Generation : $gen_label"
+            echo "  │  Layer scope: $scope_label"
+            echo "  │  Artifact   : $artifact_label"
+            echo "  │  Focus      : $focus_label"
             echo "  │  KB files   :"
             if [[ ${#MNEMO_KB[@]} -eq 0 ]]; then
                 echo "  │    (none)"

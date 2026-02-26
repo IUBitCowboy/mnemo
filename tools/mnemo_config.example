@@ -17,12 +17,21 @@ MNEMO_SESSIONS_DIR="./sessions/"
 
 # ── Persona aliases ───────────────────────────────────────────────────────────
 # Define aliases used by: chat with <name>
-# MNEMO_PERSONA_CLIO="/Users/yourname/devops/teaching/SE1/mnemo/Clio/clio_persona.md"
+# MNEMO_PERSONA_CLIO="/Users/yourname/devops/teaching/SE1/mnemo/Clio/clio_base.md"
 # MNEMO_PERSONA_CALLIOPE="/Users/yourname/devops/teaching/SE1/mnemo/Calliope/calliope_persona_v2.md"
 
-# ── Generation mode default ───────────────────────────────────────────────────
+# ── Focus mode default ────────────────────────────────────────────────────────
 # "off" = conversational/chat mode  |  "on" = full artifact generation
-MNEMO_GENERATION="off"
+MNEMO_FOCUS="off"
+
+# ── Provider layer scope ──────────────────────────────────────────────────────
+# Controls how many artifact layers are assembled into the system prompt at launch.
+# "*"       = assemble all discovered layers (good for large-context cloud models)
+# "focused" = use only the explicitly selected MNEMO_ARTIFACT_LAYER (good for local models)
+# These are the built-in defaults — uncomment to override:
+# MNEMO_LAYER_SCOPE_ANTHROPIC="*"
+# MNEMO_LAYER_SCOPE_GEMINI="*"
+# MNEMO_LAYER_SCOPE_OLLAMA="focused"
 
 # ── API key references (1Password op CLI) ─────────────────────────────────────
 # Used by: access anthropic / access gemini

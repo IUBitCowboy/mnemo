@@ -1,0 +1,269 @@
+# ICEX WORKFLOW
+
+**Terminology:** Always use **ICEX** (In-Class Exercise). Never use "ICE."
+
+Every ICEX must follow this structure and include all sections below.
+
+## Parallel Processing Kit (4 Roles)
+
+Define these four roles at the top of every ICEX. Assign setup tasks concurrently. Adapt descriptions to the specific ICEX context.
+
+| Role | Domain | Default Responsibility |
+|---|---|---|
+| **Repo Admin** | Repository hygiene | Branch creation, PR setup, merge management |
+| **Process Lead** | Coordination + documentation | Runs the sync callouts, owns `CONTRIBUTIONS.md`, tracks DoD |
+| **Dev Lead** | Primary implementation | Core coding/configuration task for this ICEX |
+| **QA Sentinel** | Quality + CI/CD | Tests, linting, pipeline monitoring, code review |
+
+*On 5-person teams: the Dev Lead role pairs two people. On 3-person teams: one member holds two roles — state which pair explicitly.*
+*Course policy: no student may hold the same role more than two consecutive weeks.*
+
+## Sync Callouts
+
+ICEXs must include explicit **Sync Callouts** — moments where parallel work must converge before the next phase begins. Format:
+
+> **⚡ SYNC — [Checkpoint Name]**
+> Before proceeding: [what must be true / what the team verifies together] *(~X min)*
+
+Typical ICEX structure:
+1. Role assignment + parallel setup (all 4 roles working concurrently)
+2. **⚡ SYNC — Setup Complete** (everyone confirms their piece is in place)
+3. Main task (roles may continue in parallel or converge, depending on the exercise)
+4. **⚡ SYNC — DoD Check** (team walks the Definition of Done checklist together)
+5. CONTRIBUTIONS.md entry + PR submission
+
+## CONTRIBUTIONS.md Log Entry
+
+Every ICEX must include a `CONTRIBUTIONS.md` entry block using this exact format:
+
+```markdown
+#### ICEX [Number]: [Exercise Title]
+* **Date:** YYYY-MM-DD
+* **Team Members Present:** `@github-user1`, `@github-user2`, ...
+* **Roles:**
+    * Repo Admin: `@github-userX`
+    * Process Lead: `@github-userY`
+    * Dev Lead: `@github-userZ`
+    * QA Sentinel: `@github-userW`
+* **Summary of Work:** [1-2 sentences on what was accomplished]
+* **Evidence & Reflection:** [ICEX-specific open-ended question inserted here]
+```
+
+## Definition of Done (DoD)
+
+Every ICEX must include a DoD checklist:
+
+```
+* [ ] Artifact: [the core technical artifact exists]
+* [ ] Functionality: [the artifact works as specified]
+* [ ] Process: CONTRIBUTIONS.md is updated and all members have pulled it locally
+* [ ] Submission: PR is open, titled correctly, and Team TA is assigned as Reviewer
+```
+
+## Standard Blocker Protocol (SBP)
+
+Include this section verbatim in every ICEX:
+
+> **If you are individually blocked for > 15 minutes** on an error you cannot solve:
+> 1. Notify your team and pivot to a support task (documentation, testing, research).
+> 2. Create an individual branch: `aar-icex[N]-<username>`
+> 3. Create `aar/AAR-ICEX[N]-<username>.md` using the AAR template.
+> 4. Open a PR titled `AAR ICEX [N]: <Brief Blocker Description>`, assign the Instructor as Reviewer.
+> 5. Submit this PR URL to Canvas as your on-time submission (worth 5 pts).
+> 6. After the instructor provides a hotfix, apply it, meet the DoD, and resubmit the passing PR (worth 5 pts).
+
+---
+
+# TA ROLES
+
+TAs are **Team Coaches**. They encourage, share experience, and help teams unblock. They have no authority beyond applying the provided rubrics.
+
+Every ICEX and project assignment must include a **TA Follow-up Guide** with:
+- In-class goal (the TA's #1 priority during the session)
+- Final DoD (what must be true by 11:59 PM)
+- 2–3 common pitfalls with symptoms and fixes
+- 2–3 coaching questions for the next team meeting
+- 1–2 feed-forward prompts pointing toward the next topic
+
+---
+
+# RUBRICS
+
+## Rubric Format Policy (Single Target: Canvas HTML)
+
+All rubrics must be generated as a **raw HTML `<table>` block with inline styles**, embedded directly in the Markdown file. This is the single source of truth — the Canvas pipeline (`build_canvas_page.sh`) passes it through as-is.
+
+**Never use Markdown pipe tables or Pandoc grid tables for rubrics.**
+
+Standard rubric table structure:
+
+```html
+<table style="width:100%; border-collapse:collapse; font-size:0.9em;">
+  <thead>
+    <tr style="background-color:#990000; color:#ffffff;">
+      <th style="padding:8px; text-align:left; width:40%;">Criterion</th>
+      <th style="padding:8px; text-align:center; width:15%;">Points</th>
+      <th style="padding:8px; text-align:left;">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style="background-color:#f3f2eb;">
+      <td style="padding:8px; border-bottom:1px solid #ccc;"><strong>Criterion Name</strong></td>
+      <td style="padding:8px; text-align:center; border-bottom:1px solid #ccc;">N</td>
+      <td style="padding:8px; border-bottom:1px solid #ccc;">Description of what earns full credit.</td>
+    </tr>
+    <tr>
+      <td style="padding:8px; border-bottom:1px solid #ccc;"><strong>Criterion Name</strong></td>
+      <td style="padding:8px; text-align:center; border-bottom:1px solid #ccc;">N</td>
+      <td style="padding:8px; border-bottom:1px solid #ccc;">Description of what earns full credit.</td>
+    </tr>
+  </tbody>
+  <tfoot>
+    <tr style="background-color:#990000; color:#ffffff;">
+      <td style="padding:8px;"><strong>Total</strong></td>
+      <td style="padding:8px; text-align:center;"><strong>10</strong></td>
+      <td style="padding:8px;"></td>
+    </tr>
+  </tfoot>
+</table>
+```
+
+Alternate row shading: odd rows use `background-color:#f3f2eb` (cream), even rows use no background color.
+
+## Rubric Point Allocations — ICEX
+
+- **ICEXs:** 10 points total. At least 3 points for a complete `CONTRIBUTIONS.md` entry. Remaining 7 points distributed across the major technical goals.
+
+---
+
+# ICEX OUTPUT TEMPLATE
+
+Use this template exactly when generating an ICEX.
+
+```markdown
+### ICEX [N]: [Exercise Title]
+
+- **Objective:** [Specific skill practiced or artifact produced]
+- **Time Limit:** [e.g., 30 minutes in-class; PR due 11:59 PM]
+- **Context:** [Bridge from prior lecture or Angband — why this, why now]
+
+---
+
+### Parallel Processing Kit ⚡
+
+Assign roles immediately. No student may hold the same role more than two consecutive weeks.
+
+| Role | Assigned To | First Task |
+|---|---|---|
+| Repo Admin | `@___` | [First concurrent task] |
+| Process Lead | `@___` | [First concurrent task] |
+| Dev Lead | `@___` | [First concurrent task] |
+| QA Sentinel | `@___` | [First concurrent task] |
+
+*5-person teams: Dev Lead is a pair. 3-person teams: [state which role doubles up].*
+
+---
+
+### Phase 1: Parallel Setup (~X min)
+
+**Repo Admin**
+1. [Step]
+2. [Step]
+
+**Process Lead**
+1. [Step]
+2. [Step]
+
+**Dev Lead**
+1. [Step]
+2. [Step]
+
+**QA Sentinel**
+1. [Step]
+2. [Step]
+
+> **⚡ SYNC — Setup Complete**
+> Before proceeding: [what every role must confirm] *(~X min)*
+
+---
+
+### Phase 2: [Main Task Title] (~X min)
+
+[Task description with role assignments]
+
+> **⚡ SYNC — DoD Check**
+> Walk the Definition of Done together. *(~5 min)*
+
+---
+
+### Definition of Done 🏁
+
+* [ ] **Artifact:** [Core artifact exists]
+* [ ] **Functionality:** [It works as specified]
+* [ ] **Process:** `CONTRIBUTIONS.md` updated and all members have pulled locally
+* [ ] **Submission:** PR open, titled `ICEX [N]: [Title]`, Team TA assigned as Reviewer
+
+---
+
+### CONTRIBUTIONS.md Entry
+
+```markdown
+#### ICEX [N]: [Exercise Title]
+* **Date:** YYYY-MM-DD
+* **Team Members Present:** `@user1`, `@user2`, `@user3`, `@user4`
+* **Roles:**
+    * Repo Admin: `@userX`
+    * Process Lead: `@userY`
+    * Dev Lead: `@userZ`
+    * QA Sentinel: `@userW`
+* **Summary of Work:** [1-2 sentences]
+* **Evidence & Reflection:** [ICEX-specific question]
+```
+
+---
+
+### Submission
+
+1. PR title: `ICEX [N]: [Exercise Title]`
+2. Assign your Team TA as Reviewer
+3. Submit the PR URL to Canvas
+
+---
+
+### Standard Blocker Protocol (SBP)
+
+> **If you are individually blocked for > 15 minutes** on an error you cannot solve:
+> 1. Notify your team and pivot to a support task (documentation, testing, research).
+> 2. Create an individual branch: `aar-icex[N]-<username>`
+> 3. Create `aar/AAR-ICEX[N]-<username>.md` using the AAR template.
+> 4. Open a PR titled `AAR ICEX [N]: <Brief Blocker Description>`, assign the Instructor as Reviewer.
+> 5. Submit this PR URL to Canvas as your on-time submission (worth 5 pts).
+> 6. After the instructor provides a hotfix, apply it, meet the DoD, and resubmit the passing PR (worth 5 pts).
+
+---
+
+### TA Follow-up Guide
+
+- **In-Class Goal:** [TA's #1 priority during the session]
+- **Final DoD (11:59 PM):** [What must be submitted]
+- **Common Pitfalls:**
+  1. **[Blocker]:** Symptom / Fix
+  2. **[Blocker]:** Symptom / Fix
+- **Coaching Questions:**
+  - "[Question probing the why]"
+  - "[Question probing team process]"
+- **Feed-Forward Prompts:**
+  - "[Prompt pointing toward the next topic]"
+
+---
+
+### Rubric (10 pts)
+
+[HTML table with inline styles — see Rubric Format Policy]
+
+---
+
+### Pedagogical Analysis
+
+[One sentence per applicable principle]
+```
