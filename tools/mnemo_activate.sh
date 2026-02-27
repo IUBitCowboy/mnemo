@@ -161,7 +161,7 @@ chat() {
         cat "$MNEMO_PERSONA" "$MNEMO_ARTIFACT_LAYER" > "$assembled_persona"
         echo "  Assembled → $assembled_persona"
     else
-        local pvar="MNEMO_LAYER_SCOPE_${MNEMO_PROVIDER^^}"
+        local pvar="MNEMO_LAYER_SCOPE_$(echo "$MNEMO_PROVIDER" | tr '[:lower:]' '[:upper:]')"
         local layer_scope="${!pvar:-focused}"
         if [[ "$layer_scope" == "*" ]]; then
             # Provider scope: assemble all discovered artifact layers
@@ -350,7 +350,7 @@ generation() {
             artifact_label="${MNEMO_ARTIFACT_LAYER:-(none)}"
             focus_label="off (conversational)"
             [[ "$MNEMO_FOCUS" == "on" ]] && focus_label="on (generation mode)"
-            local pvar="MNEMO_LAYER_SCOPE_${MNEMO_PROVIDER^^}"
+            local pvar="MNEMO_LAYER_SCOPE_$(echo "$MNEMO_PROVIDER" | tr '[:lower:]' '[:upper:]')"
             local scope="${!pvar:-focused}"
             if [[ -n "$MNEMO_ARTIFACT_LAYER" ]]; then
                 scope_label="focused (explicit — overrides ${MNEMO_PROVIDER} default: ${scope})"
@@ -400,7 +400,7 @@ access() {
     esac
 
     if [[ -z "$op_ref" ]]; then
-        echo "mnemo: MNEMO_OP_${provider^^} not set." >&2
+        echo "mnemo: MNEMO_OP_$(echo "$provider" | tr '[:lower:]' '[:upper:]') not set." >&2
         echo "       Add to ~/.mnemo_config:  MNEMO_OP_$(echo "$provider" | tr '[:lower:]' '[:upper:]')=\"op://Vault/Item/field\"" >&2
         return 1
     fi
@@ -502,7 +502,7 @@ mnemo() {
             local focus_label="off (conversational)"
             [[ "$MNEMO_FOCUS" == "on" ]] && focus_label="on (generation mode)"
             local artifact_label="${MNEMO_ARTIFACT_LAYER:-(none)}"
-            local pvar="MNEMO_LAYER_SCOPE_${MNEMO_PROVIDER^^}"
+            local pvar="MNEMO_LAYER_SCOPE_$(echo "$MNEMO_PROVIDER" | tr '[:lower:]' '[:upper:]')"
             local scope="${!pvar:-focused}"
             local scope_label
             if [[ -n "$MNEMO_ARTIFACT_LAYER" ]]; then
