@@ -18,6 +18,8 @@
 #   access gemini          — load GEMINI_API_KEY from 1Password (requires op CLI)
 #   capture [opts] "<text>"— capture a quick-idea to the current muse's inbox
 #   inbox [list|show|resolve|archive]  — manage inbox items
+#   hil [stamp|review|approve|status|show]  — HIL provenance tagging
+#   help                   — show command reference (also: mnemo help)
 #   mnemo                  — show current session configuration
 #   mnemo reset            — reset all session state to config defaults
 #
@@ -62,6 +64,10 @@ MNEMO_INBOX_LIMIT=1                        # max inbox items injected per chat s
 
 # Derive inbox script path from chat script location (no config needed)
 MNEMO_INBOX_SCRIPT="${MNEMO_CHAT_SCRIPT%/chat.py}/inbox.py"
+
+# HIL provenance script — set MNEMO_HIL_SCRIPT in clio .envrc (not derived here)
+# because hil.py lives in the clio repo, not the mnemo tools dir.
+MNEMO_HIL_SCRIPT="${MNEMO_HIL_SCRIPT:-}"
 
 # Provider layer scope defaults (override in ~/.mnemo_config)
 # "*" = assemble all artifact layers at launch; "focused" = MNEMO_ARTIFACT_LAYER only
@@ -486,8 +492,61 @@ inbox() {
     esac
 }
 
+hil() {
+    # hil stamp <file> [--session S] [--model M]
+    # hil review <file> [--reviewer R]
+    # hil approve <file>
+    # hil status [<dir>]
+    # hil show <file>
+    if [[ -z "$MNEMO_HIL_SCRIPT" ]]; then
+        echo "mnemo: MNEMO_HIL_SCRIPT not set — add it to your project .envrc" >&2
+        return 1
+    fi
+    if [[ ! -f "$MNEMO_HIL_SCRIPT" ]]; then
+        echo "mnemo: hil.py not found at $MNEMO_HIL_SCRIPT" >&2
+        return 1
+    fi
+    python3 "$MNEMO_HIL_SCRIPT" "$@"
+}
+
+help() {
+    cat <<'EOF'
+Mnemo commands
+──────────────────────────────────────────────────────
+chat [with <name>]          start chat session; optionally set persona
+add kb <file>               append a KB file to session context
+kb [clear|show]             manage KB file list
+provider anthropic|gemini|ollama   switch provider (resets model)
+model [<name>]              set or show model override
+generation icex|slides|project     load an artifact layer
+  generation clear          clear artifact layer
+  generation focus on|off   toggle full-output mode
+  generation on|off         aliases for focus on / clear+off
+access anthropic|gemini     load API key from 1Password
+capture "<text>" [opts]     capture a quick-idea to muse inbox
+  --lifecycle durable|ephemeral
+  --priority P1|P2|P3
+inbox [list]                list active inbox items
+  inbox show <id>           show full item
+  inbox resolve <id>        mark tried / acted on
+  inbox archive <id>        suppress without resolving
+hil stamp <file> [opts]     stamp artifact with HIL provenance block
+  hil review <file>         mark human-reviewed
+  hil approve <file>        mark approved
+  hil status [<dir>]        show HIL status of artifacts
+  hil show <file>           print HIL block for a file
+mnemo [status]              show session configuration
+  mnemo reset               reset all state to defaults
+  mnemo help                show this help  (also: help)
+──────────────────────────────────────────────────────
+EOF
+}
+
 mnemo() {
     case "$1" in
+        help)
+            help
+            ;;
         reset)
             MNEMO_PROVIDER="${MNEMO_PROVIDER_DEFAULT:-anthropic}"
             MNEMO_MODEL=""
@@ -513,6 +572,8 @@ mnemo() {
             echo ""
             local key_status="not set — run: access anthropic"
             [[ -n "$ANTHROPIC_API_KEY" ]] && key_status="set"
+            local hil_status="not set — add MNEMO_HIL_SCRIPT to .envrc"
+            [[ -n "$MNEMO_HIL_SCRIPT" ]] && hil_status="set"
             echo "  ┌─ Mnemo Session ──────────────────────────────"
             echo "  │  Persona    : ${MNEMO_PERSONA:-<not set>}"
             echo "  │  Provider   : $MNEMO_PROVIDER"
@@ -522,6 +583,7 @@ mnemo() {
             echo "  │  Layer scope: $scope_label"
             echo "  │  Artifact   : $artifact_label"
             echo "  │  Focus      : $focus_label"
+            echo "  │  HIL script : $hil_status"
             echo "  │  KB files   :"
             if [[ ${#MNEMO_KB[@]} -eq 0 ]]; then
                 echo "  │    (none)"

@@ -32,6 +32,53 @@ Typical ICEX structure:
 4. **⚡ SYNC — DoD Check** (team walks the Definition of Done checklist together)
 5. CONTRIBUTIONS.md entry + PR submission
 
+## Difficulty & Scoping Guidelines
+
+**These guidelines apply to every ICEX you generate. Enforce them before outputting a draft.**
+
+### Time Budget
+
+| Phase | Target |
+|---|---|
+| Phase 1 — parallel setup | 8–10 min |
+| Phase 2 — main task | 15–20 min |
+| Sync callouts + DoD check | ~5 min |
+| CONTRIBUTIONS.md entry | 2–3 min |
+| **Total in-class window** | **30–35 min** |
+
+### Step-Count Constraints
+
+- Each role in Phase 1: **3–5 concrete, independently executable steps** — no more.
+- No role may be blocked on another role before the ⚡ SYNC — Setup Complete checkpoint.
+- Phase 2: **one clear deliverable**, not a series of open-ended choices.
+- **Total new files created by the team across all roles: ≤ 3.**
+
+### Complexity Signals to Avoid
+
+- Any **design task** — ICEXs execute a defined approach; design happens in lecture or the project.
+- More than **one environment-configuration step** per role.
+- **External dependencies that may fail** (network calls, third-party APIs) unless that is the explicit subject of the ICEX.
+- Steps that require judgment about scope (e.g., "implement the feature as you see fit").
+
+### Pre-Condition Assumptions
+
+State any deviations explicitly in the **Context** block. Default assumptions:
+
+- Team repo exists; previous ICEX PR is merged.
+- Student machines have the required toolchain installed (Docker, Python, Node).
+- **Do not include install steps** unless the ICEX is explicitly about environment setup.
+
+### Right-Sized ICEX Test
+
+Before finalising an ICEX, verify all four conditions:
+
+1. All 4 roles are active in parallel with **no idle time** during Phase 1.
+2. Both SYNCs resolve cleanly with clear, binary criteria.
+3. Full DoD is achievable within the window under normal conditions.
+4. A student who has done the required reading can complete their role **without guessing**.
+
+---
+
 ## CONTRIBUTIONS.md Log Entry
 
 Every ICEX must include a `CONTRIBUTIONS.md` entry block using this exact format:
