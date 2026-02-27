@@ -16,6 +16,8 @@
 #   generation                        — show current artifact and focus state
 #   access anthropic       — load ANTHROPIC_API_KEY from 1Password (requires op CLI)
 #   access gemini          — load GEMINI_API_KEY from 1Password (requires op CLI)
+#   capture [opts] "<text>"— capture a quick-idea to the current muse's inbox
+#   inbox [list|show|resolve|archive]  — manage inbox items
 #   mnemo                  — show current session configuration
 #   mnemo reset            — reset all session state to config defaults
 #
@@ -56,6 +58,10 @@ MNEMO_PERSONA="${MNEMO_PERSONA:-}"
 MNEMO_ARTIFACT_LAYER=""                    # path to artifact layer file, or empty
 MNEMO_FOCUS="${MNEMO_FOCUS:-off}"          # "on" → inject mode_generate.md; "off" → inject mode_chat.md
 MNEMO_KB=()  # Always start with empty KB; use 'add kb' to populate
+MNEMO_INBOX_LIMIT=1                        # max inbox items injected per chat session
+
+# Derive inbox script path from chat script location (no config needed)
+MNEMO_INBOX_SCRIPT="${MNEMO_CHAT_SCRIPT%/chat.py}/inbox.py"
 
 # Provider layer scope defaults (override in ~/.mnemo_config)
 # "*" = assemble all artifact layers at launch; "focused" = MNEMO_ARTIFACT_LAYER only
@@ -178,7 +184,7 @@ chat() {
         fi
     fi
 
-    # Build --context args: mode file, then user KB files
+    # Build --context args: mode file, inbox inject (if any), then user KB files
     local ctx_args=()
     local mode_file
     if [[ "$MNEMO_FOCUS" == "on" ]]; then
@@ -187,6 +193,23 @@ chat() {
         mode_file="$_MNEMO_TOOLS_DIR/modes/mode_chat.md"
     fi
     ctx_args+=(--context "$mode_file")
+
+    # Inbox injection prep
+    local _inbox_inject="" _inbox_ids=""
+    local _muse_dir; _muse_dir="$(dirname "$MNEMO_PERSONA")"
+    if [[ -f "$MNEMO_INBOX_SCRIPT" && -d "$_muse_dir/inbox" ]]; then
+        local _inject_tmp; _inject_tmp="/tmp/mnemo_inbox_$(date +%Y%m%d%H%M%S).md"
+        local _ids_tmp;    _ids_tmp="/tmp/mnemo_inbox_ids_$(date +%Y%m%d%H%M%S).txt"
+        "$MNEMO_PYTHON" "$MNEMO_INBOX_SCRIPT" prep \
+            --muse-dir "$_muse_dir" \
+            --limit "${MNEMO_INBOX_LIMIT:-1}" \
+            --inject-out "$_inject_tmp" \
+            --ids-out "$_ids_tmp" 2>/dev/null
+        [[ -s "$_inject_tmp" ]] && _inbox_inject="$_inject_tmp"
+        [[ -s "$_ids_tmp"    ]] && _inbox_ids="$(cat "$_ids_tmp")"
+    fi
+    [[ -n "$_inbox_inject" ]] && ctx_args+=(--context "$_inbox_inject")
+
     for kb in "${MNEMO_KB[@]}"; do
         ctx_args+=("$kb")
     done
@@ -201,6 +224,14 @@ chat() {
         --sessions-dir "$MNEMO_SESSIONS_DIR" \
         "${model_args[@]}" \
         "${ctx_args[@]}"
+
+    # Post-session: update session counts and auto-archive ephemerals
+    if [[ -n "$_inbox_ids" ]]; then
+        # shellcheck disable=SC2086
+        "$MNEMO_PYTHON" "$MNEMO_INBOX_SCRIPT" done \
+            --muse-dir "$_muse_dir" \
+            --ids $_inbox_ids 2>/dev/null
+    fi
 }
 
 add() {
@@ -385,6 +416,76 @@ access() {
     echo "  $env_var set"
 }
 
+capture() {
+    # capture [--lifecycle durable|ephemeral] [--priority P1|P2|P3] [--source S] "<text>"
+    # Capture a quick-idea item to the current muse's inbox.
+    local _lifecycle="durable" _priority="P2" _source="cli" _text=""
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --lifecycle) _lifecycle="$2"; shift 2 ;;
+            --priority)  _priority="$2";  shift 2 ;;
+            --source)    _source="$2";    shift 2 ;;
+            *)           _text="$1";      shift   ;;
+        esac
+    done
+    if [[ -z "$_text" ]]; then
+        echo "usage: capture [--lifecycle durable|ephemeral] [--priority P1|P2|P3] [--source S] \"<text>\"" >&2
+        return 1
+    fi
+    if [[ -z "$MNEMO_PERSONA" ]]; then
+        echo "mnemo: no persona set — run 'chat with <name>' first" >&2
+        return 1
+    fi
+    local _muse_dir; _muse_dir="$(dirname "$MNEMO_PERSONA")"
+    if [[ ! -f "$MNEMO_INBOX_SCRIPT" ]]; then
+        echo "mnemo: inbox.py not found at $MNEMO_INBOX_SCRIPT" >&2
+        return 1
+    fi
+    "$MNEMO_PYTHON" "$MNEMO_INBOX_SCRIPT" capture \
+        --muse-dir "$_muse_dir" \
+        --text "$_text" \
+        --lifecycle "$_lifecycle" \
+        --priority "$_priority" \
+        --source "$_source"
+}
+
+inbox() {
+    # inbox                — list active items
+    # inbox list           — alias
+    # inbox show <id>      — print full item content
+    # inbox resolve <id>   — status → resolved
+    # inbox archive <id>   — status → archived
+    if [[ -z "$MNEMO_PERSONA" ]]; then
+        echo "mnemo: no persona set — run 'chat with <name>' first" >&2
+        return 1
+    fi
+    if [[ ! -f "$MNEMO_INBOX_SCRIPT" ]]; then
+        echo "mnemo: inbox.py not found at $MNEMO_INBOX_SCRIPT" >&2
+        return 1
+    fi
+    local _muse_dir; _muse_dir="$(dirname "$MNEMO_PERSONA")"
+    case "${1:-list}" in
+        list|"")
+            "$MNEMO_PYTHON" "$MNEMO_INBOX_SCRIPT" list --muse-dir "$_muse_dir"
+            ;;
+        show)
+            if [[ -z "$2" ]]; then echo "usage: inbox show <id>" >&2; return 1; fi
+            "$MNEMO_PYTHON" "$MNEMO_INBOX_SCRIPT" show --muse-dir "$_muse_dir" --id "$2"
+            ;;
+        resolve)
+            if [[ -z "$2" ]]; then echo "usage: inbox resolve <id>" >&2; return 1; fi
+            "$MNEMO_PYTHON" "$MNEMO_INBOX_SCRIPT" set-status --muse-dir "$_muse_dir" --id "$2" --status resolved
+            ;;
+        archive)
+            if [[ -z "$2" ]]; then echo "usage: inbox archive <id>" >&2; return 1; fi
+            "$MNEMO_PYTHON" "$MNEMO_INBOX_SCRIPT" set-status --muse-dir "$_muse_dir" --id "$2" --status archived
+            ;;
+        *)
+            echo "usage: inbox [list|show <id>|resolve <id>|archive <id>]" >&2; return 1
+            ;;
+    esac
+}
+
 mnemo() {
     case "$1" in
         reset)
@@ -394,6 +495,7 @@ mnemo() {
             MNEMO_ARTIFACT_LAYER=""
             MNEMO_FOCUS="off"
             MNEMO_KB=()
+            MNEMO_INBOX_LIMIT=1
             echo "  Session state reset to defaults"
             ;;
         ""|status)
@@ -425,6 +527,23 @@ mnemo() {
                 echo "  │    (none)"
             else
                 for kb in "${MNEMO_KB[@]}"; do echo "  │    $kb"; done
+            fi
+            echo "  │  Inbox limit: ${MNEMO_INBOX_LIMIT:-1}"
+            # Show inbox status if persona is set and inbox.py exists
+            if [[ -n "$MNEMO_PERSONA" && -f "$MNEMO_INBOX_SCRIPT" ]]; then
+                local _muse_dir; _muse_dir="$(dirname "$MNEMO_PERSONA")"
+                if [[ -d "$_muse_dir/inbox" ]]; then
+                    local _active_count
+                    _active_count=$("$MNEMO_PYTHON" "$MNEMO_INBOX_SCRIPT" count \
+                        --muse-dir "$_muse_dir" 2>/dev/null)
+                    local _inject_count="${MNEMO_INBOX_LIMIT:-1}"
+                    [[ $_active_count -lt $_inject_count ]] && _inject_count=$_active_count
+                    echo "  │  Inbox      : $_active_count active → $_inject_count will inject"
+                else
+                    echo "  │  Inbox      : (no inbox)"
+                fi
+            else
+                echo "  │  Inbox      : (no persona set)"
             fi
             echo "  │  Known personas:"
             _mnemo_list_personas | sed 's/^/  │/'
