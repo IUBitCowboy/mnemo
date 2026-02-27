@@ -218,8 +218,11 @@ def capture_item(
     source: str = "cli",
 ) -> Path:
     """Create a new inbox item file. Returns the path of the created file."""
-    d = _inbox_dir(muse_dir)
-    d.mkdir(parents=True, exist_ok=True)
+    muse_path = Path(muse_dir)
+    if not muse_path.is_dir():
+        raise ValueError(f"muse directory does not exist: {muse_dir}")
+    d = muse_path / "inbox"
+    d.mkdir(exist_ok=True)  # inbox subdir auto-created on first use; parent must exist
 
     now = datetime.now()
     timestamp = now.strftime("%Y%m%d%H%M%S")
@@ -283,13 +286,17 @@ def _cmd_done(args) -> None:
 
 
 def _cmd_capture(args) -> None:
-    p = capture_item(
-        args.muse_dir,
-        args.text,
-        lifecycle=args.lifecycle,
-        priority=args.priority,
-        source=args.source,
-    )
+    try:
+        p = capture_item(
+            args.muse_dir,
+            args.text,
+            lifecycle=args.lifecycle,
+            priority=args.priority,
+            source=args.source,
+        )
+    except ValueError as e:
+        print(f"inbox: {e}", file=sys.stderr)
+        sys.exit(1)
     # Print relative path from muse_dir for friendly display
     try:
         rel = p.relative_to(Path(args.muse_dir).parent)
