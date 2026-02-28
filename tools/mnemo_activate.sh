@@ -519,6 +519,7 @@ inbox() {
 }
 
 hil() {
+    # hil galley <file> --session S [--turns Q3,Q7] [--model M]
     # hil stamp <file> [--session S] [--model M]
     # hil review <file> [--reviewer R]
     # hil approve <file>
@@ -540,6 +541,7 @@ help() {
 Mnemo commands
 ──────────────────────────────────────────────────────
 chat [with <name>]          start chat session; optionally set persona
+  chat --context <file>     inject an extra KB file (repeatable)
 add kb <file>               append a KB file to session context
 kb [clear|show]             manage KB file list
 provider anthropic|gemini|ollama   switch provider (resets model)
@@ -556,7 +558,9 @@ inbox [list]                list active inbox items
   inbox show <id>           show full item
   inbox resolve <id>        mark tried / acted on
   inbox archive <id>        suppress without resolving
-hil stamp <file> [opts]     stamp artifact with HIL provenance block
+hil galley <file> --session S   stamp galley with required session provenance
+  hil galley ... --turns Q3,Q7  record specific turns that produced the artifact
+hil stamp <file> [opts]     stamp artifact (no session validation — legacy)
   hil review <file>         mark human-reviewed
   hil approve <file>        mark approved
   hil status [<dir>]        show HIL status of artifacts
