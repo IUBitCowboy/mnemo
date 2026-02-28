@@ -55,7 +55,13 @@ class Session:
             f"# Session: {date_str} — {persona_stem}\n"
         )
 
-    def append_turn(self, user_input: str, assistant_response: str, usage: dict | None = None):
+    def append_turn(
+        self,
+        user_input: str,
+        assistant_response: str,
+        usage: dict | None = None,
+        timing: dict | None = None,
+    ):
         if not self._initialized:
             with open(self.path, "w", encoding="utf-8") as f:
                 f.write(self._frontmatter)
@@ -72,6 +78,23 @@ class Session:
         else:
             usage_note = None
 
+        if timing:
+            response_s = timing.get("response_s")
+            since_last_s = timing.get("since_last_s")
+            parts = []
+            if response_s is not None:
+                parts.append(f"response: {response_s:.1f}s")
+            if since_last_s is not None:
+                # Format gap: seconds under a minute, otherwise Xm Ys
+                if since_last_s < 60:
+                    parts.append(f"gap: {since_last_s:.0f}s")
+                else:
+                    m, s = divmod(int(since_last_s), 60)
+                    parts.append(f"gap: {m}m {s:02d}s")
+            timing_note = f"*timing — {' | '.join(parts)}*" if parts else None
+        else:
+            timing_note = None
+
         self._turn_count += 1
         n = self._turn_count
 
@@ -79,6 +102,8 @@ class Session:
             f.write(f"\n## Q{n} [Human]\n{user_input}\n\n## A{n} [Assistant]\n{assistant_response}\n")
             if usage_note:
                 f.write(f"\n{usage_note}\n")
+            if timing_note:
+                f.write(f"{timing_note}\n")
 
     def write_summary(self):
         """Append a token usage summary at the end of the session."""

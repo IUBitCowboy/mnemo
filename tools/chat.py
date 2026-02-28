@@ -291,15 +291,25 @@ def main():
 
         messages.append({"role": "user", "content": user_input})
 
+        # Capture timing: gap since last response, then measure API call duration
+        prompt_at = time.time()
+        since_last = (prompt_at - last_response_time) if last_response_time is not None else None
+
         # Call provider
         try:
             response, usage = provider.chat(system_prompt, messages)
-            last_response_time = time.time()
+            response_at = time.time()
+            last_response_time = response_at
         except Exception as e:
             print(f"\nError from provider: {e}\n", file=sys.stderr)
             # Remove the failed user message so history stays consistent
             messages.pop()
             continue
+
+        timing = {
+            "response_s": response_at - prompt_at,
+            "since_last_s": since_last,
+        }
 
         messages.append({"role": "assistant", "content": response})
 
@@ -309,7 +319,7 @@ def main():
             print(f"  [{format_usage(usage)}]\n")
 
         # Append to session file immediately
-        session.append_turn(user_input, response, usage)
+        session.append_turn(user_input, response, usage, timing)
 
     session.write_summary()
 
