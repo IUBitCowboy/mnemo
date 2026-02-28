@@ -13,7 +13,7 @@ Define these four roles at the top of every ICEX. Assign setup tasks concurrentl
 | **Repo Admin** | Repository hygiene | Branch creation, PR setup, merge management |
 | **Process Lead** | Coordination + documentation | Runs the sync callouts, owns `CONTRIBUTIONS.md`, tracks DoD |
 | **Dev Lead** | Primary implementation | Core coding/configuration task for this ICEX |
-| **QA Sentinel** | Quality + CI/CD | Tests, linting, pipeline monitoring, code review |
+| **QA Sentinel** | Quality + CI/CD | Tests, linting, pipeline monitoring, runs Code Review Checklist before approving PR |
 
 *On 5-person teams: the Dev Lead role pairs two people. On 3-person teams: one member holds two roles — state which pair explicitly.*
 *Course policy: no student may hold the same role more than two consecutive weeks.*
@@ -106,6 +106,51 @@ Every ICEX must include a DoD checklist:
 * [ ] Process: CONTRIBUTIONS.md is updated and all members have pulled it locally
 * [ ] Submission: PR is open, titled correctly, and Team TA is assigned as Reviewer
 ```
+
+## Code Review Checklist
+
+Every ICEX PR must be reviewed by the QA Sentinel using this checklist before approval.
+This formalizes the existing 2-reviewer requirement into a taught practice.
+The checklist is named "code review" in the artifact — not "PR review" — so students build
+the vocabulary. L4 (testing) or L6 (security) should include one slide naming code review
+as a discipline and referencing this checklist.
+
+```
+Code Review Checklist (QA Sentinel — complete before approving the PR)
+
+□ Does the code do what the PR description says?
+□ Are there obvious paths with no error handling or unexpected input?
+□ Do the tests cover the new behavior? (happy path at minimum)
+□ Would a teammate understand this code in 6 weeks?
+□ Any hardcoded values that should be config or constants?
+```
+
+If any item fails: leave a specific inline comment on the relevant line in GitHub, do not
+approve until addressed. This is the practice, not a gatekeeping exercise.
+
+---
+
+## References Section
+
+Every ICEX must include a **References** section with links organized into three groups.
+Populate with current, relevant links at generation time. Do not use placeholder URLs.
+
+**Group 1 — Documentation & FAQs**
+Official documentation, API references, and framework guides for the tools used in the ICEX.
+At least 2 links required. Examples: Flask docs, pytest docs, GitHub Actions docs.
+
+**Group 2 — Tutorials & Walkthroughs**
+Step-by-step guides, blog posts, or video tutorials that show how to do the task.
+May be empty if no suitable tutorials exist, but prefer at least 1 when possible.
+Examples: Real Python articles, official "getting started" tutorials.
+
+**Group 3 — Standards & Specifications**
+RFCs, official specifications, PEPs, OWASP advisories, IEEE/IETF standards.
+Include these whenever the ICEX involves a pattern with a named standard behind it.
+Examples: RFC 7807 (error responses), PEP 8 (style), OWASP Top 10, BDD/Gherkin spec.
+May be empty for purely implementation-focused ICEXs.
+
+---
 
 ## Standard Blocker Protocol (SBP)
 
@@ -269,11 +314,41 @@ Assign roles immediately. No student may hold the same role more than two consec
 
 ---
 
+### Code Review (QA Sentinel — before approving the PR)
+
+Work through this checklist on your teammate's code before clicking Approve.
+If an item fails, leave an inline comment on the relevant line — do not just add a note
+in the PR description. Address all comments before merging.
+
+```
+□ Does the code do what the PR description says?
+□ Are there obvious paths with no error handling or unexpected input?
+□ Do the tests cover the new behavior? (happy path at minimum)
+□ Would a teammate understand this code in 6 weeks?
+□ Any hardcoded values that should be config or constants?
+```
+
+---
+
 ### Submission
 
 1. PR title: `ICEX [N]: [Exercise Title]`
 2. Assign your Team TA as Reviewer
 3. Submit the PR URL to Canvas
+
+---
+
+### References
+
+#### 📚 Documentation & FAQs
+- [Title](url)
+- [Title](url)
+
+#### 🎓 Tutorials & Walkthroughs
+- [Title](url)
+
+#### 📋 Standards & Specifications
+- [Title](url)
 
 ---
 
