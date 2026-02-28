@@ -125,8 +125,29 @@ _mnemo_list_personas() {
 # ── Public commands ───────────────────────────────────────────────────────────
 
 chat() {
-    # chat              — start with current defaults
-    # chat with <name>  — set persona by alias then start
+    # chat                                    — start with current defaults
+    # chat with <name>                        — set persona by alias then start
+    # chat --context <file> [--context <file> ...] [with <name>]
+    #                                         — inject extra context files
+
+    # Pre-process: pull out --context FILE pairs; leave everything else in $@
+    local extra_ctx=() remaining_args=()
+    while [[ $# -gt 0 ]]; do
+        if [[ "$1" == "--context" ]]; then
+            shift
+            if [[ $# -eq 0 ]]; then
+                echo "mnemo: --context requires a file argument" >&2; return 1
+            fi
+            if [[ ! -f "$1" ]]; then
+                echo "mnemo: context file not found: $1" >&2; return 1
+            fi
+            extra_ctx+=("$1"); shift
+        else
+            remaining_args+=("$1"); shift
+        fi
+    done
+    set -- "${remaining_args[@]+"${remaining_args[@]}"}"
+
     if [[ "$1" == "with" ]]; then
         if [[ -z "$2" ]]; then
             echo "usage: chat with <persona>" >&2; return 1
@@ -218,6 +239,11 @@ chat() {
 
     for kb in "${MNEMO_KB[@]}"; do
         ctx_args+=("$kb")
+    done
+
+    # Append any --context files passed directly on the command line
+    for ctx in "${extra_ctx[@]+"${extra_ctx[@]}"}"; do
+        ctx_args+=(--context "$ctx")
     done
 
     local model_args=()
