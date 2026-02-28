@@ -226,6 +226,7 @@ def main():
         persona_path=str(persona_path),
         provider=provider_name,
         model=model,
+        context_files=[str(p) for p in context_paths] or None,
     )
 
     # Print header

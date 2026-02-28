@@ -12,7 +12,14 @@ from pathlib import Path
 
 
 class Session:
-    def __init__(self, sessions_dir: str, persona_path: str, provider: str, model: str):
+    def __init__(
+        self,
+        sessions_dir: str,
+        persona_path: str,
+        provider: str,
+        model: str,
+        context_files: list[str] | None = None,
+    ):
         self.sessions_dir = Path(sessions_dir)
         self.sessions_dir.mkdir(parents=True, exist_ok=True)
 
@@ -30,6 +37,12 @@ class Session:
         self._total_output = 0
         self._turn_count = 0
 
+        context_lines = ""
+        if context_files:
+            context_lines = "context:\n" + "".join(
+                f"  - {c}\n" for c in context_files
+            )
+
         self._frontmatter = (
             f"---\n"
             f"date: {date_str}\n"
@@ -37,6 +50,7 @@ class Session:
             f"provider: {provider}\n"
             f"model: {model}\n"
             f"persona: {Path(persona_path).name}\n"
+            f"{context_lines}"
             f"---\n\n"
             f"# Session: {date_str} — {persona_stem}\n"
         )
