@@ -2,6 +2,12 @@
 
 **Terminology:** Always use **ICEX** (In-Class Exercise). Never use "ICE."
 
+**Canvas naming (MoJ phase):** All MoJ ICEXs use `_MJ` prefixed numbering independent
+of course-sequential numbering. The Canvas title format is:
+`Week # | ICEX_MJ## - Title` (e.g., `Week 8 | ICEX_MJ01 - Founding the Ministry`)
+Individual extensions: `Week # | ICEX_MJ##-EXT - Title`
+File naming: `icex_mj##_title.md` saved to `cmods/student/icex/`
+
 Every ICEX must follow this structure and include all sections below.
 
 ## Parallel Processing Kit (4 Roles)
