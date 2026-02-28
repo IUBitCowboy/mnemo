@@ -15,8 +15,21 @@ Define these four roles at the top of every ICEX. Assign setup tasks concurrentl
 | **Dev Lead** | Primary implementation | Core coding/configuration task for this ICEX |
 | **QA Sentinel** | Quality + CI/CD | Tests, linting, pipeline monitoring, runs Code Review Checklist before approving PR |
 
-*On 5-person teams: the Dev Lead role pairs two people. On 3-person teams: one member holds two roles — state which pair explicitly.*
+*On 5-person teams: the Dev Lead role pairs two people.*
+
+*On 3-person teams: collapse **Repo Admin + Process Lead** into a single **Ops Lead** role
+by default. This keeps Dev Lead and QA Sentinel separate, preserving code review integrity.
+Alternative collapse — **Process Lead + QA Sentinel** — is permitted when the ICEX has
+minimal repo work and QA is reviewing only one Dev Lead's output. Never collapse Dev Lead
+with QA Sentinel. State the chosen pair explicitly in the ICEX instructions.*
+
 *Course policy: no student may hold the same role more than two consecutive weeks.*
+
+**Attendance pre-flight (include at the top of every ICEX):**
+Before assigning roles, the Process Lead confirms attendance. If fewer than 3 members are
+present (in-person or approved remote), notify the TA immediately and follow the
+ICEX Attendance & Absentee Policy. Remote participation requires a documented email
+request to the instructor with the team CC'd — a verbal request is not sufficient.
 
 ## Sync Callouts
 
@@ -243,6 +256,10 @@ Use this template exactly when generating an ICEX.
 
 ### Parallel Processing Kit ⚡
 
+> **Attendance pre-flight (Process Lead):** Confirm ≥3 members present before assigning
+> roles. If below threshold, notify the TA immediately and follow the ICEX Attendance Policy.
+> Remote participation requires a prior email to the instructor with the team CC'd.
+
 Assign roles immediately. No student may hold the same role more than two consecutive weeks.
 
 | Role | Assigned To | First Task |
@@ -252,7 +269,9 @@ Assign roles immediately. No student may hold the same role more than two consec
 | Dev Lead | `@___` | [First concurrent task] |
 | QA Sentinel | `@___` | [First concurrent task] |
 
-*5-person teams: Dev Lead is a pair. 3-person teams: [state which role doubles up].*
+*5-person teams: Dev Lead is a pair.*
+*3-person teams: collapse Repo Admin + Process Lead into one Ops Lead (default). Alternative:
+Process Lead + QA Sentinel when repo work is minimal. Never collapse Dev Lead + QA Sentinel.*
 
 ---
 
