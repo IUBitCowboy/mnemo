@@ -28,6 +28,7 @@ class Session:
 
         self._total_input = 0
         self._total_output = 0
+        self._turn_count = 0
 
         self._frontmatter = (
             f"---\n"
@@ -57,8 +58,11 @@ class Session:
         else:
             usage_note = None
 
+        self._turn_count += 1
+        n = self._turn_count
+
         with open(self.path, "a", encoding="utf-8") as f:
-            f.write(f"\n## [Human]\n{user_input}\n\n## [Assistant]\n{assistant_response}\n")
+            f.write(f"\n## Q{n} [Human]\n{user_input}\n\n## A{n} [Assistant]\n{assistant_response}\n")
             if usage_note:
                 f.write(f"\n{usage_note}\n")
 
