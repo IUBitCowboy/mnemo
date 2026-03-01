@@ -255,7 +255,7 @@ Use this template exactly when generating an ICEX.
 ### ICEX [N]: [Exercise Title]
 
 - **Objective:** [Specific skill practiced or artifact produced]
-- **Time Limit:** [e.g., 30 minutes in-class; PR due 11:59 PM]
+- **Time Limit:** [25–30 minutes in-class — class period is 75 minutes total; ICEX must fit within that with room for intro and wrap-up]; PR due 11:59 PM]
 - **Context:** [Bridge from prior lecture or Angband — why this, why now]
 
 ---
