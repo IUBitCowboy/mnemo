@@ -23,6 +23,7 @@ Environment variables:
 import argparse
 import os
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -129,6 +130,24 @@ def _cache_toolbar(last_response_time: float, cache_ttl: int):
         # Display in whole minutes — changes once per minute
         label = f"cache: {int(remaining // 60)}m"
         return HTML(f'<style bg="ansigreen" fg="ansiwhite"> {label} </style>')
+
+
+def _waiting_indicator(stop_event: threading.Event, start_time: float) -> None:
+    """Background thread: print a running elapsed timer while waiting for API response."""
+    while not stop_event.is_set():
+        elapsed = time.time() - start_time
+        if elapsed < 60:
+            label = f"  ⏳ Submitted — waiting... {elapsed:.1f}s"
+        else:
+            m = int(elapsed // 60)
+            s = elapsed % 60
+            label = f"  ⏳ Submitted — waiting... {m}m {s:.0f}s"
+        sys.stdout.write(f"\r{label}   ")
+        sys.stdout.flush()
+        time.sleep(0.1)
+    # Clear the indicator line
+    sys.stdout.write("\r" + " " * 60 + "\r")
+    sys.stdout.flush()
 
 
 def read_input(last_response_time: float | None, cache_ttl: int) -> str:
@@ -295,16 +314,28 @@ def main():
         prompt_at = time.time()
         since_last = (prompt_at - last_response_time) if last_response_time is not None else None
 
+        # Start elapsed-time indicator while waiting for API response
+        stop_waiting = threading.Event()
+        waiting_thread = threading.Thread(
+            target=_waiting_indicator, args=(stop_waiting, prompt_at), daemon=True
+        )
+        waiting_thread.start()
+
         # Call provider
         try:
             response, usage = provider.chat(system_prompt, messages)
             response_at = time.time()
             last_response_time = response_at
         except Exception as e:
+            stop_waiting.set()
+            waiting_thread.join()
             print(f"\nError from provider: {e}\n", file=sys.stderr)
             # Remove the failed user message so history stays consistent
             messages.pop()
             continue
+
+        stop_waiting.set()
+        waiting_thread.join()
 
         timing = {
             "response_s": response_at - prompt_at,
