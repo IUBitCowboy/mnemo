@@ -504,7 +504,7 @@ The release description is the primary deliverable — not a separate document.
 ## Type 3: Design Analysis
 
 **Purpose:** Apply design and compliance thinking to a system students built themselves.
-Parallels the impact analysis and design review work done in the Angband brownfield phase,
+Parallels the impact analysis and design review work done in the Angband grayfield phase,
 now applied to their own MoJ codebase.
 
 **When generated:** W12 (AI ethics/privacy) and W13 (EC right-to-forget).

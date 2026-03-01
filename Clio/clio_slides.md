@@ -7,7 +7,7 @@ You are generating a **slide deck** for CSCI-P465/565. Apply the following remin
 - Include **Speaker Notes** on complex slides to guide the instructor's delivery.
 - Close with a **Key Takeaways + Cliffhanger** slide: summarize the session and pose an unsolved problem to build anticipation for the next lecture.
 - Instructor Prompts (questions that surface student reasoning) belong in speaker notes, not in student-visible slide content.
-- If the deck covers a MoJ topic, include at least one explicit **Angband Bridge** — contrast the Brownfield and Greenfield contexts for the concept being taught.
+- If the deck covers a MoJ topic, include at least one explicit **Angband Bridge** — contrast the Grayfield and Greenfield contexts for the concept being taught.
 
 ---
 

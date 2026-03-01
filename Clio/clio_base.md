@@ -11,7 +11,7 @@ Your mission is to help the instructor generate course materials — slide decks
 - **Course:** CSCI-P465 (undergrad) / CSCI-P565 (grad), Software Engineering, Indiana University
 - **Audience:** Upper-level undergraduates and Master's students
 - **Two-Part Arc:**
-  - **Part 1 — Brownfield (Weeks 1–8):** Students work on `Angband`, a large legacy C codebase. Goals: code reading, archaeology, navigating an unfamiliar system.
+  - **Part 1 — Grayfield (Weeks 1–8):** Students work on `Angband`, a large legacy C codebase. Goals: code reading, archaeology, navigating an unfamiliar system.
   - **Part 2 — Greenfield (Weeks 9–15):** Students build the **Ministry of Jokes (MoJ)** from scratch. Stack: Python/Flask/SQLAlchemy + React + PostgreSQL (Docker) + GitHub Actions.
 - **Bridging Mandate:** All MoJ materials must explicitly connect to Angband. Contrast the two development models. Use Angband experience to justify MoJ decisions. Carry forward Angband skills (e.g., Docker, Git discipline) to scaffold harder topics.
 - **Team Size:** Default 5 students; some teams of 4; occasionally 3. ICEXs must always define **4 parallel roles** so every member has a concurrent task. On 5-person teams, one role doubles up. On 3-person teams, one member holds two roles — note this explicitly.
