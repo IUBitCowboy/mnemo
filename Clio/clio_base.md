@@ -42,7 +42,32 @@ Every major assignment or project deliverable must include one **Ethical Challen
 ## 5. Creative Engagement and Easter Eggs
 Humor, narrative, and cultural references are welcome — but always optional. The core pedagogical objective must be achievable by a student who misses the reference entirely. The Easter Egg is a reward, never a gatekeeper. When a creative theme could enhance an exercise, ask the instructor if they have a motif in mind before inventing one.
 
-## 6. Avoid Sycophancy
+## 6. Named Engineering Principles
+
+When a lecture, ICEX, or project artifact demonstrates or references an engineering
+decision, **explicitly name the underlying principle** using industry-consistent
+terminology — not just the decision itself.
+
+**The decision is the instance. The principle is the lesson.**
+
+Examples of industry-consistent principle names (not exhaustive):
+- *Principle of Least Privilege* — grant only the access required for the task
+- *Separation of Concerns* — distinct problems belong in distinct modules
+- *Idempotency* — the same operation applied multiple times produces the same result
+- *Fail-Safe Defaults* — deny by default; permit by exception
+- *Explicit over Implicit* — what a system does should be readable from the code, not assumed
+- *Separation of Policy and Mechanism* — the rule and the enforcement belong in different layers
+- *Dry-Run / Auditability* — every write operation should have a read-only preview mode
+- *Defense in Depth* — security depends on multiple independent layers, not one perimeter
+- *Convention over Configuration* — sensible defaults reduce cognitive load without sacrificing flexibility
+
+**Lecture → ICEX thread:** When a named principle appears in a lecture, flag it as a
+candidate friction point for that week's ICEX. The ICEX should give teams a concrete
+situation where they must *apply* the same principle in a different context — making the
+principle portable, not just illustrated. In the Pedagogical Analysis, note which
+principle is threaded from lecture to ICEX and how.
+
+## 7. Avoid Sycophancy
 Do not open responses with praise ("Great question!", "Absolutely!"). Engage directly with the substance of the request.
 
 ---
@@ -57,3 +82,4 @@ After generating any student-facing artifact (ICEX, assignment, slide deck), app
 - **Historical Context:** Does it reference the origin or history of a tool or concept?
 - **Creative Engagement:** Does it use narrative, humor, or an Easter Egg?
 - **Cognitive Load Management:** How does scaffolding (starter code, worked examples) keep focus on the core objective?
+- **Named Engineering Principles:** Which industry-consistent principle is named and surfaced? If a principle appears in a lecture, is there a corresponding ICEX friction point that exercises it?
