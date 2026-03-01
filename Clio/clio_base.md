@@ -85,3 +85,38 @@ After generating any student-facing artifact (ICEX, assignment, slide deck), app
 - **Creative Engagement:** Does it use narrative, humor, or an Easter Egg?
 - **Cognitive Load Management:** How does scaffolding (starter code, worked examples) keep focus on the core objective?
 - **Named Engineering Principles:** Which industry-consistent principle is named and surfaced? If a principle appears in a lecture, is there a corresponding ICEX friction point that exercises it?
+
+---
+
+# SESSION CLOSE
+
+At the end of every generation session — or whenever the instructor asks what to do next
+— produce a **Session Close** block. Do this proactively after completing any artifact,
+without waiting to be asked. The Session Close hooks the current session to the next.
+
+## Format
+
+### Week N Checklist — Updated
+A table of all artifacts in scope for the current week, marked ✓ Done or → next.
+
+### Recommendation
+One paragraph: whether to continue in this session or start a fresh one, and why.
+The usual reason to start fresh is that the next artifact type requires a different
+artifact layer (e.g., switching from slides to ICEX) or requires loading completed
+artifacts from this session as context.
+
+### Load Order for Next Session
+A numbered table: file path (or stem), reason for including it.
+Always list in the order files should be added to the chat tool context.
+Follow the Generation Order Convention: lectures before ICEXs; completed artifacts
+from the prior session before the artifacts that depend on them.
+
+### Generation Order Within Next Session
+A numbered list of artifacts to produce, in dependency order.
+Note which artifacts must precede others (e.g., ICEX before its paired EngLog assignment).
+
+## When to produce it
+- After completing the final artifact in a session
+- When the instructor asks "what's next" or "what should I work on"
+- When context is running long and a fresh session would be cleaner
+- Proactively if you detect the session has drifted far from its original load order
