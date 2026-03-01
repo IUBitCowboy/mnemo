@@ -16,14 +16,20 @@ Mnemo is intended for open-source distribution. It must not depend on Lore Forge
 ```
 mnemo/
   Clio/
-    clio_persona.md          # SE1 instructional architect persona
+    clio_base.md             # SE1 system prompt — always loaded (ROLE, PILLARS, ANALYSIS)
+    clio_icex.md             # Artifact layer: ICEX workflow, TA roles, 10-pt rubrics, template
+    clio_slides.md           # Artifact layer: slide deck template + reminders
+    clio_project.md          # Artifact layer: project assignments, 100-pt rubrics, MoJ template
+    clio_persona.md          # Monolithic fallback — deprecated; do not use for new work
+    inbox/                   # Captured quick-ideas routed to Clio
   Calliope/
-    calliope_persona.md      # C291 instructional architect persona
+    calliope_persona.md      # C291 instructional architect persona (monolith — decompose summer)
     KB/                      # C291 course knowledge base files
   tools/
     chat.py                  # CLI entry point
     providers.py             # Anthropic / Gemini / Ollama adapters
     session.py               # Session file recorder
+    inbox.py                 # Quick-capture tool for muse inboxes
     mnemo_activate.sh        # Shell helpers (source to activate)
     mnemo_config.example     # Config template — copy to ~/.mnemo_config
     modes/
@@ -59,16 +65,23 @@ python -m venv .venv && .venv/bin/pip install -r requirements.txt
 ```bash
 source tools/mnemo_activate.sh   # or via direnv .envrc in project dir
 
-chat with clio       # resolve alias, set persona, start chat
-add kb <file>        # add KB context file for this session
-kb clear             # clear KB list
-provider anthropic   # switch provider (resets model to default)
-model <name>         # override model
-generation on|off    # toggle full artifact vs conversational mode
-access anthropic     # load ANTHROPIC_API_KEY from 1Password (requires op CLI)
-mnemo                # show current session state
-mnemo reset          # reset to config defaults
+chat with clio                   # set persona (clio_base.md), start chat — MUST run first
+add kb <file>                    # add KB context file for this session
+kb clear                         # clear KB list
+provider anthropic               # switch provider (resets model to default)
+model <name>                     # override model
+generation icex|slides|project   # load an artifact layer (clio_icex.md, etc.)
+generation clear                 # clear artifact layer
+generation focus on|off          # toggle full-output vs conversational mode
+generation on|off                # aliases: on = focus on; off = clear + focus off
+generation                       # show current artifact layer and focus state
+access anthropic                 # load ANTHROPIC_API_KEY from 1Password (requires op CLI)
+capture "<text>" [opts]          # capture a quick-idea to current muse's inbox
+mnemo                            # show current session state
+mnemo reset                      # reset to config defaults
 ```
+
+**Order matters:** `chat with clio` sets `MNEMO_PERSONA`; `generation` commands guard on this and will error if run first.
 
 API key op references go in `~/.mnemo_config` (never commit):
 ```bash
@@ -77,9 +90,18 @@ MNEMO_OP_ANTHROPIC="op://VaultName/ItemName/field"
 
 ## Muse Agent Conventions
 
-Each muse lives in its own directory: `MmuseName/musename_persona.md`
+Each muse lives in its own directory. The current convention is a **decomposed layer structure**:
 
-Persona files are standalone and complete — no runtime composition yet. Decomposition into base + artifact-specific layers is planned (next phase after structural cleanup).
+- `musename_base.md` — always-loaded system prompt (role, pillars, output conventions)
+- `musename_icex.md` — artifact layer for ICEXs
+- `musename_slides.md` — artifact layer for slide decks
+- `musename_project.md` — artifact layer for project assignments
+
+Artifact layers are injected via `generation icex|slides|project`; only one is active at a time. The base is always loaded via `chat with <muse>`.
+
+**Clio (SE1):** Fully decomposed — `clio_base.md` + three artifact layers. `clio_persona.md` is a deprecated monolith; do not use for new work.
+
+**Calliope (C291):** Still monolith (`calliope_persona.md`). Decomposition planned for summer before C291 SP26 generation begins.
 
 Course-instance KB files (e.g., `clio_kb_SP26.md`) live in the **course repo**, not here — they are course-instance specific and not part of the open-source distribution.
 
