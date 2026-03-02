@@ -103,7 +103,7 @@ Before finalising an ICEX, verify all four conditions:
 Every ICEX must include a `CONTRIBUTIONS.md` entry block using this exact format:
 
 ```markdown
-#### ICEX [Number]: [Exercise Title]
+# ICEX [Number]: [Exercise Title]
 * **Date:** YYYY-MM-DD
 * **Team Members Present:** `@github-user1`, `@github-user2`, ...
 * **Roles:**
@@ -252,7 +252,7 @@ Alternate row shading: odd rows use `background-color:#f3f2eb` (cream), even row
 Use this template exactly when generating an ICEX.
 
 ```markdown
-### ICEX [N]: [Exercise Title]
+# ICEX [N]: [Exercise Title]
 
 - **Objective:** [Specific skill practiced or artifact produced]
 - **Time Limit:** [25–30 minutes in-class — class period is 75 minutes total; ICEX must fit within that with room for intro and wrap-up]; PR due 11:59 PM]
@@ -260,7 +260,7 @@ Use this template exactly when generating an ICEX.
 
 ---
 
-### Parallel Processing Kit ⚡
+## Parallel Processing Kit ⚡
 
 > **Attendance pre-flight (Process Lead):** Confirm ≥3 members present before assigning
 > roles. If below threshold, notify the TA immediately and follow the ICEX Attendance Policy.
@@ -281,7 +281,7 @@ Process Lead + QA Sentinel when repo work is minimal. Never collapse Dev Lead + 
 
 ---
 
-### Phase 1: Parallel Setup (~X min)
+## Phase 1: Parallel Setup (~X min)
 
 **Repo Admin**
 1. [Step]
@@ -304,7 +304,7 @@ Process Lead + QA Sentinel when repo work is minimal. Never collapse Dev Lead + 
 
 ---
 
-### Phase 2: [Main Task Title] (~X min)
+## Phase 2: [Main Task Title] (~X min)
 
 [Task description with role assignments]
 
@@ -313,7 +313,7 @@ Process Lead + QA Sentinel when repo work is minimal. Never collapse Dev Lead + 
 
 ---
 
-### Definition of Done 🏁
+## Definition of Done 🏁
 
 * [ ] **Artifact:** [Core artifact exists]
 * [ ] **Functionality:** [It works as specified]
@@ -322,10 +322,10 @@ Process Lead + QA Sentinel when repo work is minimal. Never collapse Dev Lead + 
 
 ---
 
-### CONTRIBUTIONS.md Entry
+## CONTRIBUTIONS.md Entry
 
 ```markdown
-#### ICEX [N]: [Exercise Title]
+# ICEX [N]: [Exercise Title]
 * **Date:** YYYY-MM-DD
 * **Team Members Present:** `@user1`, `@user2`, `@user3`, `@user4`
 * **Roles:**
@@ -339,7 +339,7 @@ Process Lead + QA Sentinel when repo work is minimal. Never collapse Dev Lead + 
 
 ---
 
-### Code Review (QA Sentinel — before approving the PR)
+## Code Review (QA Sentinel — before approving the PR)
 
 Work through this checklist on your teammate's code before clicking Approve.
 If an item fails, leave an inline comment on the relevant line — do not just add a note
@@ -355,7 +355,7 @@ in the PR description. Address all comments before merging.
 
 ---
 
-### Submission
+## Submission
 
 1. PR title: `ICEX [N]: [Exercise Title]`
 2. Assign your Team TA as Reviewer
@@ -363,21 +363,21 @@ in the PR description. Address all comments before merging.
 
 ---
 
-### References
+## References
 
-#### 📚 Documentation & FAQs
+### 📚 Documentation & FAQs
 - [Title](url)
 - [Title](url)
 
-#### 🎓 Tutorials & Walkthroughs
+### 🎓 Tutorials & Walkthroughs
 - [Title](url)
 
-#### 📋 Standards & Specifications
+### 📋 Standards & Specifications
 - [Title](url)
 
 ---
 
-### Standard Blocker Protocol (SBP)
+## Standard Blocker Protocol (SBP)
 
 > **If you are individually blocked for > 15 minutes** on an error you cannot solve:
 > 1. Notify your team and pivot to a support task (documentation, testing, research).
@@ -389,7 +389,8 @@ in the PR description. Address all comments before merging.
 
 ---
 
-### TA Follow-up Guide
+<!--
+## TA Follow-up Guide
 
 - **In-Class Goal:** [TA's #1 priority during the session]
 - **Final DoD (11:59 PM):** [What must be submitted]
@@ -402,15 +403,17 @@ in the PR description. Address all comments before merging.
 - **Feed-Forward Prompts:**
   - "[Prompt pointing toward the next topic]"
 
+-->
 ---
 
-### Rubric (10 pts)
+## Rubric (10 pts)
 
 [HTML table with inline styles — see Rubric Format Policy]
 
 ---
-
-### Pedagogical Analysis
+<--
+## Pedagogical Analysis
 
 [One sentence per applicable principle]
+-->
 ```
