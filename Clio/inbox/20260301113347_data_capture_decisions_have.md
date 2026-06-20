@@ -3,9 +3,9 @@ date: 2026-03-01
 time: 11:33:47
 muse: clio
 lifecycle: durable
-status: active
+status: resolved
 priority: P2
-session_count: 3
+session_count: 11
 source: SP26 course-admin design session 2026-03-01
 tags: []
 ---

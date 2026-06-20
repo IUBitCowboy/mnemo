@@ -21,6 +21,7 @@ env/
 .venv/
 *.egg-info/
 .conda/
+junk/
 # Byte‑code / compiled / C extensions
 __pycache__/
 *.py[cod]
@@ -64,6 +65,8 @@ coverage.xml
 build/
 bin/
 obj/
+# Compiled demo binaries (keep .c source, not the executable)
+Calliope/lectures/demos/*/leak_hunt
 # Makefile generated dependencies
 *.d
 # IDE / editor files

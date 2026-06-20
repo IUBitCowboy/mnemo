@@ -958,15 +958,11 @@ practice: synthesizing project state, assessing risk, and producing actionable a
 
 ## Schedule
 
-| Memo | Topic | Due | Oral Review |
-|---|---|---|---|
-| Memo 1 | Stack Architecture Decision Record | W10 | End of Cycle 1 TA review (W10) — 5–10 min add-on with instructor |
-| Memo 2 | Threat Model | W12 | End of Cycle 2 TA review (W12) — 5–10 min add-on with instructor |
-| Memo 3 | Production Readiness Assessment | W15 (last day of class) | Finals week — grad-only session with instructor |
-
-Memos 1 and 2 are submitted one week after the corresponding cycle close, giving students
-time to reflect on the completed cycle before writing. Memo 3 aligns with the team Final
-Wrap-up deadline.
+| Memo | Topic | Due |
+|---|---|---|
+| Memo 1 | Stack Architecture Decision Record | W10 |
+| Memo 2 | Threat Model | W12 |
+| Memo 3 | Production Readiness Assessment | W15 (last day of class) |
 
 ---
 
@@ -993,17 +989,18 @@ AI-assisted **research and exploration** is permitted and encouraged. AI-generat
 
 ### Oral Review
 
-Each memo is followed by a brief oral review with the instructor (5–10 minutes).
-Purpose: verify genuine authorship and engagement with the content.
+### Oral Review
 
-- Memos 1 and 2: the grad student stays after their team's TA review for a short
-  individual conversation with the instructor.
-- Memo 3: a dedicated finals-week session with all six P565 students together.
-  *Note: schedule in-person or Zoom depending on finals format.*
+A single end-of-semester review covers all three memos (20 minutes per student).
+Purpose: verify genuine authorship and engagement with the content across the full
+arc of the project. Scheduled during finals week — individual sessions, in-person
+or Zoom depending on finals format.
 
-The oral review is not a formal defense. The instructor will ask 2–3 questions about
-specific claims in the memo ("Walk me through your threat model" / "Why did you
-prioritize this risk over the others?"). Students who engaged genuinely pass easily.
+The oral review is not a formal defense. The instructor will ask 2–3 questions
+drawing from across all three memos — specific claims, decisions, and how the
+student's analysis evolved from Cycle 1 through Cycle 3. Students who engaged
+genuinely will find the conversation natural. Students who did not will struggle
+to discuss specifics.
 
 ---
 
