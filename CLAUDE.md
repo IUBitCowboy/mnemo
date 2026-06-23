@@ -9,17 +9,11 @@ Indiana University. You own the curriculum architecture, KB maintenance, artifac
 strategy, and the Mnemo toolchain itself. Clio executes generation; you design
 what gets generated and maintain the system that makes it possible.
 
-Your tasks and meeting notes are tracked in the Lore Forge vault:
-`/Users/seiffert/Library/Mobile Documents/iCloud~md~obsidian/Documents/Apple Notes`
-
-Skills at `~/.claude/skills/` are available: `/task-show`, `/task-update`,
-`/recall-meeting`, `/discuss`.
-
-**Note on the open-source constraint:** Mnemo the *codebase* must remain
-independent of Lore Forge — no design decision or code change should require
-Lore Forge to function. This operational context (vault path, persona scoping)
-is a per-instance realization that does not propagate back to the design. Keep
-those layers separate.
+**Open-source constraint:** Mnemo the *codebase* must remain independent of any
+personal workflow infrastructure — no design decision or code change should
+require Lore Forge, Obsidian, 1Password, or any specific tool to function. This
+file is an operational realization for the current instructor; the open-source
+distribution has no such dependency.
 
 ---
 
@@ -37,15 +31,51 @@ Mnemo is intended for open-source distribution. It must not depend on Lore Forge
 ```
 mnemo/
   Clio/
-    clio_base.md             # SE1 system prompt — always loaded (ROLE, PILLARS, ANALYSIS)
-    clio_icex.md             # Artifact layer: ICEX workflow, TA roles, 10-pt rubrics, template
-    clio_slides.md           # Artifact layer: slide deck template + reminders
-    clio_project.md          # Artifact layer: project assignments, 100-pt rubrics, MoJ template
+    clio_base.md             # SE1 system prompt — ROLE + COURSE CONTEXT + analysis dimensions
+    clio_icex.md             # ICEX conventions: Canvas naming, testing policy, API design, template
+    clio_slides.md           # Slide deck conventions: Angband Bridge, SE1 branding
+    clio_project.md          # Project assignments: MoJ-specific, 100-pt rubrics
     clio_persona.md          # Monolithic fallback — deprecated; do not use for new work
     inbox/                   # Captured quick-ideas routed to Clio
   Calliope/
-    calliope_persona.md      # C291 instructional architect persona (monolith — decompose summer)
+    calliope_base.md         # C291 system prompt — ROLE + COURSE CONTEXT + C291 pillars + tone
+    calliope_icex.md         # C291 ICEX conventions: Bug in the Path, Theory/Experiment, Quest Rewards
+    calliope_slides.md       # C291 slide conventions: Cliffhanger, AI Prompts, embedded ICEX
+    calliope_project.md      # C291 project conventions: Hero's Debugging Log, skeleton code
+    calliope_persona.md      # Monolithic fallback — deprecated; do not use for new work
     KB/                      # C291 course knowledge base files
+  skills/                    # Mnemo skills (cross-course, auto-loaded)
+    pedagogy/                # 18 pedagogical principles (evidence-reviewed)
+      evidence-driven-design.md
+      cognitive-load-management.md
+      historical-hook.md
+      ethical-challenge.md
+      creative-engagement.md
+      named-principles.md
+      avoid-sycophancy.md
+      pedagogical-analysis.md
+      session-close.md
+      productive-failure.md
+      cognitive-apprenticeship.md
+      metacognitive-reflection.md
+      peer-instruction.md
+      authentic-toolchain.md
+      code-reading-before-writing.md
+      error-diagnosis.md
+      abstraction-literacy.md
+      ai-literacy-integration.md
+    techniques/              # 11 reusable workflow patterns
+      parallel-processing-kit.md
+      sync-callouts.md
+      icex-difficulty-scoping.md
+      contributions-format.md
+      dod-template.md
+      code-review-checklist.md
+      references-section.md
+      sbp.md
+      ta-followup-guide.md
+      rubric-format.md
+      slide-deck-template.md
   tools/
     chat.py                  # CLI entry point
     providers.py             # Anthropic / Gemini / Ollama adapters
@@ -70,7 +100,7 @@ python -m venv .venv && .venv/bin/pip install -r requirements.txt
 
 # Run
 .venv/bin/python tools/chat.py \
-  --persona Clio/clio_persona.md \
+  --persona Clio/clio_base.md \
   --context /path/to/kb_file.md \
   --provider anthropic \
   --sessions-dir /path/to/sessions/
@@ -111,23 +141,67 @@ MNEMO_OP_ANTHROPIC="op://VaultName/ItemName/field"
 
 ## Muse Agent Conventions
 
-Each muse lives in its own directory. The current convention is a **decomposed layer structure**:
+Each muse lives in its own directory. The convention is a **three-layer
+architecture**:
 
-- `musename_base.md` — always-loaded system prompt (role, pillars, output conventions)
-- `musename_icex.md` — artifact layer for ICEXs
-- `musename_slides.md` — artifact layer for slide decks
-- `musename_project.md` — artifact layer for project assignments
+### Layer 1: Mnemo Skills (cross-course, auto-loaded)
 
-Artifact layers are injected via `generation icex|slides|project`; only one is active at a time. The base is always loaded via `chat with <muse>`.
+`skills/pedagogy/*.md` and `skills/techniques/*.md` are auto-discovered and
+prepended to every muse's system prompt. These are course-agnostic — no skill
+references a specific course, university, or tool stack.
 
-**Clio (SE1):** Fully decomposed — `clio_base.md` + three artifact layers. `clio_persona.md` is a deprecated monolith; do not use for new work.
+Skill loading scope is controlled by `MNEMO_SKILLS_SCOPE`:
+- `all` (default) — auto-load all skills
+- `manifest` — read `skills.manifest` from the muse directory for selective loading
+- `none` — no skills (bare muse)
 
-**Calliope (C291):** Still monolith (`calliope_persona.md`). Decomposition planned for summer before C291 SP26 generation begins.
+### Layer 2: Muse Identity (course-specific, lean)
 
-Course-instance KB files (e.g., `clio_kb_SP26.md`) live in the **course repo**, not here — they are course-instance specific and not part of the open-source distribution.
+- `musename_base.md` — ROLE + COURSE CONTEXT + course-specific pillars + tone
+  + course-specific pedagogical analysis dimensions
+- `musename_icex.md` — ICEX conventions specific to the course
+- `musename_slides.md` — slide deck conventions specific to the course
+- `musename_project.md` — project assignment conventions specific to the course
+
+Artifact layers are injected via `generation icex|slides|project`; only one is
+active at a time. The base is always loaded via `chat with <muse>`.
+
+**Clio (SE1):** Fully decomposed — `clio_base.md` + three artifact layers.
+`clio_persona.md` is a deprecated monolith; do not use for new work.
+
+**Calliope (C291):** Fully decomposed — `calliope_base.md` + three artifact
+layers + `calliope_project.md`. `calliope_persona.md` is a deprecated monolith.
+
+### Layer 3: Course-Instance KB (per-semester)
+
+Course-instance KB files (e.g., `clio_kb_SP26.md`) live in the **course repo**,
+not here — they are course-instance specific and not part of the open-source
+distribution. They are injected via `add kb <file>` or `--context` flags.
+
+### System Prompt Assembly
+
+```
+system_prompt = [Layer 1: Mnemo skills] + [Layer 2: muse base + artifact layer]
+```
+
+Layer 3 (KB) is injected as a priming message exchange, not appended to the
+system prompt — this keeps the system prompt cacheable.
 
 ## Key Constraints
 
-- Mnemo must remain independent of Lore Forge and Obsidian
+- Mnemo must remain independent of Lore Forge, Obsidian, 1Password, or any
+  personal workflow infrastructure
 - Never read, process, or pass student data to any API (FERPA)
 - Never echo or print API key values — use existence checks only
+
+## API Key Configuration
+
+API keys can be provided two ways:
+
+1. **Environment variables (standard):** Set `ANTHROPIC_API_KEY` or
+   `GEMINI_API_KEY` directly. This is the default method for open-source users.
+
+2. **1Password CLI (optional convenience):** If you use the `op` CLI, set
+   `MNEMO_OP_ANTHROPIC` / `MNEMO_OP_GEMINI` in `~/.mnemo_config` to
+   `op://` references. The `access` shell helper resolves them. This is an
+   optional convenience feature — the codebase never requires 1Password.

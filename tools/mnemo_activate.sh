@@ -39,6 +39,11 @@
 #   MNEMO_LAYER_SCOPE_GEMINI="*"          # assemble all artifact layers (default)
 #   MNEMO_LAYER_SCOPE_OLLAMA="focused"    # use selected layer only (default)
 #   Values: "*" = all layers; "focused" = MNEMO_ARTIFACT_LAYER only
+#
+# Skill loading scope (override in ~/.mnemo_config):
+#   MNEMO_SKILLS_SCOPE="all"              # auto-load all skills (default)
+#   MNEMO_SKILLS_SCOPE="manifest"         # read muse_dir/skills.manifest
+#   MNEMO_SKILLS_SCOPE="none"             # no skills (bare muse)
 
 # ── Internal bookkeeping ──────────────────────────────────────────────────────
 
@@ -75,6 +80,12 @@ MNEMO_LAYER_SCOPE_ANTHROPIC="${MNEMO_LAYER_SCOPE_ANTHROPIC:-*}"
 MNEMO_LAYER_SCOPE_GEMINI="${MNEMO_LAYER_SCOPE_GEMINI:-*}"
 MNEMO_LAYER_SCOPE_OLLAMA="${MNEMO_LAYER_SCOPE_OLLAMA:-focused}"
 
+# Skill loading scope (v1: auto-load all)
+# MNEMO_SKILLS_SCOPE="all"      # load all skills (default)
+# MNEMO_SKILLS_SCOPE="manifest" # read skills.manifest from muse directory
+# MNEMO_SKILLS_SCOPE="none"     # no skills (bare muse)
+MNEMO_SKILLS_SCOPE="${MNEMO_SKILLS_SCOPE:-all}"
+
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
 _mnemo_resolve_persona() {
@@ -96,14 +107,15 @@ _mnemo_resolve_persona() {
 
 _mnemo_discover_layers() {
     # Find all artifact layer files for the current muse persona directory.
-    # Convention: <muse>_<type>.md — excludes *_base.md and *_persona.md.
+    # Convention: <muse>_<type>.md — excludes *_base.md and *_persona*.md
+    # (any file with _persona in the name is a deprecated monolith or preserved original).
     # Prints one absolute path per line, alphabetically sorted.
     local muse_dir muse_name
     muse_dir="$(dirname "$MNEMO_PERSONA")"
     muse_name="$(basename "$muse_dir" | tr '[:upper:]' '[:lower:]')"
     for f in "$muse_dir"/${muse_name}_*.md; do
         [[ "$f" == *_base.md ]] && continue
-        [[ "$f" == *_persona.md ]] && continue
+        [[ "$f" == *_persona* ]] && continue
         [[ -f "$f" ]] && echo "$f"
     done | sort
 }
@@ -173,19 +185,53 @@ chat() {
         return 1
     fi
 
-    # Assemble system prompt: base persona + artifact layer(s), baked in before launch.
+    # Assemble system prompt: [Mnemo skills] + [base persona] + [artifact layer(s)]
+    # Skills are prepended before the persona so cross-course pedagogy and
+    # techniques load first, then course-specific identity, then artifact layer.
     # Resolution order:
     #   1. Explicit MNEMO_ARTIFACT_LAYER → focused (one layer, overrides provider scope)
     #   2. Provider scope "*"            → all discovered layers assembled
     #   3. Provider scope "focused"/other → base only
     local assembled_persona base_name
     base_name="$(basename "$MNEMO_PERSONA" .md)"
+
+    # Discover Mnemo skills (respect MNEMO_SKILLS_SCOPE)
+    local mnemo_skills_dir="$_MNEMO_TOOLS_DIR/../skills"
+    local skill_files=() skill_count=0
+    if [[ -d "$mnemo_skills_dir" && "$MNEMO_SKILLS_SCOPE" != "none" ]]; then
+        if [[ "$MNEMO_SKILLS_SCOPE" == "manifest" ]]; then
+            # Read skills.manifest from the muse directory
+            local muse_dir; muse_dir="$(dirname "$MNEMO_PERSONA")"
+            local manifest="$muse_dir/skills.manifest"
+            if [[ -f "$manifest" ]]; then
+                while IFS= read -r line; do
+                    [[ -z "$line" || "$line" == \#* ]] && continue
+                    local sf="$mnemo_skills_dir/${line}.md"
+                    [[ -f "$sf" ]] && skill_files+=("$sf")
+                done < "$manifest"
+            fi
+        else
+            # Default: auto-load all skills
+            for f in "$mnemo_skills_dir"/pedagogy/*.md "$mnemo_skills_dir"/techniques/*.md; do
+                [[ -f "$f" ]] && skill_files+=("$f")
+            done
+        fi
+        skill_count=${#skill_files[@]}
+    fi
+    if [[ $skill_count -gt 0 ]]; then
+        echo "  Skills → $skill_count files loaded [pedagogy + techniques]"
+    fi
+
     if [[ -n "$MNEMO_ARTIFACT_LAYER" ]]; then
         # Explicit selection: one layer, overrides provider scope default
         local layer_name
         layer_name="$(basename "$MNEMO_ARTIFACT_LAYER" .md)"
         assembled_persona="/tmp/${base_name}+${layer_name}.md"
-        cat "$MNEMO_PERSONA" "$MNEMO_ARTIFACT_LAYER" > "$assembled_persona"
+        if [[ $skill_count -gt 0 ]]; then
+            cat "${skill_files[@]}" "$MNEMO_PERSONA" "$MNEMO_ARTIFACT_LAYER" > "$assembled_persona"
+        else
+            cat "$MNEMO_PERSONA" "$MNEMO_ARTIFACT_LAYER" > "$assembled_persona"
+        fi
         echo "  Assembled → $assembled_persona"
     else
         local pvar="MNEMO_LAYER_SCOPE_$(echo "$MNEMO_PROVIDER" | tr '[:lower:]' '[:upper:]')"
@@ -199,15 +245,31 @@ chat() {
             done < <(_mnemo_discover_layers)
             if [[ ${#all_layers[@]} -gt 0 ]]; then
                 assembled_persona="/tmp/${base_name}+all.md"
-                cat "$MNEMO_PERSONA" "${all_layers[@]}" > "$assembled_persona"
+                if [[ $skill_count -gt 0 ]]; then
+                    cat "${skill_files[@]}" "$MNEMO_PERSONA" "${all_layers[@]}" > "$assembled_persona"
+                else
+                    cat "$MNEMO_PERSONA" "${all_layers[@]}" > "$assembled_persona"
+                fi
                 echo "  Assembled → $assembled_persona  [${#all_layers[@]} layers: ${layer_names% }]"
             else
-                assembled_persona="$MNEMO_PERSONA"
-                echo "  Assembled → (no layers found — using base only)"
+                if [[ $skill_count -gt 0 ]]; then
+                    assembled_persona="/tmp/${base_name}+skills.md"
+                    cat "${skill_files[@]}" "$MNEMO_PERSONA" > "$assembled_persona"
+                    echo "  Assembled → $assembled_persona  [skills only, no artifact layers found]"
+                else
+                    assembled_persona="$MNEMO_PERSONA"
+                    echo "  Assembled → (no layers or skills found — using base only)"
+                fi
             fi
         else
-            # Provider scope "focused" with no explicit selection: base only
-            assembled_persona="$MNEMO_PERSONA"
+            # Provider scope "focused" with no explicit selection: skills + base only
+            if [[ $skill_count -gt 0 ]]; then
+                assembled_persona="/tmp/${base_name}+skills.md"
+                cat "${skill_files[@]}" "$MNEMO_PERSONA" > "$assembled_persona"
+                echo "  Assembled → $assembled_persona  [focused: skills + base only]"
+            else
+                assembled_persona="$MNEMO_PERSONA"
+            fi
         fi
     fi
 
@@ -611,6 +673,7 @@ mnemo() {
             echo "  │  API key    : $key_status"
             echo "  │  Sessions   : $MNEMO_SESSIONS_DIR"
             echo "  │  Layer scope: $scope_label"
+            echo "  │  Skills     : ${MNEMO_SKILLS_SCOPE:-all}"
             echo "  │  Artifact   : $artifact_label"
             echo "  │  Focus      : $focus_label"
             echo "  │  HIL script : $hil_status"

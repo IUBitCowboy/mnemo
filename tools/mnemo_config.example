@@ -18,11 +18,18 @@ MNEMO_SESSIONS_DIR="./sessions/"
 # ── Persona aliases ───────────────────────────────────────────────────────────
 # Define aliases used by: chat with <name>
 # MNEMO_PERSONA_CLIO="/Users/yourname/devops/teaching/SE1/mnemo/Clio/clio_base.md"
-# MNEMO_PERSONA_CALLIOPE="/Users/yourname/devops/teaching/SE1/mnemo/Calliope/calliope_persona_v2.md"
+# MNEMO_PERSONA_CALLIOPE="/Users/yourname/devops/teaching/SE1/mnemo/Calliope/calliope_base.md"
 
 # ── Focus mode default ────────────────────────────────────────────────────────
 # "off" = conversational/chat mode  |  "on" = full artifact generation
 MNEMO_FOCUS="off"
+
+# ── Skill loading scope ───────────────────────────────────────────────────────
+# Controls which Mnemo skills are prepended to the system prompt.
+# "all"      = auto-load all skills/pedagogy/*.md and skills/techniques/*.md (default)
+# "manifest" = read skills.manifest from the muse directory for selective loading
+# "none"     = no skills (bare muse, for debugging)
+MNEMO_SKILLS_SCOPE="all"
 
 # ── Provider layer scope ──────────────────────────────────────────────────────
 # Controls how many artifact layers are assembled into the system prompt at launch.
@@ -33,9 +40,18 @@ MNEMO_FOCUS="off"
 # MNEMO_LAYER_SCOPE_GEMINI="*"
 # MNEMO_LAYER_SCOPE_OLLAMA="focused"
 
-# ── API key references (1Password op CLI) ─────────────────────────────────────
-# Used by: access anthropic / access gemini
-# Format:  op://VaultName/ItemName/field
-# Never commit these values. Keep in ~/.mnemo_config only.
-# MNEMO_OP_ANTHROPIC="op://VaultName/Anthropic API Key/credential"
-# MNEMO_OP_GEMINI="op://VaultName/Gemini API Key/credential"
+# ── API keys ──────────────────────────────────────────────────────────────────
+# Two methods — use whichever you prefer. The `access` shell helper uses method 2.
+#
+# Method 1: Standard environment variables (recommended for most users)
+#   export ANTHROPIC_API_KEY="sk-ant-..."
+#   export GEMINI_API_KEY="AIza..."
+#   No config file entry needed — providers.py reads these directly.
+#
+# Method 2: 1Password op CLI (optional convenience)
+#   Requires the `op` CLI installed and authenticated.
+#   MNEMO_OP_ANTHROPIC="op://VaultName/Anthropic API Key/credential"
+#   MNEMO_OP_GEMINI="op://VaultName/Gemini API Key/credential"
+#   Then use `access anthropic` / `access gemini` to load keys.
+#
+# Never commit API key values to version control.

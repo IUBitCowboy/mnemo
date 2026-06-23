@@ -113,4 +113,4 @@ yarn-error.log*
 *.swp
 *.swo
 
-# End of .gitignore
+# End of .gitignore.DS_Store

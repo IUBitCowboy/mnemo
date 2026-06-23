@@ -35,8 +35,17 @@ MNEMO_SESSIONS_DIR="./sessions/"    # where session transcripts are saved
 
 # Persona aliases — used by: chat with <name>
 MNEMO_PERSONA_CLIO="/path/to/mnemo/Clio/clio_base.md"
+```
 
-# API key references (1Password op CLI — value never echoed)
+**API keys** — two methods:
+
+```bash
+# Method 1: Standard environment variables (recommended for most users)
+export ANTHROPIC_API_KEY="sk-ant-..."
+export GEMINI_API_KEY="AIza..."
+
+# Method 2: 1Password CLI (optional convenience)
+# Set op:// references in ~/.mnemo_config; use `access anthropic` to load
 MNEMO_OP_ANTHROPIC="op://VaultName/Anthropic API Key/credential"
 ```
 
@@ -110,14 +119,17 @@ model                   # show current model
 
 Default models: `claude-sonnet-4-6` (Anthropic), `gemini-3.0-flash-thinking` (Gemini), `llama3.2` (Ollama).
 
-### API key access (1Password)
+### API key access
 
 ```bash
+# If using standard env vars (ANTHROPIC_API_KEY / GEMINI_API_KEY), no action needed.
+
+# If using 1Password CLI:
 access anthropic        # load ANTHROPIC_API_KEY from 1Password
 access gemini           # load GEMINI_API_KEY from 1Password
 ```
 
-Requires the `op` CLI and `MNEMO_OP_*` references set in `~/.mnemo_config`.
+The `access` command requires the `op` CLI and `MNEMO_OP_*` references in `~/.mnemo_config`. Standard environment variables work without any additional setup.
 
 ### Inbox — quick-capture ideas
 
@@ -191,10 +203,18 @@ mnemo/
     clio_icex.md          # Artifact layer: ICEXs, TA roles, rubrics
     clio_slides.md        # Artifact layer: slide decks
     clio_project.md       # Artifact layer: project assignments, MoJ template
+    clio_persona.md       # Deprecated monolith — do not use for new work
     inbox/                # Captured quick-ideas for Clio
   Calliope/
-    calliope_persona.md   # C291 instructional architect (monolith)
+    calliope_base.md      # C291 system prompt (always loaded)
+    calliope_icex.md      # Artifact layer: Bug in the Path, Quest Rewards
+    calliope_slides.md    # Artifact layer: Cliffhanger, AI Prompts
+    calliope_project.md   # Artifact layer: Hero's Debugging Log, skeleton code
+    calliope_persona.md   # Deprecated monolith — do not use for new work
     KB/                   # C291 knowledge base files
+  skills/                  # Mnemo skills (cross-course, auto-loaded)
+    pedagogy/             # 18 pedagogical principles (evidence-reviewed)
+    techniques/           # 11 reusable workflow patterns
   tools/
     chat.py               # CLI entry point
     providers.py          # Anthropic / Gemini / Ollama adapters
@@ -212,3 +232,44 @@ mnemo/
 ```
 
 Course-instance KB files (e.g., `clio_kb_SP26.md`) live in the **course repo**, not here — they are course-instance specific and not part of this distribution.
+
+---
+
+## Creating a New Muse
+
+A muse is a course-specific persona built on the three-layer architecture:
+
+1. **Create a muse directory** (e.g., `Euterpe/`):
+   ```
+   Euterpe/
+     euterpe_base.md       # ROLE + COURSE CONTEXT + course-specific pillars + tone
+     euterpe_icex.md        # ICEX conventions specific to the course
+     euterpe_slides.md      # Slide deck conventions specific to the course
+     euterpe_project.md     # Project conventions (if applicable)
+   ```
+
+2. **Write `euterpe_base.md`** — define the muse identity, course context
+   (course number, audience, class period, arc, submission method), and any
+   course-specific pedagogical pillars. Add a `## PEDAGOGICAL ANALYSIS —
+   COURSE DIMENSIONS` section listing course-specific analysis items. The
+   generic analysis format comes from the `pedagogical-analysis` skill.
+
+3. **Write artifact layers** — each layer contains only course-specific
+   conventions. Generic patterns (DoD format, SBP, rubric HTML, slide deck
+   structure) come from Mnemo skills automatically.
+
+4. **Add a persona alias** in `~/.mnemo_config`:
+   ```bash
+   MNEMO_PERSONA_EUTERPE="/path/to/mnemo/Euterpe/euterpe_base.md"
+   ```
+
+5. **Test:** `chat with euterpe` → `generation icex` → `generation focus on`
+   → verify output quality and that skills are present in the assembled prompt.
+
+**Key rules:**
+- No muse file should reference personal infrastructure (Lore Forge, Obsidian,
+  1Password).
+- No muse file should duplicate content that lives in a Mnemo skill.
+- Course-specific pedagogical analysis dimensions go in the base file; the
+  format template comes from the skill.
+- Artifact layers are mutually exclusive — only one is active at a time.
