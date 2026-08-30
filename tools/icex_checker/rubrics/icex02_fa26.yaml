@@ -15,8 +15,9 @@
 # before going to the AG.
 #
 # For late/resubmissions: handgrading = 0 per course policy. AG score is
-# still whatever the AG reports. The tool detects "LATE" in the submission
-# filename; TAs should zero handgrading for late submissions.
+# still whatever the AG reports. The TA should check the submission filename
+# for "LATE" and zero handgrading manually. (Automated LATE detection is
+# planned for v1.1 — not yet implemented.)
 
 assignment: ICEX02
 course: C291
@@ -99,6 +100,12 @@ criteria:
   # blank lines separating (10) = 85 pts total.
   # Extra credit tests (ECtestN) are additional, not part of the 85.
   # The tool cannot run AG tests. TA reviews AG results and enters the score.
+  #
+  # NOTE: The report's "Recommended points" summary will show 0/100 for
+  # ICEX02 runs because all evidence checks are 0-point (the AG awards
+  # the actual points) and the AG/handgrading scores are entered manually.
+  # The TA combines AG score + handgrading score externally and enters
+  # the total in Canvas. This is expected behavior, not a bug.
 
   - name: "AG Test Score (compilation + output tests)"
     points: 85
