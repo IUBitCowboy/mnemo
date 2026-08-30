@@ -73,6 +73,27 @@ class TestTokenResolution:
         monkeypatch.setattr("subprocess.run", lambda *a, **k: FakeProc())
         assert GitHubClient.resolve_token(token=None) == "gh-token-from-cli"
 
+    def test_gh_auth_token_passes_hostname(self, monkeypatch):
+        """gh auth token must be called with --hostname for multi-host setups."""
+        monkeypatch.delenv("GH_TOKEN", raising=False)
+        monkeypatch.delenv("GITHUB_ENTERPRISE_TOKEN", raising=False)
+
+        captured = {}
+
+        class FakeProc:
+            returncode = 0
+            stdout = "gho-iu-token\n"
+
+        def fake_run(cmd, **kwargs):
+            captured["cmd"] = cmd
+            return FakeProc()
+
+        monkeypatch.setattr("subprocess.run", fake_run)
+        result = GitHubClient.resolve_token(token=None, host="github.iu.edu")
+        assert result == "gho-iu-token"
+        assert "--hostname" in captured["cmd"]
+        assert "github.iu.edu" in captured["cmd"]
+
     def test_gh_auth_missing_raises_helpful_message(self, monkeypatch):
         monkeypatch.delenv("GH_TOKEN", raising=False)
         monkeypatch.delenv("GITHUB_ENTERPRISE_TOKEN", raising=False)

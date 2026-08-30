@@ -269,7 +269,7 @@ def _process_one(args, submission_path):
         return 1, str(exc)
 
     try:
-        token = GitHubClient.resolve_token(args.token)
+        token = GitHubClient.resolve_token(args.token, host=args.github_host)
     except APIMissingTokenError as exc:
         return 1, str(exc)
 

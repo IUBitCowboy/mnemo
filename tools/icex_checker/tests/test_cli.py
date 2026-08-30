@@ -54,7 +54,7 @@ def _install_fake(monkeypatch, token="fake-token", token_error=None, pr_error=No
 
     class FakeGitHubClient:
         @classmethod
-        def resolve_token(cls, t):
+        def resolve_token(cls, t, host=None):
             if token_error:
                 raise token_error
             return token

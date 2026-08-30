@@ -466,8 +466,25 @@ a checker the tool doesn't recognize yet, that criterion is reported as
 
 ### "authentication failed (HTTP 401)"
 
-Your token is invalid or expired. Create a new one at
-https://github.iu.edu/settings/tokens with `repo` scope.
+Your token is invalid, expired, or **for the wrong GitHub host**. If you have
+both a github.com account and a github.iu.edu account (common at IU), check
+which token your environment is providing:
+
+- **`GH_TOKEN` env var:** If this is set to a github.com token, it will fail
+  against github.iu.edu. Unset it (`unset GH_TOKEN`) and let the tool use
+  `gh auth token` instead, or set it to a github.iu.edu token.
+- **`gh auth token` fallback:** The tool calls `gh auth token --hostname
+  github.iu.edu` to get the correct token for multi-host setups. Make sure
+  you've run `gh auth login --hostname github.iu.edu` to authenticate.
+
+To create a new github.iu.edu token:
+
+1. Go to https://github.iu.edu/settings/tokens
+2. Click "Generate new token (classic)"
+3. Give it a name like "ICEX Checker"
+4. Select the `repo` scope (full control of private repos)
+5. Copy the token value
+6. Export it: `export GH_TOKEN="ghp_your_token_here"`
 
 ### "rate limited by GitHub API"
 

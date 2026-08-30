@@ -67,12 +67,18 @@ class GitHubClient:
     # -- auth resolution ---------------------------------------------------
 
     @staticmethod
-    def resolve_token(token):
+    def resolve_token(token, host=None):
         """Resolve an API token (FR-3, SC-9).
 
         Order: --token arg, GH_TOKEN, GITHUB_ENTERPRISE_TOKEN, then
-        `gh auth token`. Returns the token string or raises
-        APIMissingTokenError with setup help.
+        `gh auth token --hostname <host>`. Returns the token string or
+        raises APIMissingTokenError with setup help.
+
+        When falling back to `gh auth token`, the host is passed via
+        --hostname so that the correct token is returned for multi-host
+        setups (e.g. a user authenticated to both github.com and
+        github.iu.edu). Without --hostname, `gh auth token` may return
+        the token for a different host than the one the tool is querying.
         """
         if token:
             return token
@@ -82,9 +88,12 @@ class GitHubClient:
         env_ent = os.environ.get("GITHUB_ENTERPRISE_TOKEN")
         if env_ent:
             return env_ent.strip()
+        cmd = ["gh", "auth", "token"]
+        if host:
+            cmd.extend(["--hostname", host])
         try:
             proc = subprocess.run(
-                ["gh", "auth", "token"],
+                cmd,
                 capture_output=True,
                 text=True,
                 timeout=10,
