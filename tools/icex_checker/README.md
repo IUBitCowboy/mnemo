@@ -74,6 +74,9 @@ gh auth login --hostname github.iu.edu
 # Follow the prompts — choose HTTPS, authenticate via browser
 ```
 
+> **Do not omit `--hostname github.iu.edu`.** Without it, `gh auth login`
+> defaults to github.com and the tool will get the wrong token.
+
 The tool will automatically call `gh auth token --hostname github.iu.edu` to
 get the right token. No environment variables needed. This is the recommended
 approach for TAs.
