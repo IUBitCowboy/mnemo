@@ -124,33 +124,46 @@ receive new rubric files from the instructor for each ICEX assignment.
 
 ## Quick Start
 
-### Single Submission
+### 1. Clone the TA tools repo
 
 ```bash
-# With a token in your environment
-python3 icex_checker.py student_submission.html --rubric rubrics/icex01_fa26.yaml
-
-# With an explicit token
-python3 icex_checker.py student_submission.html --rubric rubrics/icex01_fa26.yaml --token ghp_your_token
-
-# Let the tool auto-detect the rubric (submission title must contain "ICEX01")
-python3 icex_checker.py student_submission.html
+git clone git@github.iu.edu:mnemo-course-dev/ta-tools.git
+cd ta-tools
 ```
 
-### Batch Mode
-
-Process all `.html` submission files in a directory:
+### 2. Set up Python environment
 
 ```bash
-# Process all submissions, save JSON results to output directory
-python3 icex_checker.py --batch submissions/ --rubric rubrics/icex01_fa26.yaml --output-dir results/
+python3 -m venv .venv
+.venv/bin/pip install requests PyYAML
 ```
 
-### Save Machine-Readable Output
+### 3. Authenticate to GitHub Enterprise
 
 ```bash
-# Save full assessment as JSON for archival
-python3 icex_checker.py student_submission.html --rubric rubrics/icex01_fa26.yaml --save-json report.json
+gh auth login --hostname github.iu.edu
+```
+
+> **Do not omit `--hostname github.iu.edu`.** Without it, `gh auth login`
+> defaults to github.com and the tool will get the wrong token.
+
+### 4. Run the checker
+
+```bash
+# Single submission
+.venv/bin/python icex_checker.py path/to/submission.html --rubric rubrics/icex01_fa26.yaml
+
+# Batch mode
+.venv/bin/python icex_checker.py --batch path/to/submissions/ --rubric rubrics/icex01_fa26.yaml --output-dir results/
+```
+
+### Updating
+
+When the instructor pushes updates (new rubrics, code fixes):
+
+```bash
+git pull
+.venv/bin/pip install -r requirements.txt  # in case deps changed
 ```
 
 ---
