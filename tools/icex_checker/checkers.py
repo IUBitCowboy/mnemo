@@ -237,6 +237,39 @@ def _pr_url_valid(ctx, criterion):
         "PR #%d resolves (HTTP 200)" % pr.number,
         "repo owner from URL: %s" % owner,
     ]
+    ownership_check = (criterion.params or {}).get("ownership_check", "student")
+
+    if ownership_check == "none":
+        return Finding(
+            criterion, "pass", criterion.points, evidence,
+            "URL resolves to a real PR. Ownership check disabled by rubric.",
+        )
+
+    if ownership_check == "team":
+        evidence.append("ownership_check: team")
+        if ctx.username and ctx.roster is not None:
+            team = ctx.roster.find_team(ctx.username)
+            if team is None:
+                return Finding(
+                    criterion, "needs-review", None, evidence,
+                    "Submitter '%s' is not in the roster — TA should verify "
+                    "membership before confirming." % ctx.username,
+                    ta_confirm=True,
+                )
+            evidence.append("submitter on team: %s" % team)
+            return Finding(
+                criterion, "pass", criterion.points, evidence,
+                "URL resolves to a PR in the team repo; submitter is a "
+                "confirmed roster member of %s." % team,
+            )
+        return Finding(
+            criterion, "needs-review", None, evidence,
+            "URL resolves to a PR in the team repo. No roster/username "
+            "available, so membership could not be verified — TA should "
+            "confirm the submitter is on the team (evidence-only mode, EF-12).",
+        )
+
+    # ownership_check == "student" (default): owner should match the submitter
     if ctx.student_name:
         if not _owner_matches_student(owner, ctx.student_name):
             return Finding(

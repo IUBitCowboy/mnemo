@@ -104,3 +104,50 @@ class TestAutoDetect:
 
     def test_no_match_returns_none(self, tmp_path):
         assert rubric.find_rubric("ICEX99", str(tmp_path)) is None
+
+
+class TestV11FieldsTolerated:
+    """v1.1 rubric fields must load on the current loader without changes."""
+
+    def test_team_rubric_with_v11_fields_loads(self, tmp_path):
+        p = tmp_path / "team.yaml"
+        p.write_text(
+            "assignment: ICEX01\n"
+            "course: C291\n"
+            "semester: FA26\n"
+            "total_points: 10\n"
+            "semester_start: 2026-08-24\n"
+            "type: team\n"
+            "canvas_points: 10\n"
+            "roster_file: roster.csv\n"
+            "ownership_check: team\n"
+            "team_mode: team_best\n"
+            "criteria:\n"
+            "  - name: Attribution\n"
+            "    points: 0\n"
+            "    checker: team_best_attribution\n",
+            encoding="utf-8",
+        )
+        r = rubric.load_rubric(p)
+        assert r.assignment == "ICEX01"
+        assert len(r.criteria) == 1
+
+    def test_ag_rubric_with_v11_fields_loads(self, tmp_path):
+        p = tmp_path / "ag.yaml"
+        p.write_text(
+            "assignment: PASN01\n"
+            "course: C291\n"
+            "semester: FA26\n"
+            "total_points: 100\n"
+            "semester_start: 2026-08-24\n"
+            "ag_url: https://autograder.luddy.indiana.edu/web/project/2206\n"
+            "ag_max_points: 100\n"
+            "handgrading_points: 0\n"
+            "criteria:\n"
+            "  - name: AG\n"
+            "    points: 100\n"
+            "    checker: manual_review\n",
+            encoding="utf-8",
+        )
+        r = rubric.load_rubric(p)
+        assert r.assignment == "PASN01"

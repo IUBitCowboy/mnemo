@@ -772,3 +772,68 @@ class TestTeamBestAttribution:
         team_evidence = [e for e in f.evidence if "PRs" in e]
         assert any("jdoe: 1" in e for e in team_evidence)
         assert any("rhaldhah: 1" in e for e in team_evidence)
+
+
+# ---------------------------------------------------------------------------
+# ownership_check toggle (V1-1) — pr_url_valid behavior
+# ---------------------------------------------------------------------------
+
+
+class TestPrUrlValidOwnership:
+    @staticmethod
+    def _criterion(ownership_check="student"):
+        return _criterion(
+            "pr_url_valid",
+            {"ownership_check": ownership_check},
+            points=2,
+        )
+
+    def _ctx(self, c, username="jdoe", roster=None):
+        return _ctx_v11(c, username=username, roster=roster)
+
+    def _personal_ctx(self, c, username="jdoe", roster=None):
+        """Student-mode context: PR in the student's OWN repo (C291 style)."""
+        ctx = CheckerContext(
+            client=c,
+            semester_start=SEMESTER_START,
+            student_name="Jane Doe",
+            pr_url="https://github.iu.edu/jdoe/fa26_c291/pull/42",
+        )
+        ctx.username = username
+        ctx.roster = roster
+        return ctx
+
+    def test_team_mode_without_roster_needs_review(self):
+        """ownership_check: team, no roster -> cannot verify membership ->
+        needs-review (evidence-only, EF-12). needs-review IS the action
+        item — no separate ta_confirm (D-1 semantics)."""
+        c = _FakeClient()
+        f = _finding(self._criterion("team"), self._ctx(c))
+
+        assert f.assessment == "needs-review"
+        assert f.ta_confirm is False
+        # No student-name matching runs in team mode
+        assert not any("owner matches student name" in e for e in f.evidence)
+
+    def test_team_mode_with_roster_verifies_membership(self):
+        """ownership_check: team + roster -> membership verified via roster team."""
+        c = _FakeClient()
+        roster = _RosterStub({"jdoe": "team01"})
+        f = _finding(self._criterion("team"), self._ctx(c, username="jdoe", roster=roster))
+
+        assert f.assessment == "pass"
+        assert any("team01" in e for e in f.evidence)
+
+    def test_student_mode_default_matches_submitter(self):
+        """ownership_check: student (default) -> owner must match submitter."""
+        c = _FakeClient()
+        f = _finding(self._criterion("student"), self._personal_ctx(c, username="jdoe"))
+
+        assert f.assessment == "pass"
+        assert any("owner matches student name" in e for e in f.evidence)
+
+    def test_none_mode_skips_all_ownership(self):
+        c = _FakeClient()
+        f = _finding(self._criterion("none"), self._ctx(c, username="jdoe"))
+
+        assert f.assessment == "pass"
