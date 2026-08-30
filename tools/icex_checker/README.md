@@ -65,19 +65,41 @@ the token in this order:
 4. **`gh auth token`** — if you have the [GitHub CLI](https://cli.github.com/)
    installed and authenticated, the tool will use it automatically
 
-**Creating a token** (if you don't have one):
+#### Option A: Use `gh auth login` (easiest — no token to manage)
+
+If you have the GitHub CLI installed:
+
+```bash
+gh auth login --hostname github.iu.edu
+# Follow the prompts — choose HTTPS, authenticate via browser
+```
+
+The tool will automatically call `gh auth token --hostname github.iu.edu` to
+get the right token. No environment variables needed. This is the recommended
+approach for TAs.
+
+#### Option B: Create a classic personal access token
+
+**You must use a classic token, not a fine-grained token.** Fine-grained
+tokens do not currently work reliably with GitHub Enterprise Server API
+access for private repositories.
 
 1. Go to https://github.iu.edu/settings/tokens
-2. Click "Generate new token (classic)"
+2. Click **"Generate new token (classic)"** (not "Fine-grained")
 3. Give it a name like "ICEX Checker"
-4. Select the `repo` scope (full control of private repos)
+4. Select the **`repo`** scope (Full control of private repositories)
+   — this is the only required scope
 5. Copy the token value
-
-Then either pass it on the command line or export it:
+6. Export it:
 
 ```bash
 export GH_TOKEN="ghp_your_token_here"
 ```
+
+> **Important — multi-host setups:** If you also have a github.com account
+> with a token in `GH_TOKEN`, that token will fail against github.iu.edu
+> with a 401 error. Either unset it (`unset GH_TOKEN`) and let the tool use
+> `gh auth token` instead, or replace it with a github.iu.edu token.
 
 > **Security:** The tool never prints or logs your token. Do not put tokens in
 > rubric files or any file that might be committed to a repository.
@@ -472,17 +494,21 @@ which token your environment is providing:
 
 - **`GH_TOKEN` env var:** If this is set to a github.com token, it will fail
   against github.iu.edu. Unset it (`unset GH_TOKEN`) and let the tool use
-  `gh auth token` instead, or set it to a github.iu.edu token.
+  `gh auth token` instead, or replace it with a github.iu.edu token.
+- **Fine-grained token:** GitHub Enterprise Server private repo access
+  requires a **classic** token, not a fine-grained one. Go to
+  https://github.iu.edu/settings/tokens and generate a classic token with
+  the `repo` scope.
 - **`gh auth token` fallback:** The tool calls `gh auth token --hostname
   github.iu.edu` to get the correct token for multi-host setups. Make sure
   you've run `gh auth login --hostname github.iu.edu` to authenticate.
 
-To create a new github.iu.edu token:
+To create a new github.iu.edu classic token:
 
 1. Go to https://github.iu.edu/settings/tokens
-2. Click "Generate new token (classic)"
+2. Click **"Generate new token (classic)"** (not "Fine-grained")
 3. Give it a name like "ICEX Checker"
-4. Select the `repo` scope (full control of private repos)
+4. Select the **`repo`** scope (Full control of private repositories)
 5. Copy the token value
 6. Export it: `export GH_TOKEN="ghp_your_token_here"`
 
