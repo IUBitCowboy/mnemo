@@ -96,14 +96,11 @@ criteria:
       expected_count: 4
       comparison: "exact"
 
-  - name: "Only one printf with terminating newline"
-    points: 0
-    checker: pattern_count
-    params:
-      target_file: "exercises/wk1/PASN01/arttree.c"
-      pattern: '\\n'
-      expected_count: 1
-      comparison: "at_most"
+  # NOTE: "Only last printf has terminating \n" check removed — the semantic
+  # requires parsing which printf is last and whether its format string ends
+  # with \n, not just counting \n occurrences. A correct 8-line tree across
+  # 4 printf statements has multiple \n characters. Counting them would
+  # false-fail correct submissions. Planned for v1.1 with a smarter checker.
   # AG tests: compilation (40), tree printed correctly (20),
   # exactly 4 printf statements (20), only one printf with \n (20) = 100.
   # The tool cannot run AG tests. TA reviews AG results and enters the score.
