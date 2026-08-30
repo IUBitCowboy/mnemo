@@ -1,0 +1,212 @@
+"""GitHub Enterprise API client for ICEX Submission Checker."""
+
+import os
+import subprocess
+
+import requests
+
+from icex_checker import (
+    APIMissingTokenError,
+    AuthFailureError,
+    NetworkError,
+    PRNotAccessibleError,
+    RateLimitError,
+)
+
+
+class PR:
+    """Pull request metadata (subset of the GitHub API response)."""
+
+    def __init__(self, data):
+        self.number = data.get("number")
+        self.title = data.get("title") or ""
+        self.body = data.get("body") or ""
+        self.state = data.get("state") or ""
+        self.created_at = data.get("created_at") or ""
+        self.updated_at = data.get("updated_at") or ""
+        head = data.get("head") or {}
+        base = data.get("base") or {}
+        self.head_ref = head.get("ref") or ""
+        self.base_ref = base.get("ref") or ""
+        self.commits = data.get("commits") or 0
+
+
+class Repo:
+    """Repository metadata (subset of the GitHub API response)."""
+
+    def __init__(self, data):
+        self.full_name = data.get("full_name") or ""
+        self.name = data.get("name") or ""
+        self.owner_login = (data.get("owner") or {}).get("login") or ""
+        self.created_at = data.get("created_at") or ""
+        self.html_url = data.get("html_url") or ""
+        self.private = bool(data.get("private"))
+        self.default_branch = data.get("default_branch") or ""
+
+
+class GitHubClient:
+    """Authenticated client for the GitHub Enterprise REST API.
+
+    Base URL: https://{host}/api/v3
+    Authentication: Authorization: token {token} (never logged).
+    """
+
+    def __init__(self, token, host):
+        self.token = token
+        self.host = host
+        self.api_root = "https://%s/api/v3" % host
+        self.session = requests.Session()
+        self.session.headers.update(
+            {
+                "Authorization": "token %s" % token,
+                "Accept": "application/vnd.github.v3+json",
+                "User-Agent": "icex-checker/1.0",
+            }
+        )
+
+    # -- auth resolution ---------------------------------------------------
+
+    @staticmethod
+    def resolve_token(token):
+        """Resolve an API token (FR-3, SC-9).
+
+        Order: --token arg, GH_TOKEN, GITHUB_ENTERPRISE_TOKEN, then
+        `gh auth token`. Returns the token string or raises
+        APIMissingTokenError with setup help.
+        """
+        if token:
+            return token
+        env_gh = os.environ.get("GH_TOKEN")
+        if env_gh:
+            return env_gh.strip()
+        env_ent = os.environ.get("GITHUB_ENTERPRISE_TOKEN")
+        if env_ent:
+            return env_ent.strip()
+        try:
+            proc = subprocess.run(
+                ["gh", "auth", "token"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=False,
+            )
+        except (FileNotFoundError, subprocess.SubprocessError):
+            proc = None
+        if proc is not None and proc.returncode == 0 and proc.stdout.strip():
+            return proc.stdout.strip()
+        raise APIMissingTokenError(
+            "no API token found. Provide one via --token, GH_TOKEN, "
+            "GITHUB_ENTERPRISE_TOKEN, or run `gh auth login` so the tool "
+            "can use `gh auth token`."
+        )
+
+    # -- low-level request -------------------------------------------------
+
+    def _raw_request(self, method, path, **kwargs):
+        """Perform an HTTP request; returns a requests.Response.
+
+        Raises NetworkError on connection-level failures.
+        """
+        try:
+            return self.session.request(method, self.api_root + path, timeout=30, **kwargs)
+        except requests.exceptions.Timeout as exc:
+            raise NetworkError("network error: request timed out (%s)" % exc) from exc
+        except requests.exceptions.RequestException as exc:
+            raise NetworkError("network error: %s" % exc) from exc
+
+    def _request(self, method, path, **kwargs):
+        """JSON request with error mapping (EF-4..EF-7).
+
+        Returns the parsed JSON body for 2xx. Raises AuthFailureError,
+        RateLimitError, PRNotAccessibleError, or NetworkError.
+        """
+        resp = self._raw_request(method, path, **kwargs)
+        status = resp.status_code
+        if 200 <= status < 300:
+            if not resp.content:
+                return None
+            return resp.json()
+        body_message = None
+        try:
+            body_message = resp.json().get("message")
+        except ValueError:
+            pass
+        if status == 401:
+            raise AuthFailureError(
+                "authentication failed (HTTP 401). Create a token with "
+                "'repo' scope at https://%s/settings/tokens" % self.host
+            )
+        if status == 403 or status == 429:
+            reset = resp.headers.get("X-RateLimit-Reset")
+            extra = ""
+            if reset:
+                import datetime
+
+                reset_dt = datetime.datetime.fromtimestamp(
+                    int(reset), tz=datetime.timezone.utc
+                )
+                extra = " (resets at %s UTC)" % reset_dt.isoformat()
+            raise RateLimitError(
+                "rate limited by GitHub API (HTTP %d)%s. If this is not a "
+                "rate limit, your token may lack permission for this repo."
+                % (status, extra)
+            )
+        raise PRNotAccessibleError(
+            "PR not accessible (HTTP %d)" % status,
+            status=status,
+            body_message=body_message,
+        )
+
+    # -- endpoints ---------------------------------------------------------
+
+    def get_pr(self, owner, repo, number):
+        """GET /repos/{owner}/{repo}/pulls/{number} (FR-4)."""
+        data = self._request("GET", "/repos/%s/%s/pulls/%d" % (owner, repo, number))
+        return PR(data)
+
+    def get_repo(self, owner, repo):
+        """GET /repos/{owner}/{repo} (FR-4)."""
+        data = self._request("GET", "/repos/%s/%s" % (owner, repo))
+        return Repo(data)
+
+    def get_commit_author_dates(self, owner, repo):
+        """GET /repos/{owner}/{repo}/commits?per_page=100 (first page only).
+
+        Returns a list of commit author date strings.
+        """
+        data = self._request(
+            "GET",
+            "/repos/%s/%s/commits" % (owner, repo),
+            params={"per_page": 100},
+        )
+        if not isinstance(data, list):
+            return []
+        dates = []
+        for commit in data:
+            author = (commit.get("commit") or {}).get("author") or {}
+            if author.get("date"):
+                dates.append(author["date"])
+        return dates
+
+    def get_pr_diff(self, owner, repo, number):
+        """GET the PR diff with the diff media type (FR-4).
+
+        The response is plain unified-diff text, not JSON.
+        """
+        resp = self._raw_request(
+            "GET",
+            "/repos/%s/%s/pulls/%d" % (owner, repo, number),
+            headers={"Accept": "application/vnd.github.v3.diff"},
+        )
+        status = resp.status_code
+        if 200 <= status < 300:
+            return resp.text
+        if status == 401:
+            raise AuthFailureError("authentication failed (HTTP 401)")
+        if status in (403, 429):
+            raise RateLimitError("rate limited by GitHub API (HTTP %d)" % status)
+        raise PRNotAccessibleError(
+            "PR not accessible (HTTP %d)" % status,
+            status=status,
+            body_message=resp.text[:300],
+        )

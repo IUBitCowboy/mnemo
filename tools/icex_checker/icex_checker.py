@@ -31,6 +31,31 @@ class NoPRUrlError(Exception):
     """Submission file contains no usable PR URL."""
 
 
+class APIMissingTokenError(Exception):
+    """No API token available through any authentication source."""
+
+
+class AuthFailureError(Exception):
+    """GitHub API rejected the token (HTTP 401)."""
+
+
+class RateLimitError(Exception):
+    """GitHub API rate limit reached (HTTP 403/429)."""
+
+
+class PRNotAccessibleError(Exception):
+    """PR or repository could not be accessed (HTTP 404/403)."""
+
+    def __init__(self, message, status=None, body_message=None):
+        super().__init__(message)
+        self.status = status
+        self.body_message = body_message
+
+
+class NetworkError(Exception):
+    """Network-level failure (DNS, connection refused, timeout)."""
+
+
 class Submission:
     """Parsed submission data.
 
