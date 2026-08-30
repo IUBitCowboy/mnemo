@@ -5,6 +5,14 @@ the `icex_checker/` package directory. `import icex_checker` may resolve
 to the package or the module file depending on filesystem scan order, so
 this package re-exports the module's public names to make both
 resolutions equivalent.
-"""
 
-from .icex_checker import *  # noqa: F401,F403
+When this code lives at the root of a standalone repo (e.g. the TA tools
+repo), the relative import ``from .icex_checker import *`` fails because
+there is no parent package. The try/except below handles both layouts:
+- As a subdirectory package: relative import works.
+- As a repo root: fall back to absolute import.
+"""
+try:
+    from .icex_checker import *  # noqa: F401,F403
+except ImportError:
+    from icex_checker import *  # noqa: F401,F403
