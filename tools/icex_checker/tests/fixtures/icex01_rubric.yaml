@@ -1,0 +1,40 @@
+# Rubric for ICEX01-FA26-C291 (mirrors spec example)
+assignment: ICEX01
+course: C291
+semester: FA26
+total_points: 10
+semester_start: 2026-08-24
+
+criteria:
+  - name: "Forked class Repo"
+    points: 1
+    checker: repo_history
+    params:
+      # Repo must have commits authored before semester_start
+      # (verified via commit author dates, not repo creation date)
+
+  - name: "Create Pull Request"
+    points: 2
+    checker: pr_exists_with_comment
+    params:
+      min_comment_length: 10
+
+  - name: "PR URL submitted to Canvas"
+    points: 2
+    checker: pr_url_valid
+    params: {}
+
+  - name: "Valid Student Repo Established"
+    points: 2
+    checker: valid_student_repo
+    params:
+      expected_repo_pattern: "fa26_c291"
+      github_host: github.iu.edu
+
+  - name: "Committed hello.c correct elements"
+    points: 3
+    checker: diff_content_check
+    params:
+      target_file: "hello.c"
+      must_contain_modified: "printf"
+      must_not_contain: "World"
