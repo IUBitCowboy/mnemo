@@ -65,6 +65,18 @@ def _ctx(client, student_name="Jane Doe", pr_url="https://github.iu.edu/jdoe/fa2
     )
 
 
+def _ctx_v11(client, username="jdoe", roster=None, student_name="Jane Doe"):
+    ctx = CheckerContext(
+        client=client,
+        semester_start=SEMESTER_START,
+        student_name=student_name,
+        pr_url="https://github.iu.edu/mnemo-course-dev/fa26_se1_team01/pull/3",
+    )
+    ctx.username = username
+    ctx.roster = roster
+    return ctx
+
+
 class _FakeClient:
     """Minimal stand-in for GitHubClient with overridable endpoint results."""
 
@@ -83,6 +95,7 @@ class _FakeClient:
         self.commit_error = None
         self.diff_text = HELLO_DIFF_OK
         self.diff_error = None
+        self.pr_commit_logins = ["jdoe"]
         self.calls = []
 
     def get_pr(self, owner, repo, number):
@@ -102,6 +115,12 @@ class _FakeClient:
         if self.commit_error:
             raise self.commit_error
         return list(self.commit_dates)
+
+    def get_pr_commit_logins(self, owner, repo, number):
+        self.calls.append(("pr_commits", owner, repo, number))
+        if self.commit_error:
+            raise self.commit_error
+        return list(self.pr_commit_logins)
 
     def get_pr_diff(self, owner, repo, number):
         self.calls.append(("diff", owner, repo, number))
@@ -410,7 +429,7 @@ class TestDiffContentCheck:
 # ---------------------------------------------------------------------------
 
 
-def test_registry_has_all_checkers():
+def test_registry_has_expected_checkers():
     assert set(CHECKERS) == {
         "repo_history",
         "pr_exists_with_comment",
@@ -419,6 +438,7 @@ def test_registry_has_all_checkers():
         "diff_content_check",
         "manual_review",
         "pattern_count",
+        "commit_author_check",
     }
 
 
@@ -602,3 +622,70 @@ class TestPatternCount:
         )
         assert f.assessment == "fail"  # 2 occurrences > at_most 1
         assert "found 2 time(s)" in f.evidence[-1]
+
+
+# ---------------------------------------------------------------------------
+# commit_author_check (V1-2)
+# ---------------------------------------------------------------------------
+
+
+class _RosterStub:
+    """Minimal roster stand-in mirroring the real Roster API (find_team)."""
+
+    def __init__(self, user_to_team):
+        self._map = user_to_team
+
+    def find_team(self, username):
+        return self._map.get(username)
+
+
+class TestCommitAuthorCheck:
+    @staticmethod
+    def _criterion():
+        return _criterion("commit_author_check", points=0)
+
+    def test_pass_when_student_login_is_commit_author(self):
+        c = _FakeClient()
+        c.pr_commit_logins = ["rhaldhah", "jdoe"]
+        ctx = _ctx_v11(c, username="jdoe", roster=_RosterStub({"jdoe": "team01"}))
+        f = _finding(self._criterion(), ctx)
+
+        assert f.assessment == "pass"
+        assert "jdoe" in f.evidence[-1]
+
+    def test_fail_with_ta_confirm_when_login_not_in_commits(self):
+        """Wrong submission: roster available, student's login absent."""
+        c = _FakeClient()
+        c.pr_commit_logins = ["rhaldhah"]
+        ctx = _ctx_v11(c, username="jdoe", roster=_RosterStub({"jdoe": "team01"}))
+        f = _finding(self._criterion(), ctx)
+
+        assert f.assessment == "fail"
+        assert f.ta_confirm is True
+        assert f.points_recommended == 0
+
+    def test_needs_review_when_no_roster(self):
+        """EF-12: no roster -> evidence-only, commit authors listed."""
+        c = _FakeClient()
+        c.pr_commit_logins = ["rhaldhah", "jdoe"]
+        f = _finding(self._criterion(), _ctx_v11(c, username="jdoe", roster=None))
+
+        assert f.assessment == "needs-review"
+        assert "rhaldhah" in f.evidence[-1]
+
+    def test_needs_review_when_username_missing(self):
+        """EF-13: unrecognized filename -> evidence-only."""
+        c = _FakeClient()
+        c.pr_commit_logins = ["rhaldhah"]
+        ctx = _ctx_v11(c, username=None, roster=_RosterStub({"jdoe": "team01"}))
+        f = _finding(self._criterion(), ctx)
+
+        assert f.assessment == "needs-review"
+
+    def test_needs_review_when_login_not_in_roster(self):
+        c = _FakeClient()
+        c.pr_commit_logins = ["rhaldhah"]
+        ctx = _ctx_v11(c, username="ghost", roster=_RosterStub({}))
+        f = _finding(self._criterion(), ctx)
+
+        assert f.assessment == "needs-review"

@@ -197,6 +197,25 @@ class GitHubClient:
                 dates.append(author["date"])
         return dates
 
+    def get_pr_commit_logins(self, owner, repo, number):
+        """GET /repos/{owner}/{repo}/pulls/{number}/commits (V1-2).
+
+        Returns a list of commit author logins (GitHub usernames).
+        """
+        data = self._request(
+            "GET",
+            "/repos/%s/%s/pulls/%d/commits" % (owner, repo, number),
+            params={"per_page": 100},
+        )
+        if not isinstance(data, list):
+            return []
+        logins = []
+        for commit in data:
+            author = commit.get("author") or {}
+            if author.get("login"):
+                logins.append(author["login"])
+        return logins
+
     def get_pr_diff(self, owner, repo, number):
         """GET the PR diff with the diff media type (FR-4).
 

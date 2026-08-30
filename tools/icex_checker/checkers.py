@@ -49,6 +49,8 @@ class CheckerContext:
         self.semester_start = semester_start
         self.student_name = student_name
         self.pr_url = pr_url  # "https://host/owner/repo/pull/N"
+        self.username = None  # IU username from Canvas filename (V1-3)
+        self.roster = None    # Roster object or None (V1-1)
 
 
 def _parse_pr_url(url):
@@ -578,6 +580,76 @@ def _pattern_count(ctx, criterion):
     )
 
 
+def _commit_author_check(ctx, criterion):
+    """Verify the submitting student contributed commits to the PR (V1-2).
+
+    Attribution chain: Canvas filename -> IU username -> roster lookup
+    (SE1: IU username IS the github.iu.edu login) -> compare against
+    commit author logins from the PR commits API.
+
+    Degradation (EF-12/EF-13): without a usable roster or username, list
+    the commit authors as evidence and return needs-review. Never guesses.
+    """
+    owner, repo, number = _parse_pr_url(ctx.pr_url) or (None, None, None)
+    if not owner:
+        return Finding(
+            criterion, "needs-review", None,
+            ["cannot parse PR URL"],
+            "Cannot identify the pull request from the submission URL.",
+        )
+    try:
+        logins = ctx.client.get_pr_commit_logins(owner, repo, number)
+    except PRNotAccessibleError:
+        return Finding(
+            criterion, "needs-review", None,
+            ["PR commits endpoint returned 404/403"],
+            "PR commits could not be fetched — TA should verify attribution manually.",
+        )
+    except (AuthFailureError, RateLimitError):
+        return Finding(
+            criterion, "needs-review", None,
+            ["PR commits endpoint failed auth/rate-limit"],
+            "API auth/rate-limit issue blocked the commit query.",
+        )
+
+    unique_logins = sorted(set(logins))
+    evidence = ["commit authors: %s" % (", ".join(unique_logins) if unique_logins else "(none)")]
+
+    if not ctx.username:
+        return Finding(
+            criterion, "needs-review", None, evidence,
+            "No IU username available (unrecognized submission filename). "
+            "TA should verify the submitter's identity against the commit "
+            "authors listed above.",
+        )
+    if ctx.roster is None:
+        return Finding(
+            criterion, "needs-review", None, evidence,
+            "No roster available. TA should verify manually that the "
+            "submitter appears among the commit authors above.",
+        )
+    if ctx.roster.find_team(ctx.username) is None:
+        return Finding(
+            criterion, "needs-review", None, evidence,
+            "Submitter '%s' is not in the roster. TA should verify the "
+            "username and the commit authors above." % ctx.username,
+        )
+
+    evidence.append("submitter (from filename, in roster): %s" % ctx.username)
+    if ctx.username in logins:
+        return Finding(
+            criterion, "pass", criterion.points, evidence,
+            "Submitting student appears among the PR commit authors.",
+        )
+    return Finding(
+        criterion, "fail", 0, evidence,
+        "Submitting student '%s' is NOT among the PR commit authors — "
+        "likely a wrong submission (e.g. the PR they approved rather than "
+        "created). TA should confirm." % ctx.username,
+        ta_confirm=True,
+    )
+
+
 CHECKERS = {
     "repo_history": _repo_history,
     "pr_exists_with_comment": _pr_exists_with_comment,
@@ -586,6 +658,7 @@ CHECKERS = {
     "diff_content_check": _diff_content_check,
     "manual_review": _manual_review,
     "pattern_count": _pattern_count,
+    "commit_author_check": _commit_author_check,
 }
 
 

@@ -171,6 +171,28 @@ class TestGetCommits:
         assert seen["params"] == {"per_page": 100}
 
 
+class TestGetPRCommits:
+    def test_returns_author_logins(self):
+        c = _client()
+        payload = [
+            {"sha": "a", "author": {"login": "jdoe"}},
+            {"sha": "b", "author": {"login": "jdoe"}},
+            {"sha": "c", "author": {"login": "rhaldhah"}},
+        ]
+        c._request = lambda method, path, **kw: payload
+        logins = c.get_pr_commit_logins("jdoe", "fa26_c291", 42)
+
+        assert logins == ["jdoe", "jdoe", "rhaldhah"]
+
+    def test_uses_per_page_100(self):
+        c = _client()
+        seen = {}
+        c._request = lambda method, path, **kw: seen.update(kw) or []
+        c.get_pr_commit_logins("jdoe", "fa26_c291", 42)
+
+        assert seen["params"] == {"per_page": 100}
+
+
 class TestGetDiff:
     def test_accepts_diff_media_type(self):
         c = _client()
