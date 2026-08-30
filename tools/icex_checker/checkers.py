@@ -51,6 +51,7 @@ class CheckerContext:
         self.pr_url = pr_url  # "https://host/owner/repo/pull/N"
         self.username = None  # IU username from Canvas filename (V1-3)
         self.roster = None    # Roster object or None (V1-1)
+        self.ownership_check = None  # rubric-level default (V1-1)
 
 
 def _parse_pr_url(url):
@@ -237,7 +238,9 @@ def _pr_url_valid(ctx, criterion):
         "PR #%d resolves (HTTP 200)" % pr.number,
         "repo owner from URL: %s" % owner,
     ]
-    ownership_check = (criterion.params or {}).get("ownership_check", "student")
+    ownership_check = (criterion.params or {}).get(
+        "ownership_check", getattr(ctx, "ownership_check", None) or "student"
+    )
 
     if ownership_check == "none":
         return Finding(

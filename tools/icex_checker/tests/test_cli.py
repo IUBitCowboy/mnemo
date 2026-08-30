@@ -100,6 +100,32 @@ def _html(tmp_path, name, url="https://github.iu.edu/jdoe/fa26_c291/pull/42",
     return p
 
 
+def _rubric_with_ag(tmp_path_or_none, target="hello.c"):
+    """A v1.1 AG rubric: ag_max_points 85, handgrading 15, canvas 10."""
+    base = tmp_path_or_none if tmp_path_or_none is not None else pathlib.Path(".")
+    p = base / "rubric_ag.yaml"
+    p.write_text(
+        "assignment: ICEX02\n"
+        "course: C291\n"
+        "semester: FA26\n"
+        "total_points: 100\n"
+        "semester_start: 2026-08-24\n"
+        "ag_url: https://autograder.luddy.indiana.edu/web/project/2502\n"
+        "ag_max_points: 85\n"
+        "handgrading_points: 15\n"
+        "canvas_points: 10\n"
+        "criteria:\n"
+        "  - name: AG Test Score\n"
+        "    points: 85\n"
+        "    checker: manual_review\n"
+        "  - name: Handgrading\n"
+        "    points: 15\n"
+        "    checker: manual_review\n",
+        encoding="utf-8",
+    )
+    return p
+
+
 class TestVersion:
     def test_version_flag(self, capsys):
         code = cli.main(["--version"])
@@ -260,6 +286,61 @@ class TestSingleSubmission:
         code = cli.main([str(SAMPLE), "--rubric", str(RUBRIC), "--output-dir", "/tmp/x"])
         assert code == 1
         assert "--output-dir" in capsys.readouterr().err
+
+    def test_ag_score_accepted_single_submission(self, monkeypatch, capsys):
+        """V1-4/EF-15: --ag-score N accepted when rubric has ag_max_points."""
+        _install_fake(monkeypatch)
+        rubric_path = _rubric_with_ag(tmp_path_or_none=None)
+        code = cli.main(
+            [str(SAMPLE), "--rubric", str(rubric_path), "--ag-score", "80"]
+        )
+        out = capsys.readouterr().out
+        assert code == 0
+        assert "AG score: 80/85" in out
+
+    def test_ag_score_out_of_range_fatal(self, monkeypatch, capsys):
+        """EF-15: --ag-score above ag_max_points -> exit 1."""
+        _install_fake(monkeypatch)
+        rubric_path = _rubric_with_ag(tmp_path_or_none=None)
+        code = cli.main(
+            [str(SAMPLE), "--rubric", str(rubric_path), "--ag-score", "99"]
+        )
+        err = capsys.readouterr().err
+        assert code == 1
+        assert "out of range" in err
+
+    def test_ag_score_ignored_in_batch(self, monkeypatch, capsys, tmp_path):
+        """EF-16: --ag-score with --batch -> warning, ignored."""
+        _install_fake(monkeypatch)
+        _html(tmp_path, "a.html")
+        rubric_path = _rubric_with_ag(tmp_path_or_none=tmp_path)
+        code = cli.main(
+            ["--batch", str(tmp_path), "--rubric", str(rubric_path), "--ag-score", "80"]
+        )
+        captured = capsys.readouterr()
+        assert code == 0
+        assert "ignored" in captured.err
+
+    def test_merged_pr_state_in_report(self, monkeypatch, capsys):
+        """EF-14: merged PR shows 'merged' in the report."""
+        _install_fake(monkeypatch)
+        code = cli.main([str(SAMPLE), "--rubric", str(RUBRIC)])
+        out = capsys.readouterr().out
+        assert code == 0
+        assert "State:" in out
+        # With default open PR_OK, state should be open; the merged branch
+        # is covered at the report unit level.
+
+    def test_late_filename_zeroes_handgrading_in_report(self, monkeypatch, capsys, tmp_path):
+        """V1-3: LATE detection flows into Assessment -> report."""
+        _install_fake(monkeypatch)
+        p = _html(tmp_path, "jdoe_LATE_6789124_link.html")
+        rubric_path = _rubric_with_ag(tmp_path_or_none=tmp_path)
+        code = cli.main([str(p), "--rubric", str(rubric_path)])
+        out = capsys.readouterr().out
+        assert code == 0
+        assert "LATE SUBMISSION" in out
+        assert "Handgrading: 0/15" in out
 
 
 class TestBatch:

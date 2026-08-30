@@ -34,22 +34,42 @@ class Criterion:
 class Rubric:
     """A loaded rubric definition.
 
-    Attributes:
-        assignment: ICEX identifier (e.g. "ICEX01").
-        course: course code (e.g. "C291").
-        semester: semester code (e.g. "FA26").
-        total_points: sum of criterion points expected.
-        semester_start: ISO date string when the semester began.
-        criteria: list of Criterion objects.
+    v1.1 optional fields (V1-1/V1-4): type, canvas_points, ag_max_points,
+    handgrading_points, ag_url, roster_file, ownership_check, team_mode —
+    all default None/0 and tolerated by the loader for backward compat.
     """
 
-    def __init__(self, assignment, course, semester, total_points, semester_start, criteria):
+    def __init__(
+        self,
+        assignment,
+        course,
+        semester,
+        total_points,
+        semester_start,
+        criteria,
+        rtype=None,
+        canvas_points=None,
+        ag_max_points=None,
+        handgrading_points=0,
+        ag_url=None,
+        roster_file=None,
+        ownership_check=None,
+        team_mode=None,
+    ):
         self.assignment = assignment
         self.course = course
         self.semester = semester
         self.total_points = total_points
         self.semester_start = semester_start
         self.criteria = criteria
+        self.type = rtype or "icex"
+        self.canvas_points = canvas_points
+        self.ag_max_points = ag_max_points
+        self.handgrading_points = handgrading_points
+        self.ag_url = ag_url
+        self.roster_file = roster_file
+        self.ownership_check = ownership_check
+        self.team_mode = team_mode
 
 
 def load_rubric(path):
@@ -121,6 +141,14 @@ def load_rubric(path):
         total_points=total_points,
         semester_start=semester_start,
         criteria=criteria,
+        rtype=data.get("type"),
+        canvas_points=data.get("canvas_points"),
+        ag_max_points=data.get("ag_max_points"),
+        handgrading_points=data.get("handgrading_points") or 0,
+        ag_url=data.get("ag_url"),
+        roster_file=data.get("roster_file"),
+        ownership_check=data.get("ownership_check"),
+        team_mode=data.get("team_mode"),
     )
 
 

@@ -2,7 +2,11 @@
 
 
 class Assessment:
-    """Everything the report needs: submission identity, PR details, findings."""
+    """Everything the report needs: submission identity, PR details, findings.
+
+    v1.1 fields (V1-3/V1-4) are optional and backward compatible:
+    is_late, ag_max_points, handgrading_points, ag_score, canvas_points.
+    """
 
     def __init__(
         self,
@@ -16,6 +20,11 @@ class Assessment:
         pr_details,
         findings,
         save_json_path=None,
+        is_late=False,
+        ag_max_points=None,
+        handgrading_points=0,
+        ag_score=None,
+        canvas_points=None,
     ):
         self.assignment = assignment
         self.course = course
@@ -27,6 +36,11 @@ class Assessment:
         self.pr_details = pr_details
         self.findings = findings
         self.save_json_path = save_json_path
+        self.is_late = is_late
+        self.ag_max_points = ag_max_points
+        self.handgrading_points = handgrading_points
+        self.ag_score = ag_score
+        self.canvas_points = canvas_points
 
 
 def summarize_findings(findings):
@@ -61,6 +75,9 @@ def build_text_report(assessment):
     lines.append("PR URL:     %s" % assessment.pr_url)
     lines.append("Assessed:   %s" % assessment.timestamp)
     lines.append("Tool:       icex_checker %s" % assessment.tool_version)
+    if assessment.is_late:
+        lines.append("")
+        lines.append("*** LATE SUBMISSION — handgrading zeroed per course policy ***")
     lines.append("")
 
     lines.append("SUMMARY")
@@ -90,8 +107,42 @@ def build_text_report(assessment):
     lines.append("Description: %s" % _truncate(pd.get("description", ""), 200))
     lines.append("Branches:    %s -> %s" % (pd.get("head_ref", ""), pd.get("base_ref", "")))
     lines.append("Commits:     %s" % pd.get("commits", ""))
-    lines.append("State:       %s" % pd.get("state", ""))
+    if pd.get("merged"):
+        lines.append("State:       merged")
+    else:
+        lines.append("State:       %s" % pd.get("state", ""))
     lines.append("")
+
+    if assessment.ag_max_points is not None:
+        lines.append("AG SCORE")
+        lines.append("-" * 72)
+        max_pts = assessment.ag_max_points
+        hg_max = assessment.handgrading_points or 0
+        if assessment.ag_score is not None:
+            lines.append("AG score: %s/%s" % (assessment.ag_score, max_pts))
+        else:
+            lines.append("AG score: (not entered — TA enters from AG platform)")
+        if hg_max > 0:
+            if assessment.is_late:
+                lines.append("Handgrading: 0/%s (LATE submission — zeroed per policy)" % hg_max)
+            else:
+                lines.append(
+                    "Handgrading: (TA enters 0-%s from AG handgrader)" % hg_max
+                )
+        # The tool only knows the AG score in v1.1 (handgrading is entered
+        # manually in the AG platform). Scaling therefore uses the AG score
+        # alone and notes that handgrading completes the total.
+        ag_total = assessment.ag_score or 0
+        if assessment.ag_score is not None:
+            scale_denom = max_pts + hg_max
+            lines.append("AG-scale total so far: %s/%s (final = + handgrading%s)"
+                         % (ag_total, scale_denom, " = 0" if assessment.is_late else " 0-%s" % hg_max))
+        if assessment.canvas_points is not None and assessment.canvas_points != max_pts + hg_max:
+            scale_denom = max_pts + hg_max
+            scaled = (ag_total / scale_denom) * assessment.canvas_points if scale_denom else 0.0
+            lines.append("Canvas score (scaled to %s, handgrading pending): %.1f/%s"
+                         % (assessment.canvas_points, scaled, assessment.canvas_points))
+        lines.append("")
 
     lines.append("TA ACTION ITEMS")
     lines.append("-" * 72)
@@ -105,6 +156,12 @@ def build_text_report(assessment):
             action_items.append(
                 "  [ ] Confirm: %s — %s" % (f.criterion_name, f.notes or "see PR")
             )
+    if assessment.ag_max_points is not None:
+        action_items.append(
+            "  [ ] Check Canvas gradebook for prior submissions. If this is a "
+            "resubmission, do not overwrite the prior handgrading score; "
+            "enter the updated AG score in Canvas."
+        )
     if action_items:
         lines.extend(action_items)
     else:
@@ -130,6 +187,11 @@ def build_json_report(assessment):
         "assessed_at": assessment.timestamp,
         "pr_details": assessment.pr_details or {},
         "summary": summarize_findings(assessment.findings),
+        "is_late": assessment.is_late,
+        "ag_max_points": assessment.ag_max_points,
+        "handgrading_points": assessment.handgrading_points,
+        "ag_score": assessment.ag_score,
+        "canvas_points": assessment.canvas_points,
         "criteria": [
             {
                 "name": f.criterion_name,

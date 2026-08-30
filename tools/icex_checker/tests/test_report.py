@@ -156,3 +156,77 @@ class TestJsonReport:
 
         assert "super-secret-token" not in data
         assert "ghp_" not in data
+
+
+class TestV11ReportModes:
+    """V1-3/V1-4: LATE banner, AG report sections, canvas scaling, V1-5 prompt."""
+
+    @staticmethod
+    def _ag_assessment(is_late=False, ag_score=None, canvas_points=10):
+        return Assessment(
+            assignment="ICEX02",
+            course="C291",
+            semester="FA26",
+            student_name="Jane Doe",
+            pr_url="https://github.iu.edu/jdoe/fa26_c291/pull/42",
+            timestamp="2026-08-30T12:00:00",
+            tool_version="1.1.0",
+            pr_details={"title": "t", "description": "", "head_ref": "ICEX02",
+                        "base_ref": "main", "commits": 1, "state": "merged"},
+            findings=[
+                _finding("needs-review", None, "AG Test Score (compilation + output tests)",
+                         "manual_review", evidence=[], notes="Enter AG score (0-85)."),
+                _finding("needs-review", None, "Handgrading (style, comments, design)",
+                         "manual_review", evidence=[], notes="Enter handgrading score (0-15)."),
+            ],
+            save_json_path=None,
+            ag_max_points=85,
+            handgrading_points=15,
+            is_late=is_late,
+            ag_score=ag_score,
+            canvas_points=canvas_points,
+        )
+
+    def test_late_banner_present(self):
+        text = build_text_report(self._ag_assessment(is_late=True))
+
+        assert "LATE SUBMISSION" in text
+        assert "handgrading" in text.lower()
+
+    def test_no_late_banner_when_not_late(self):
+        text = build_text_report(self._ag_assessment(is_late=False))
+
+        assert "LATE SUBMISSION" not in text
+
+    def test_ag_score_section(self):
+        text = build_text_report(self._ag_assessment(ag_score=80))
+
+        assert "AG score: 80/85" in text
+
+    def test_canvas_scaled_score_shown(self):
+        """V1-4: canvas score = (AG+handgrading)/total * canvas_points."""
+        text = build_text_report(self._ag_assessment(ag_score=70))
+
+        assert "Canvas" in text
+        assert "7.0" in text  # (70 + 0 handgrading) / 100 * 10 = 7.0
+
+    def test_merged_state_displayed(self):
+        """EF-14: merged PRs show 'merged', not just 'closed'."""
+        text = build_text_report(self._ag_assessment())
+
+        assert "merged" in text
+
+    def test_resubmission_prompt_in_action_items(self):
+        """V1-5: static Canvas-gradebook reminder always present for AG."""
+        text = build_text_report(self._ag_assessment())
+
+        assert "Check Canvas gradebook" in text
+        assert "prior submission" in text.lower() or "resubmission" in text.lower()
+
+    def test_json_includes_v11_fields(self):
+        data = build_json_report(self._ag_assessment(ag_score=80, is_late=True))
+
+        assert data["is_late"] is True
+        assert data["ag_score"] == 80
+        assert data["ag_max_points"] == 85
+        assert data["canvas_points"] == 10

@@ -34,6 +34,7 @@ from errors import (
 )
 from github_client import GitHubClient
 from report import Assessment, build_json_report, build_text_report
+from roster import load_roster as load_roster_file
 from rubric import RubricNotFoundError, RubricParseError, find_rubric, load_rubric
 
 TOOL_VERSION = "1.0.0"
@@ -215,6 +216,12 @@ def build_parser():
         help="Output format (default: text)",
     )
     parser.add_argument(
+        "--ag-score",
+        type=int,
+        metavar="N",
+        help="AG score to include in the report (single-submission mode only)",
+    )
+    parser.add_argument(
         "--batch",
         help="Batch mode: process all .html files in this directory",
     )
@@ -248,6 +255,8 @@ def main(argv=None):
         return 1
 
     if args.batch:
+        if args.ag_score is not None:
+            print("warning: --ag-score is ignored in batch mode (EF-16)", file=sys.stderr)
         return _run_batch(args)
 
     if not args.submission:
@@ -294,6 +303,24 @@ def _process_one(args, submission_path):
     except APIMissingTokenError as exc:
         return 1, str(exc)
 
+    # EF-15: --ag-score out of range is fatal when the rubric defines AG.
+    if args.ag_score is not None and rubric.ag_max_points is not None:
+        if args.ag_score < 0 or args.ag_score > rubric.ag_max_points:
+            return 1, "AG score %d is out of range (0-%d)" % (
+                args.ag_score,
+                rubric.ag_max_points,
+            )
+
+    roster_obj = None
+    if rubric.roster_file:
+        roster_obj = load_roster_file(rubric.roster_file)
+        if roster_obj is None:
+            print(
+                "warning: roster file %s missing or unreadable — roster-"
+                "dependent checks will run evidence-only (EF-12)" % rubric.roster_file,
+                file=sys.stderr,
+            )
+
     client = GitHubClient(token=token, host=args.github_host)
     owner, repo, number = _split_pr_url(sub.pr_url)
 
@@ -326,6 +353,7 @@ def _process_one(args, submission_path):
             "base_ref": pr.base_ref,
             "commits": pr.commits,
             "state": pr.state,
+            "merged": pr.merged,
         }
     except PRNotAccessibleError:
         pass
@@ -345,6 +373,12 @@ def _process_one(args, submission_path):
         student_name=sub.student_name,
         pr_url=sub.pr_url,
     )
+    ctx.username = sub.username
+    ctx.roster = roster_obj
+    if rubric.ownership_check:
+        # Default rubric-level ownership mode (V1-1) unless a criterion
+        # overrides via its own params.
+        ctx.ownership_check = rubric.ownership_check
     findings = [run_criterion(ctx, c) for c in rubric.criteria]
 
     assessment = Assessment(
@@ -358,6 +392,11 @@ def _process_one(args, submission_path):
         pr_details=pr_details,
         findings=findings,
         save_json_path=args.save_json if not args.batch else None,
+        is_late=sub.is_late,
+        ag_max_points=rubric.ag_max_points,
+        handgrading_points=rubric.handgrading_points,
+        ag_score=args.ag_score if not args.batch else None,
+        canvas_points=rubric.canvas_points,
     )
 
     if args.output_format == "json" and not args.batch:

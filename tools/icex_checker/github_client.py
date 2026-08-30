@@ -22,6 +22,7 @@ class PR:
         self.title = data.get("title") or ""
         self.body = data.get("body") or ""
         self.state = data.get("state") or ""
+        self.merged = bool(data.get("merged"))
         self.created_at = data.get("created_at") or ""
         self.updated_at = data.get("updated_at") or ""
         head = data.get("head") or {}
