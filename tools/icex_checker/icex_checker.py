@@ -282,9 +282,13 @@ def _process_one(args, submission_path):
     try:
         client.get_repo(owner, repo)
     except PRNotAccessibleError as exc:
-        return 1, "PR not accessible (%s). PR URL for manual review: %s" % (
-            exc,
-            sub.pr_url,
+        return 1, (
+            "PR not accessible (%s). PR URL for manual review: %s\n"
+            "If the repo is private, this usually means the token lacks "
+            "access: check that GH_TOKEN is a github.iu.edu token (not "
+            "github.com) with the 'repo' scope, or unset GH_TOKEN and let "
+            "the tool use `gh auth token --hostname github.iu.edu`."
+            % (exc, sub.pr_url)
         )
     except (AuthFailureError, RateLimitError, NetworkError) as exc:
         return 1, str(exc)

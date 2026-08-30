@@ -182,6 +182,20 @@ class TestSingleSubmission:
         assert "PR not accessible" in err
         assert "github.iu.edu/jdoe/fa26_c291/pull/42" in err
 
+    def test_404_hint_mentions_token_scope(self, monkeypatch, capsys):
+        """A 404 on a private repo usually means the token lacks access —
+        the error must say so, not just report the status."""
+        _install_fake(
+            monkeypatch,
+            pr_error=PRNotAccessibleError("PR not accessible (HTTP 404)", status=404),
+            repo_error=PRNotAccessibleError("PR not accessible (HTTP 404)", status=404),
+        )
+        code = cli.main([str(SAMPLE), "--rubric", str(RUBRIC)])
+        err = capsys.readouterr().err
+        assert code == 1
+        assert "token" in err.lower()
+        assert "private" in err.lower()
+
     def test_pr_404_with_valid_repo_continues(self, monkeypatch, capsys):
         """EF-6 vs pr_url_valid: PR 404 but repo exists -> checker partial, not fatal."""
         _install_fake(monkeypatch, pr_error=PRNotAccessibleError("PR not accessible (HTTP 404)", status=404))
