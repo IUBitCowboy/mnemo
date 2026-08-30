@@ -554,7 +554,7 @@ def _pattern_count(ctx, criterion):
         )
 
     added_lines = _added_lines_for(diff, target_file)
-    count = sum(1 for line in added_lines if re.search(pattern, line))
+    count = sum(len(re.findall(pattern, line)) for line in added_lines)
     evidence.append("pattern %r found %d time(s) in added lines" % (pattern, count))
 
     if comparison == "at_least":

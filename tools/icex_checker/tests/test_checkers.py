@@ -559,3 +559,46 @@ class TestPatternCount:
             _ctx(c),
         )
         assert any("4" in e for e in f.evidence)
+
+    def test_counts_occurrences_not_lines(self):
+        """Two printf on ONE line must count as 2, not 1."""
+        c = _FakeClient()
+        c.diff_text = (
+            "diff --git a/arttree.c b/arttree.c\n"
+            "--- a/arttree.c\n"
+            "+++ b/arttree.c\n"
+            "@@ -1,1 +1,1 @@\n"
+            '+    printf("a"); printf("b");\n'
+        )
+        f = _finding(
+            _criterion("pattern_count", params={
+                "target_file": "arttree.c",
+                "pattern": r"printf\s*\(",
+                "expected_count": 2,
+            }, points=20),
+            _ctx(c),
+        )
+        assert f.assessment == "pass"
+        assert "found 2 time(s)" in f.evidence[-1]
+
+    def test_counts_multiple_newline_escapes_in_one_string(self):
+        """Two \\n escapes in ONE format string must count as 2, not 1."""
+        c = _FakeClient()
+        c.diff_text = (
+            "diff --git a/arttree.c b/arttree.c\n"
+            "--- a/arttree.c\n"
+            "+++ b/arttree.c\n"
+            "@@ -1,1 +1,1 @@\n"
+            '+    printf("a\\nb\\n");\n'
+        )
+        f = _finding(
+            _criterion("pattern_count", params={
+                "target_file": "arttree.c",
+                "pattern": r"\\n",
+                "expected_count": 1,
+                "comparison": "at_most",
+            }, points=20),
+            _ctx(c),
+        )
+        assert f.assessment == "fail"  # 2 occurrences > at_most 1
+        assert "found 2 time(s)" in f.evidence[-1]
