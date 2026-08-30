@@ -3,14 +3,14 @@ title: "ICEX Submission Checker — Specification v1.1 Delta"
 version: 1.1.0
 date: 2026-08-30
 author: Mnemo (design), Kurt Seiffert (requirements)
-status: draft
+status: locked
 base_spec: ICEX_CHECKER_SPEC.md v1.0.0
 related_project: "mnemo/tools/icex_checker"
 tags: [spec, c291, se1, icex, pasn, team, grading, ta-tool, v1.1]
 changelog:
   - version: 1.1.0
     date: 2026-08-30
-    status: draft
+    status: locked
     notes: |
       Delta against v1.0.0. Adds: team assignment support, AG assignment mode,
       roster-based attribution, pattern_count checker, manual_review checker,
