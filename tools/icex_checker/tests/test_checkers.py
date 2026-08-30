@@ -418,6 +418,7 @@ def test_registry_has_all_checkers():
         "valid_student_repo",
         "diff_content_check",
         "manual_review",
+        "pattern_count",
     }
 
 
@@ -443,3 +444,118 @@ def test_manual_review_shows_label_and_needs_review():
     assert f.points_recommended is None
     assert "Enter AG score" in f.notes
     assert "https://ag.example.com" in f.notes
+
+
+# ---------------------------------------------------------------------------
+# pattern_count
+# ---------------------------------------------------------------------------
+
+ARTTREE_DIFF = (
+    "diff --git a/exercises/wk1/PASN01/arttree.c b/exercises/wk1/PASN01/arttree.c\n"
+    "--- a/exercises/wk1/PASN01/arttree.c\n"
+    "+++ b/exercises/wk1/PASN01/arttree.c\n"
+    "@@ -0,0 +1,12 @@\n"
+    "+/* arttree.c\n"
+    "+ * programmer: Jane Doe\n"
+    "+ */\n"
+    "+#include <stdio.h>\n"
+    "+int main() {\n"
+    '+    printf("      &\\n");\n'
+    '+    printf("     #o#\\n");\n'
+    '+    printf("    ##*##\\n");\n'
+    '+    printf("  ###*#*###  ||");\n'
+    "+    return 0;\n"
+    "+}\n"
+)
+
+
+class TestPatternCount:
+    def test_pass_when_count_matches_expected(self):
+        """4 printf statements in added lines, expect exactly 4."""
+        c = _FakeClient()
+        c.diff_text = ARTTREE_DIFF
+        f = _finding(
+            _criterion("pattern_count", params={
+                "target_file": "exercises/wk1/PASN01/arttree.c",
+                "pattern": r"printf\s*\(",
+                "expected_count": 4,
+            }, points=20),
+            _ctx(c),
+        )
+        assert f.assessment == "pass"
+        assert f.points_recommended == 20
+
+    def test_fail_when_count_does_not_match(self):
+        """3 printf statements but expect 4."""
+        diff_3_printf = ARTTREE_DIFF.replace(
+            '+    printf("  ###*#*###  ||");\n', ''
+        )
+        c = _FakeClient()
+        c.diff_text = diff_3_printf
+        f = _finding(
+            _criterion("pattern_count", params={
+                "target_file": "exercises/wk1/PASN01/arttree.c",
+                "pattern": r"printf\s*\(",
+                "expected_count": 4,
+            }, points=20),
+            _ctx(c),
+        )
+        assert f.assessment == "fail"
+        assert f.points_recommended == 0
+
+    def test_fail_when_target_file_not_in_diff(self):
+        c = _FakeClient()
+        c.diff_text = OTHER_FILE_DIFF
+        f = _finding(
+            _criterion("pattern_count", params={
+                "target_file": "exercises/wk1/PASN01/arttree.c",
+                "pattern": r"printf\s*\(",
+                "expected_count": 4,
+            }, points=20),
+            _ctx(c),
+        )
+        assert f.assessment == "fail"
+        assert f.points_recommended == 0
+
+    def test_pass_with_at_least_count(self):
+        """Count newlines in printf format strings, at least 1 expected."""
+        c = _FakeClient()
+        c.diff_text = ARTTREE_DIFF
+        f = _finding(
+            _criterion("pattern_count", params={
+                "target_file": "exercises/wk1/PASN01/arttree.c",
+                "pattern": r'\\n',
+                "expected_count": 1,
+                "comparison": "at_least",
+            }, points=20),
+            _ctx(c),
+        )
+        assert f.assessment == "pass"
+
+    def test_fail_with_at_most_count(self):
+        """At most 1 printf with \\n, but 3 have it."""
+        c = _FakeClient()
+        c.diff_text = ARTTREE_DIFF
+        f = _finding(
+            _criterion("pattern_count", params={
+                "target_file": "exercises/wk1/PASN01/arttree.c",
+                "pattern": r'\\n',
+                "expected_count": 1,
+                "comparison": "at_most",
+            }, points=20),
+            _ctx(c),
+        )
+        assert f.assessment == "fail"
+
+    def test_evidence_includes_count_found(self):
+        c = _FakeClient()
+        c.diff_text = ARTTREE_DIFF
+        f = _finding(
+            _criterion("pattern_count", params={
+                "target_file": "exercises/wk1/PASN01/arttree.c",
+                "pattern": r"printf\s*\(",
+                "expected_count": 4,
+            }, points=20),
+            _ctx(c),
+        )
+        assert any("4" in e for e in f.evidence)

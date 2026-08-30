@@ -501,6 +501,83 @@ def _manual_review(ctx, criterion):
     )
 
 
+def _pattern_count(ctx, criterion):
+    """Count regex pattern occurrences in added lines of a target file.
+
+    Params:
+        target_file: full repo path (e.g. "exercises/wk1/PASN01/arttree.c")
+        pattern: regex pattern to count in added lines
+        expected_count: the count to compare against
+        comparison: "exact" (default), "at_least", or "at_most"
+
+    Assessment:
+        pass: count meets the comparison condition
+        fail: count does not match, or target file not in diff
+        needs-review: API error prevents fetching the diff
+    """
+    params = criterion.params
+    target_file = params.get("target_file", "")
+    pattern = params.get("pattern", "")
+    expected = int(params.get("expected_count", 0))
+    comparison = params.get("comparison", "exact")
+
+    owner, repo, number = _parse_pr_url(ctx.pr_url) or (None, None, None)
+    if not owner:
+        return Finding(
+            criterion, "needs-review", None,
+            ["cannot parse PR URL"],
+            "Cannot identify the pull request from the submission URL.",
+        )
+    try:
+        diff = ctx.client.get_pr_diff(owner, repo, number)
+    except PRNotAccessibleError:
+        return Finding(
+            criterion, "needs-review", None,
+            ["diff endpoint returned 404/403"],
+            "Diff could not be fetched — TA should review the PR directly.",
+        )
+    except (AuthFailureError, RateLimitError):
+        return Finding(
+            criterion, "needs-review", None,
+            ["diff endpoint failed auth/rate-limit"],
+            "API auth/rate-limit issue blocked the diff query.",
+        )
+
+    files = _files_in_diff(diff)
+    evidence = ["files in diff: %s" % (", ".join(files) if files else "(empty diff)")]
+    if not files:
+        return Finding(criterion, "fail", 0, evidence, "Diff is empty or unparseable.")
+    if target_file not in files:
+        return Finding(
+            criterion, "fail", 0, evidence,
+            "Target file '%s' is not in the diff." % target_file,
+        )
+
+    added_lines = _added_lines_for(diff, target_file)
+    count = sum(1 for line in added_lines if re.search(pattern, line))
+    evidence.append("pattern %r found %d time(s) in added lines" % (pattern, count))
+
+    if comparison == "at_least":
+        ok = count >= expected
+        comp_desc = "at least %d" % expected
+    elif comparison == "at_most":
+        ok = count <= expected
+        comp_desc = "at most %d" % expected
+    else:
+        ok = count == expected
+        comp_desc = "exactly %d" % expected
+
+    if ok:
+        return Finding(
+            criterion, "pass", criterion.points, evidence,
+            "Pattern count meets requirement (%s, found %d)." % (comp_desc, count),
+        )
+    return Finding(
+        criterion, "fail", 0, evidence,
+        "Pattern count does not meet requirement (expected %s, found %d)." % (comp_desc, count),
+    )
+
+
 CHECKERS = {
     "repo_history": _repo_history,
     "pr_exists_with_comment": _pr_exists_with_comment,
@@ -508,6 +585,7 @@ CHECKERS = {
     "valid_student_repo": _valid_student_repo,
     "diff_content_check": _diff_content_check,
     "manual_review": _manual_review,
+    "pattern_count": _pattern_count,
 }
 
 
