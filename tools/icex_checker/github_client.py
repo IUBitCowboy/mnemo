@@ -5,7 +5,7 @@ import subprocess
 
 import requests
 
-from icex_checker import (
+from errors import (
     APIMissingTokenError,
     AuthFailureError,
     NetworkError,

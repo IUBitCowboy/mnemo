@@ -19,7 +19,7 @@ import datetime
 import difflib
 import re
 
-from icex_checker import (
+from errors import (
     AuthFailureError,
     PRNotAccessibleError,
     RateLimitError,

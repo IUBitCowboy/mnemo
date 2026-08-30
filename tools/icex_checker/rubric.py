@@ -91,7 +91,7 @@ def load_rubric(path):
             "(needed by repo_history; format YYYY-MM-DD)"
         )
 
-    _validate_date(semester_start, "semester_start")
+    semester_start = _validate_date(semester_start, "semester_start")
 
     if not isinstance(criteria_data, list) or not criteria_data:
         raise RubricParseError("rubric missing required field 'criteria' (non-empty list)")
