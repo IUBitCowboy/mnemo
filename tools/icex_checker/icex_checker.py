@@ -58,6 +58,10 @@ _TITLE_RE = re.compile(
     r"Week(?P<week>\d\d?)\s*-\s*(?P<assignment>ICEX\d+)\s*:\s*(?P<name>.+)"
 )
 
+# Canvas downloads submissions as {username}[_LATE]_{canvas_id}_link.html
+# (V1-3). Example: aldhaherirashed_LATE_6789124_link.html
+_CANVAS_FILENAME_RE = re.compile(r"^(?P<user>.+?)(?:_(?P<late>LATE))?_(\d+)_link\.html$", re.IGNORECASE)
+
 
 class Submission:
     """Parsed submission data.
@@ -79,6 +83,8 @@ class Submission:
         self.assignment_id = None
         self.student_name = None
         self.title_parsed = False
+        self.username = None
+        self.is_late = False
 
 
 def parse_submission(path):
@@ -101,6 +107,7 @@ def parse_submission(path):
 
     sub = Submission()
     _parse_title(text, sub)
+    _parse_filename(path, sub)
 
     meta_match = _META_REFRESH_RE.search(text)
     meta_url = meta_match.group(1).strip() if meta_match else None
@@ -137,6 +144,20 @@ def _parse_title(text, sub):
     sub.assignment_id = t.group("assignment")
     sub.student_name = t.group("name").strip()
     sub.title_parsed = True
+
+
+def _parse_filename(path, sub):
+    """Parse IU username and LATE flag from the Canvas download filename (V1-3).
+
+    Pattern: {username}[_LATE]_{canvas_id}_link.html. Unrecognized names
+    degrade gracefully (EF-13): username stays None, is_late stays False.
+    """
+    name = pathlib.Path(path).name
+    m = _CANVAS_FILENAME_RE.match(name)
+    if not m:
+        return
+    sub.username = m.group("user")
+    sub.is_late = m.group("late") is not None
 
 
 def _is_pr_url(url):

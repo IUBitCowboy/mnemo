@@ -104,6 +104,48 @@ def test_unparseable_title_is_nonfatal(tmp_path):
     assert sub.assignment_id is None
 
 
+class TestFilenameParsing:
+    """V1-3: IU username extraction + LATE detection from Canvas filename."""
+
+    def _write(self, tmp_path, name):
+        p = tmp_path / name
+        p.write_text(
+            "<html><head><title>Week01 - ICEX01: Jane Doe</title>"
+            '<a href="https://github.iu.edu/jdoe/fa26_c291/pull/42">x</a>'
+            "</head><body></body></html>",
+            encoding="utf-8",
+        )
+        return p
+
+    def test_late_filename_parses_username_and_flag(self, tmp_path):
+        """aldhaherirashed_LATE_6789124_link.html -> username + is_late."""
+        sub = parse_submission(
+            self._write(tmp_path, "aldhaherirashed_LATE_6789124_link.html")
+        )
+
+        assert sub.username == "aldhaherirashed"
+        assert sub.is_late is True
+
+    def test_regular_filename_parses_username_no_flag(self, tmp_path):
+        sub = parse_submission(self._write(tmp_path, "jdoe_6789124_link.html"))
+
+        assert sub.username == "jdoe"
+        assert sub.is_late is False
+
+    def test_unrecognized_filename_degrades_gracefully(self, tmp_path):
+        """EF-13: no crash, username None, processing continues."""
+        sub = parse_submission(self._write(tmp_path, "random_file.html"))
+
+        assert sub.username is None
+        assert sub.is_late is False
+        assert sub.pr_url == "https://github.iu.edu/jdoe/fa26_c291/pull/42"
+
+    def test_late_flag_is_case_insensitive(self, tmp_path):
+        sub = parse_submission(self._write(tmp_path, "jdoe_late_6789124_link.html"))
+
+        assert sub.is_late is True
+
+
 class TestValidatePRUrl:
     def test_valid_url(self):
         """FR-2: valid github.iu.edu PR URL passes."""
