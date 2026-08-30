@@ -1,0 +1,118 @@
+# Rubric for ICEX02-FA26-C291 (Assignment 00 — hello.c enhanced)
+#
+# Structure: GitHub-side compliance checks (mechanical, 0 pts — evidence only)
+# plus content pattern checks (evidence for TA) plus AG score and handgrading
+# (manual entry by TA from the AG platform).
+#
+# The tool gathers evidence from the PR diff and GitHub API. The TA enters
+# the AG score (0-85) and handgrading score (0-15) from the AG platform.
+# Combined total = AG score + handgrading score, entered in Canvas.
+#
+# Points are 0 for mechanical checks because the tool does not award AG
+# points — it only verifies that expected patterns exist in the diff.
+# The AG platform runs the actual functional tests (compilation, output
+# matching). The tool's evidence checks help the TA spot missing elements
+# before going to the AG.
+#
+# For late/resubmissions: handgrading = 0 per course policy. AG score is
+# still whatever the AG reports. The tool detects "LATE" in the submission
+# filename; TAs should zero handgrading for late submissions.
+
+assignment: ICEX02
+course: C291
+semester: FA26
+total_points: 100
+semester_start: 2026-08-24
+ag_url: https://autograder.luddy.indiana.edu/web/project/2502
+ag_max_points: 85
+handgrading_points: 15
+
+criteria:
+  # ── GitHub-side compliance (mechanical, 0 pts — evidence only) ──
+
+  - name: "Forked class Repo"
+    points: 0
+    checker: repo_history
+    params: {}
+
+  - name: "Create Pull Request"
+    points: 0
+    checker: pr_exists_with_comment
+    params:
+      min_comment_length: 10
+
+  - name: "PR URL submitted to Canvas"
+    points: 0
+    checker: pr_url_valid
+    params: {}
+
+  - name: "Valid Student Repo Established"
+    points: 0
+    checker: valid_student_repo
+    params:
+      expected_repo_pattern: "fa26_c291"
+      github_host: github.iu.edu
+
+  # ── Content evidence (mechanical, 0 pts — AG awards the actual points) ──
+  # These checks verify that expected patterns appear in the PR diff.
+  # They are EVIDENCE for the TA, not grading decisions. The AG tests
+  # (compilation, output matching) award the actual points.
+  # Target file path must match the full repo path as it appears in the diff.
+
+  - name: "hello.c modified with printf"
+    points: 0
+    checker: diff_content_check
+    params:
+      target_file: "exercises/wk1/ICEX02/hello.c"
+      must_contain_modified: "printf"
+
+  - name: "Block comment present in hello.c"
+    points: 0
+    checker: diff_content_check
+    params:
+      target_file: "exercises/wk1/ICEX02/hello.c"
+      must_contain_modified: "/*"
+
+  - name: "NAME: output line present"
+    points: 0
+    checker: diff_content_check
+    params:
+      target_file: "exercises/wk1/ICEX02/hello.c"
+      must_contain_modified: "NAME:"
+
+  - name: "COLOR: output line present"
+    points: 0
+    checker: diff_content_check
+    params:
+      target_file: "exercises/wk1/ICEX02/hello.c"
+      must_contain_modified: "COLOR:"
+
+  - name: "QUEST: output line present"
+    points: 0
+    checker: diff_content_check
+    params:
+      target_file: "exercises/wk1/ICEX02/hello.c"
+      must_contain_modified: "QUEST:"
+
+  # ── AG score (manual — TA enters from AG platform) ──
+  # AG tests: compilation (45 pts), NAME (10), COLOR (10), QUEST (10),
+  # blank lines separating (10) = 85 pts total.
+  # Extra credit tests (ECtestN) are additional, not part of the 85.
+  # The tool cannot run AG tests. TA reviews AG results and enters the score.
+
+  - name: "AG Test Score (compilation + output tests)"
+    points: 85
+    checker: manual_review
+    params:
+      label: "Enter AG score (0-85) from https://autograder.luddy.indiana.edu/web/project/2502"
+
+  # ── Handgrading (manual — TA enters from AG handgrader) ──
+  # AG handgrader has predefined comments and markups for style, variable
+  # names, spacing, pseudocode, overall design. TA enters 0-15.
+  # For late/resubmissions: handgrading = 0 per course policy.
+
+  - name: "Handgrading (style, comments, design)"
+    points: 15
+    checker: manual_review
+    params:
+      label: "Enter handgrading score (0-15) from AG handgrader. Zero for late/resubmissions."

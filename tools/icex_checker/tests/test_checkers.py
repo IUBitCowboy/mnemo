@@ -410,13 +410,14 @@ class TestDiffContentCheck:
 # ---------------------------------------------------------------------------
 
 
-def test_registry_has_all_five_checkers():
+def test_registry_has_all_checkers():
     assert set(CHECKERS) == {
         "repo_history",
         "pr_exists_with_comment",
         "pr_url_valid",
         "valid_student_repo",
         "diff_content_check",
+        "manual_review",
     }
 
 
@@ -427,4 +428,18 @@ def test_unknown_checker_is_needs_review_not_fatal():
 
     assert f.assessment == "needs-review"
     assert "unknown checker type" in f.notes
-    assert f.points_recommended == 0
+
+
+def test_manual_review_shows_label_and_needs_review():
+    """manual_review checker returns needs-review with the label from params."""
+    c = _FakeClient()
+    crit = Criterion(
+        name="AG Score", points=85, checker="manual_review",
+        params={"label": "Enter AG score (0-85) from https://ag.example.com"},
+    )
+    f = _finding(crit, _ctx(c))
+
+    assert f.assessment == "needs-review"
+    assert f.points_recommended is None
+    assert "Enter AG score" in f.notes
+    assert "https://ag.example.com" in f.notes

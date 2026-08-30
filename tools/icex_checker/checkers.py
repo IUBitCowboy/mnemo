@@ -486,12 +486,28 @@ def _truncate(text, limit):
     return text[:limit] + "…"
 
 
+def _manual_review(ctx, criterion):
+    """Placeholder checker for criteria that require human judgment (EF-9).
+
+    Returns needs-review with the criterion's label (from params) as the
+    note. Used for AG scores, handgrading, and any criterion the tool
+    cannot check mechanically. The TA enters the value manually.
+    """
+    label = criterion.params.get("label", "TA review required")
+    return Finding(
+        criterion, "needs-review", None,
+        ["manual review — tool cannot check this criterion"],
+        "%s" % label,
+    )
+
+
 CHECKERS = {
     "repo_history": _repo_history,
     "pr_exists_with_comment": _pr_exists_with_comment,
     "pr_url_valid": _pr_url_valid,
     "valid_student_repo": _valid_student_repo,
     "diff_content_check": _diff_content_check,
+    "manual_review": _manual_review,
 }
 
 
