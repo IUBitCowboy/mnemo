@@ -1,0 +1,105 @@
+# Rubric for PASN01-FA26-C291 (Assignment 01 — ASCII Christmas Tree)
+#
+# PASN = Programming ASsigNment. These are 100-point assignments in Canvas,
+# in a separate assignment category from ICEX (which are worth 10 points).
+# The AG platform runs functional tests; the tool gathers GitHub-side
+# evidence and the TA enters the AG score + handgrading manually.
+#
+# AG tests for PASN01:
+#   - Compilation: 40 pts (compiles cleanly with gcc, no errors/warnings)
+#   - Christmas tree printed correctly: 20 pts
+#   - Exactly 4 printf() statements: 20 pts
+#   - Only one printf has terminating \n in format string: 20 pts
+#   Total AG: 100 pts (no handgrading for PASN01 — AG tests cover everything)
+#
+# Wait — need to confirm: does PASN01 have handgrading (15 pts) like A00,
+# or is the 100 all AG? The assignment01.md says "100 points total" and
+# the four test conditions (40+20+20+20) = 100, so it appears to be all AG
+# with no separate handgrading. Confirm with @user if handgrading applies.
+#
+# Branch: students should create a PASN01 branch (assignment01.md line 14).
+# TAs should be lax on branch naming early but point out incorrect branches.
+#
+# For late/resubmissions: handgrading = 0 per course policy. AG score is
+# still whatever the AG reports. The TA should check the submission filename
+# for "LATE" and zero handgrading manually. (Automated LATE detection is
+# planned for v1.1 — not yet implemented.)
+
+assignment: PASN01
+course: C291
+semester: FA26
+total_points: 100
+semester_start: 2026-08-24
+ag_url: https://autograder.luddy.indiana.edu/web/project/2206
+ag_max_points: 100
+handgrading_points: 0
+canvas_points: 100
+
+criteria:
+  # ── GitHub-side compliance (mechanical, 0 pts — evidence only) ──
+
+  - name: "Forked class Repo"
+    points: 0
+    checker: repo_history
+    params: {}
+
+  - name: "Create Pull Request"
+    points: 0
+    checker: pr_exists_with_comment
+    params:
+      min_comment_length: 10
+
+  - name: "PR URL submitted to Canvas"
+    points: 0
+    checker: pr_url_valid
+    params: {}
+
+  - name: "Valid Student Repo Established"
+    points: 0
+    checker: valid_student_repo
+    params:
+      expected_repo_pattern: "fa26_c291"
+      github_host: github.iu.edu
+
+  # ── Content evidence (mechanical, 0 pts — AG awards the actual points) ──
+  # These checks verify expected patterns appear in the PR diff. They are
+  # EVIDENCE for the TA, not grading decisions. The AG runs the actual
+  # functional tests (compilation, output matching, printf counting).
+
+  - name: "arttree.c present in diff"
+    points: 0
+    checker: diff_content_check
+    params:
+      target_file: "exercises/wk1/PASN01/arttree.c"
+      must_contain_modified: "printf"
+
+  - name: "Block comment present in arttree.c"
+    points: 0
+    checker: diff_content_check
+    params:
+      target_file: "exercises/wk1/PASN01/arttree.c"
+      must_contain_modified: "/*"
+
+  - name: "README.md present in diff"
+    points: 0
+    checker: diff_content_check
+    params:
+      target_file: "exercises/wk1/PASN01/README.md"
+      must_contain_modified: ""
+
+  # ── AG score (manual — TA enters from AG platform) ──
+  # AG tests: compilation (40), tree printed correctly (20),
+  # exactly 4 printf statements (20), only one printf with \n (20) = 100.
+  # The tool cannot run AG tests. TA reviews AG results and enters the score.
+  #
+  # NOTE: The report's "Recommended points" summary will show 0/100 for
+  # PASN01 runs because all evidence checks are 0-point (the AG awards
+  # the actual points) and the AG score is entered manually. The TA enters
+  # the AG score directly in Canvas (no scaling — PASN is 100 pts in Canvas).
+  # This is expected behavior, not a bug.
+
+  - name: "AG Test Score (compilation + tree + printf count + newline)"
+    points: 100
+    checker: manual_review
+    params:
+      label: "Enter AG score (0-100) from https://autograder.luddy.indiana.edu/web/project/2206"
