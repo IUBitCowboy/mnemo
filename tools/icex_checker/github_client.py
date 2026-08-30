@@ -216,6 +216,34 @@ class GitHubClient:
                 logins.append(author["login"])
         return logins
 
+    def list_pulls(self, owner, repo):
+        """GET /repos/{owner}/{repo}/pulls?state=all (V1-6).
+
+        First page (per_page=100), all states. Returns a list of dicts:
+        {number, author, title, state ('open'/'closed'/'merged'), merged_at}.
+        """
+        data = self._request(
+            "GET",
+            "/repos/%s/%s/pulls" % (owner, repo),
+            params={"state": "all", "per_page": 100},
+        )
+        if not isinstance(data, list):
+            return []
+        pulls = []
+        for pr in data:
+            user = pr.get("user") or {}
+            merged_at = pr.get("merged_at")
+            pulls.append(
+                {
+                    "number": pr.get("number"),
+                    "author": user.get("login") or "",
+                    "title": pr.get("title") or "",
+                    "state": "merged" if merged_at else (pr.get("state") or ""),
+                    "merged_at": merged_at,
+                }
+            )
+        return pulls
+
     def get_pr_diff(self, owner, repo, number):
         """GET the PR diff with the diff media type (FR-4).
 

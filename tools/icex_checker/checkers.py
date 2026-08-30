@@ -650,6 +650,81 @@ def _commit_author_check(ctx, criterion):
     )
 
 
+def _team_best_attribution(ctx, criterion):
+    """Team Best: verify the student has ANY PR (open/closed/merged) in the
+    team repo (V1-6).
+
+    A closed PR is still evidence the student attempted the work. Evidence
+    includes per-member PR counts for TA context (not gradeable, but helps
+    spot contribution imbalance). With no roster/username, degrades to
+    evidence-only needs-review.
+    """
+    owner, repo, number = _parse_pr_url(ctx.pr_url) or (None, None, None)
+    if not owner:
+        return Finding(
+            criterion, "needs-review", None,
+            ["cannot parse PR URL"],
+            "Cannot identify the team repository from the submission URL.",
+        )
+    try:
+        pulls = ctx.client.list_pulls(owner, repo)
+    except PRNotAccessibleError:
+        return Finding(
+            criterion, "needs-review", None,
+            ["pulls endpoint returned 404/403"],
+            "Pull requests could not be listed — TA should review the repo directly.",
+        )
+    except (AuthFailureError, RateLimitError):
+        return Finding(
+            criterion, "needs-review", None,
+            ["pulls endpoint failed auth/rate-limit"],
+            "API auth/rate-limit issue blocked the pull request query.",
+        )
+
+    by_author = {}
+    for pr in pulls:
+        by_author.setdefault(pr.get("author") or "?", []).append(pr)
+    counts_line = "PRs per member: %s" % (
+        ", ".join("%s: %d" % (a, len(v)) for a, v in sorted(by_author.items()))
+        if by_author
+        else "(none)"
+    )
+    evidence = [counts_line]
+
+    if not ctx.username or ctx.roster is None:
+        return Finding(
+            criterion, "needs-review", None, evidence,
+            "No roster/username available — TA should verify the submitter "
+            "created a PR in the team repo.",
+        )
+    if ctx.roster.find_team(ctx.username) is None:
+        return Finding(
+            criterion, "needs-review", None, evidence,
+            "Submitter '%s' is not in the roster — TA should verify." % ctx.username,
+        )
+
+    mine = by_author.get(ctx.username, [])
+    if not mine:
+        return Finding(
+            criterion, "fail", 0, evidence,
+            "Submitter '%s' has no pull requests in the team repo." % ctx.username,
+        )
+    merged = [pr for pr in mine if pr.get("state") == "merged"]
+    open_prs = [pr for pr in mine if pr.get("state") == "open"]
+    if merged or open_prs:
+        return Finding(
+            criterion, "pass", criterion.points, evidence,
+            "Submitter '%s' has %d PR(s) in the team repo (%d merged, %d open)."
+            % (ctx.username, len(mine), len(merged), len(open_prs)),
+        )
+    return Finding(
+        criterion, "pass", criterion.points, evidence,
+        "Submitter '%s' has a closed (unmerged) PR — attempted the work but "
+        "it was never merged. TA should confirm the situation." % ctx.username,
+        ta_confirm=True,
+    )
+
+
 CHECKERS = {
     "repo_history": _repo_history,
     "pr_exists_with_comment": _pr_exists_with_comment,
@@ -659,6 +734,7 @@ CHECKERS = {
     "manual_review": _manual_review,
     "pattern_count": _pattern_count,
     "commit_author_check": _commit_author_check,
+    "team_best_attribution": _team_best_attribution,
 }
 
 

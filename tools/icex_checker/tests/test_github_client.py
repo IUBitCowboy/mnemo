@@ -193,6 +193,37 @@ class TestGetPRCommits:
         assert seen["params"] == {"per_page": 100}
 
 
+class TestListPulls:
+    """V1-6: list all PRs in a repo (open, closed, merged)."""
+
+    def test_lists_prs_with_author_and_state(self):
+        c = _client()
+        payload = [
+            {"number": 8, "user": {"login": "jdoe"}, "state": "merged",
+             "title": "add name", "merged_at": "2026-08-28T10:00:00Z"},
+            {"number": 9, "user": {"login": "rhaldhah"}, "state": "closed",
+             "title": "add email", "merged_at": None},
+            {"number": 10, "user": {"login": "akumar"}, "state": "open",
+             "title": "add quest", "merged_at": None},
+        ]
+        c._request = lambda method, path, **kw: payload
+        pulls = c.list_pulls("mnemo-course-dev", "fa26_se1_team01")
+
+        assert pulls[0]["number"] == 8
+        assert pulls[0]["author"] == "jdoe"
+        assert pulls[0]["state"] == "merged"
+        assert pulls[1]["state"] == "closed"
+        assert pulls[2]["state"] == "open"
+
+    def test_requests_all_states_first_page(self):
+        c = _client()
+        seen = {}
+        c._request = lambda method, path, **kw: seen.update(kw) or []
+        c.list_pulls("org", "repo")
+
+        assert seen["params"] == {"state": "all", "per_page": 100}
+
+
 class TestGetDiff:
     def test_accepts_diff_media_type(self):
         c = _client()

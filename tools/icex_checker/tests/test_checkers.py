@@ -96,6 +96,7 @@ class _FakeClient:
         self.diff_text = HELLO_DIFF_OK
         self.diff_error = None
         self.pr_commit_logins = ["jdoe"]
+        self.pulls = []
         self.calls = []
 
     def get_pr(self, owner, repo, number):
@@ -121,6 +122,10 @@ class _FakeClient:
         if self.commit_error:
             raise self.commit_error
         return list(self.pr_commit_logins)
+
+    def list_pulls(self, owner, repo):
+        self.calls.append(("pulls", owner, repo))
+        return list(self.pulls)
 
     def get_pr_diff(self, owner, repo, number):
         self.calls.append(("diff", owner, repo, number))
@@ -439,6 +444,7 @@ def test_registry_has_expected_checkers():
         "manual_review",
         "pattern_count",
         "commit_author_check",
+        "team_best_attribution",
     }
 
 
@@ -689,3 +695,80 @@ class TestCommitAuthorCheck:
         f = _finding(self._criterion(), ctx)
 
         assert f.assessment == "needs-review"
+
+
+# ---------------------------------------------------------------------------
+# team_best_attribution (V1-6)
+# ---------------------------------------------------------------------------
+
+
+class TestTeamBestAttribution:
+    @staticmethod
+    def _criterion():
+        return _criterion("team_best_attribution", points=0)
+
+    def _ctx(self, c, username="jdoe", roster=None):
+        return _ctx_v11(c, username=username, roster=roster)
+
+    def test_pass_when_student_has_merged_pr(self):
+        c = _FakeClient()
+        c.pulls = [
+            {"number": 8, "author": "jdoe", "state": "merged", "title": "add name"},
+            {"number": 9, "author": "rhaldhah", "state": "merged", "title": "add email"},
+        ]
+        ctx = self._ctx(c, username="jdoe", roster=_RosterStub({"jdoe": "team01"}))
+        f = _finding(self._criterion(), ctx)
+
+        assert f.assessment == "pass"
+
+    def test_pass_when_student_has_open_pr(self):
+        c = _FakeClient()
+        c.pulls = [
+            {"number": 10, "author": "jdoe", "state": "open", "title": "add name"},
+        ]
+        ctx = self._ctx(c, username="jdoe", roster=_RosterStub({"jdoe": "team01"}))
+        f = _finding(self._criterion(), ctx)
+
+        assert f.assessment == "pass"
+
+    def test_ta_confirm_when_only_closed_unmerged(self):
+        """Attempted but never merged — TA should confirm (V1-6 semantics)."""
+        c = _FakeClient()
+        c.pulls = [
+            {"number": 9, "author": "jdoe", "state": "closed", "title": "add name"},
+        ]
+        ctx = self._ctx(c, username="jdoe", roster=_RosterStub({"jdoe": "team01"}))
+        f = _finding(self._criterion(), ctx)
+
+        assert f.assessment == "pass"  # still evidence of attempt
+        assert f.ta_confirm is True
+
+    def test_fail_when_no_prs_and_roster_available(self):
+        c = _FakeClient()
+        c.pulls = [{"number": 9, "author": "rhaldhah", "state": "merged", "title": "x"}]
+        ctx = self._ctx(c, username="jdoe", roster=_RosterStub({"jdoe": "team01"}))
+        f = _finding(self._criterion(), ctx)
+
+        assert f.assessment == "fail"
+        assert f.points_recommended == 0
+
+    def test_needs_review_when_no_roster(self):
+        c = _FakeClient()
+        c.pulls = [{"number": 9, "author": "jdoe", "state": "merged", "title": "x"}]
+        f = _finding(self._criterion(), self._ctx(c, username="jdoe", roster=None))
+
+        assert f.assessment == "needs-review"
+
+    def test_evidence_lists_team_pr_counts(self):
+        """V1-6 evidence: per-member PR counts for TA context."""
+        c = _FakeClient()
+        c.pulls = [
+            {"number": 8, "author": "jdoe", "state": "merged", "title": "a"},
+            {"number": 9, "author": "rhaldhah", "state": "merged", "title": "b"},
+        ]
+        ctx = self._ctx(c, username="jdoe", roster=_RosterStub({"jdoe": "team01"}))
+        f = _finding(self._criterion(), ctx)
+
+        team_evidence = [e for e in f.evidence if "PRs" in e]
+        assert any("jdoe: 1" in e for e in team_evidence)
+        assert any("rhaldhah: 1" in e for e in team_evidence)
