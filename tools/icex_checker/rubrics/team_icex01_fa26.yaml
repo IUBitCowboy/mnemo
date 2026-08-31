@@ -1,0 +1,64 @@
+# Rubric for SE1 ICEX01-FA26 (Team Best — team repo + README attribution)
+#
+# Team exercise: each member creates a branch, edits README.md (name +
+# email), pushes, opens a PR, a teammate merges it. Each member submits
+# their OWN PR URL to Canvas (not the one they approved).
+#
+# Canvas: 10 points. The exercise is about team process, not code
+# correctness — evidence checks are 0-pt; the TA awards the 10 points
+# via a single manual_review criterion.
+#
+# OPEN QUESTION (@user): is the 10 points flat pass/fail ("participated
+# = full points") or split across criteria? Skeleton assumes flat
+# pass/fail per the exercise's Criteria for Success. Adjust the
+# manual_review label/points if not.
+#
+# Roster: lives on the OneDrive share (FERPA — identifies students to
+# course), NOT in git. CSV header: Team,TA,IU Username.
+# roster_file below is a placeholder path — TAs set it to their
+# OneDrive path, or pass --rubric with the roster next to submissions.
+
+assignment: ICEX01
+course: SE1
+semester: FA26
+type: team
+total_points: 10
+semester_start: 2026-08-24
+canvas_points: 10
+ownership_check: team
+team_mode: team_best
+roster_file: roster.csv   # OneDrive share, next to submissions
+
+criteria:
+  # ── Team repo + PR evidence (0 pts — evidence only) ──
+
+  - name: "PR URL submitted to Canvas"
+    points: 0
+    checker: pr_url_valid
+    params:
+      ownership_check: team
+
+  - name: "Valid Team Repo Established"
+    points: 0
+    checker: valid_student_repo
+    params:
+      expected_repo_pattern: "fa26_se1_team"
+      github_host: github.iu.edu
+
+  - name: "PR has commits from submitter"
+    points: 0
+    checker: commit_author_check
+    params: {}
+
+  - name: "Submitter created a PR in team repo"
+    points: 0
+    checker: team_best_attribution
+    params: {}
+
+  # ── Overall assessment (TA awards the 10 points) ──
+
+  - name: "Team Best participation (10 pts)"
+    points: 10
+    checker: manual_review
+    params:
+      label: "Award 0-10: team repo created, each member committed to README.md, each member opened a PR, PRs merged. Flat pass/fail per exercise criteria (confirm with instructor)."
