@@ -25,6 +25,7 @@ class Assessment:
         handgrading_points=0,
         ag_score=None,
         canvas_points=None,
+        collaboration_coefficient=None,
     ):
         self.assignment = assignment
         self.course = course
@@ -41,6 +42,7 @@ class Assessment:
         self.handgrading_points = handgrading_points
         self.ag_score = ag_score
         self.canvas_points = canvas_points
+        self.collaboration_coefficient = collaboration_coefficient
 
 
 def summarize_findings(findings):
@@ -162,6 +164,16 @@ def build_text_report(assessment):
             "resubmission, do not overwrite the prior handgrading score; "
             "enter the updated AG score in Canvas."
         )
+    if assessment.collaboration_coefficient is not None:
+        for f in assessment.findings:
+            if f.checker == "team_best_attribution" and f.assessment == "fail":
+                pct = int(round(assessment.collaboration_coefficient * 100))
+                action_items.append(
+                    "  [ ] Collaboration coefficient: submitter has no personal "
+                    "PR — award %d%% of the team score per course policy."
+                    % pct
+                )
+                break
     if action_items:
         lines.extend(action_items)
     else:

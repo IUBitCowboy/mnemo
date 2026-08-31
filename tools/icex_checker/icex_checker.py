@@ -397,6 +397,7 @@ def _process_one(args, submission_path):
         handgrading_points=rubric.handgrading_points,
         ag_score=args.ag_score if not args.batch else None,
         canvas_points=rubric.canvas_points,
+        collaboration_coefficient=rubric.collaboration_coefficient,
     )
 
     if args.output_format == "json" and not args.batch:

@@ -55,6 +55,7 @@ class Rubric:
         roster_file=None,
         ownership_check=None,
         team_mode=None,
+        collaboration_coefficient=None,
     ):
         self.assignment = assignment
         self.course = course
@@ -70,6 +71,7 @@ class Rubric:
         self.roster_file = roster_file
         self.ownership_check = ownership_check
         self.team_mode = team_mode
+        self.collaboration_coefficient = collaboration_coefficient
 
 
 def load_rubric(path):
@@ -149,6 +151,7 @@ def load_rubric(path):
         roster_file=data.get("roster_file"),
         ownership_check=data.get("ownership_check"),
         team_mode=data.get("team_mode"),
+        collaboration_coefficient=data.get("collaboration_coefficient"),
     )
 
 

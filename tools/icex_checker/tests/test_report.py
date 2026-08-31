@@ -230,3 +230,38 @@ class TestV11ReportModes:
         assert data["ag_score"] == 80
         assert data["ag_max_points"] == 85
         assert data["canvas_points"] == 10
+
+    def test_collaboration_coefficient_note_when_attribution_fails(self):
+        """TAP policy: no personal PR -> 50% coefficient note in action items."""
+        a = self._ag_assessment()
+        a.collaboration_coefficient = 0.5
+        a.findings = [
+            _finding("fail", 0, "Submitter created a PR in team repo",
+                     "team_best_attribution", evidence=[], notes="No PRs."),
+        ]
+        text = build_text_report(a)
+
+        assert "collaboration coefficient" in text.lower()
+        assert "50%" in text
+
+    def test_no_coefficient_note_when_attribution_passes(self):
+        a = self._ag_assessment()
+        a.collaboration_coefficient = 0.5
+        a.findings = [
+            _finding("pass", 0, "Submitter created a PR in team repo",
+                     "team_best_attribution", evidence=[], notes="Has PR."),
+        ]
+        text = build_text_report(a)
+
+        assert "collaboration coefficient" not in text.lower()
+
+    def test_no_coefficient_note_when_field_absent(self):
+        a = self._ag_assessment()
+        a.collaboration_coefficient = None
+        a.findings = [
+            _finding("fail", 0, "Submitter created a PR in team repo",
+                     "team_best_attribution", evidence=[], notes="No PRs."),
+        ]
+        text = build_text_report(a)
+
+        assert "collaboration coefficient" not in text.lower()
