@@ -26,10 +26,12 @@ class Roster:
     Team identifiers are stored under their original CSV form (e.g.
     "team01", "Team01") and matched case- and leading-zero-insensitively
     via a normalized alias map. Lookup methods return the original form.
+    The optional TA column is exposed for TA-to-team mapping.
     """
 
-    def __init__(self, teams):
+    def __init__(self, teams, ta_by_team=None):
         self._teams = teams  # raw team key -> [usernames]
+        self._ta_by_team = ta_by_team or {}  # raw team key -> TA login
         self._norm_to_raw = {}
         self._user_to_raw = {}
         for raw, users in teams.items():
@@ -52,6 +54,11 @@ class Roster:
         """The team a username belongs to (original form), or None."""
         return self._user_to_raw.get(username)
 
+    def ta_for_team(self, team_id):
+        """The TA assigned to a team (from the TA column), or None."""
+        raw = self._resolve(team_id)
+        return self._ta_by_team.get(raw) if raw else None
+
     def team_from_repo(self, repo_name):
         """Team key parsed from a repo name (fa26_se1_team01 -> team01).
 
@@ -65,10 +72,15 @@ class Roster:
 
 
 def load_roster(path):
-    """Load a roster from CSV (columns: team, iu_username).
+    """Load a roster from CSV.
+
+    Accepts two formats (headers matched case-insensitively):
+      - v1.0: `team,iu_username`
+      - v1.1: `Team,TA,IU Username` (TA column informational, exposed via
+        Roster.ta_for_team)
 
     Returns a Roster, or None on any failure (missing file, malformed
-    CSV, wrong columns) — callers warn and continue (EF-12).
+    CSV, unrecognized columns) — callers warn and continue (EF-12).
     """
     p = pathlib.Path(path)
     if not p.is_file():
@@ -79,18 +91,31 @@ def load_roster(path):
             if reader.fieldnames is None:
                 return None
             fields = [c.strip().lower() for c in reader.fieldnames]
-            if fields != ["team", "iu_username"]:
+            team_col = None
+            user_col = None
+            ta_col = None
+            for i, name in enumerate(fields):
+                if name in ("team", "team name"):
+                    team_col = i
+                elif name in ("iu_username", "iu username", "username", "user"):
+                    user_col = i
+                elif name in ("ta", "ta username"):
+                    ta_col = i
+            if team_col is None or user_col is None:
                 return None
             teams = {}
+            ta_by_team = {}
             for row in reader:
-                t = row.get("team")
-                u = row.get("iu_username")
+                values = [row.get(h) for h in reader.fieldnames]
+                t = values[team_col]
+                u = values[user_col]
                 if not t or not u or not u.strip():
                     return None
-                # Keep the raw form; Roster normalizes for matching.
                 teams.setdefault(t.strip(), []).append(u.strip())
+                if ta_col is not None and values[ta_col]:
+                    ta_by_team.setdefault(t.strip(), values[ta_col].strip())
     except (csv.Error, OSError, UnicodeDecodeError):
         return None
     if not teams:
         return None
-    return Roster(teams)
+    return Roster(teams, ta_by_team)

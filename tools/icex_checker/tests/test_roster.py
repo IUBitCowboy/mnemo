@@ -12,6 +12,16 @@ CSV_GOOD = (
     "team02,bliu\n"
 )
 
+# Real-world format (v1.1): Team,TA,IU Username — TA column informational.
+CSV_TA = (
+    "Team,TA,IU Username\n"
+    "team01,ta_smith,jsmith\n"
+    "team01,ta_smith,jdoe\n"
+    "team01,ta_smith,rhaldhah\n"
+    "team02,ta_jones,akumar\n"
+    "team02,ta_jones,bliu\n"
+)
+
 
 class TestLoadRoster:
     def test_loads_valid_csv(self, tmp_path):
@@ -39,6 +49,29 @@ class TestLoadRoster:
         p = tmp_path / "wrong.csv"
         p.write_text("a,b,c\n1,2,3\n", encoding="utf-8")
         assert roster.load_roster(str(p)) is None
+
+    def test_three_column_ta_format_loads(self, tmp_path):
+        """v1.1: Team,TA,IU Username — Team + IU Username parsed, TA ignored."""
+        p = tmp_path / "roster_ta.csv"
+        p.write_text(CSV_TA, encoding="utf-8")
+
+        r = roster.load_roster(str(p))
+
+        assert r is not None
+        assert r.members("team01") == ["jsmith", "jdoe", "rhaldhah"]
+        assert r.members("team02") == ["akumar", "bliu"]
+        assert r.find_team("jdoe") == "team01"
+
+    def test_ta_column_available_for_mapping(self, tmp_path):
+        """The TA column is exposed so TAs can see their team assignments."""
+        p = tmp_path / "roster_ta.csv"
+        p.write_text(CSV_TA, encoding="utf-8")
+
+        r = roster.load_roster(str(p))
+
+        assert r.ta_for_team("team01") == "ta_smith"
+        assert r.ta_for_team("team02") == "ta_jones"
+        assert r.ta_for_team("team99") is None
 
 
 class TestLookups:
