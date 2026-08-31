@@ -430,18 +430,14 @@ team_mode: team_best    # team_best (v1.1) | team_collaboration (v1.2)
 
 ### Roster File Format
 
-CSV with two columns: `team,iu_username`. Example:
+The roster file lives on the OneDrive share alongside student submissions —
+NOT in the git repository (student identity must not be committed). The
+rubric's `roster_file` field points to the OneDrive path.
 
-```csv
-team01,jsmith
-team01,jdoe
-team01,rhaldhah
-team02,akumar
-team02,bliu
-```
+CSV header: `Team,TA,IU Username`
 
-The IU username is the GitHub login on github.iu.edu. Display names are
-not needed — the tool never matches on them.
+The TA column is optional for the tool's attribution logic but useful for
+TA-to-team mapping. The tool reads `Team` and `IU Username` columns.
 
 ## Build Notes
 
