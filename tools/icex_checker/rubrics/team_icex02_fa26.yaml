@@ -1,0 +1,100 @@
+# Rubric for SE1 ICEX02-FA26 (Team Best — Team Statement + Branching/PR Workflow)
+#
+# Team Best assignment: each member creates own branch off assignment1,
+# edits README.md with their member info, opens PR to assignment1 branch.
+# Team selects best version → PR from assignment1 to main. Submitted
+# URL is the team's final PR (assignment1 → main).
+#
+# Canvas: 10 points. The original Canvas rubric (100 pts) is scaled by
+# canvas_points: 10. The Team Interview (30 pts in the original rubric)
+# is NOT graded here — it's an in-person standup review where the TA
+# asks questions to verify all members understand the team's direction.
+# The TA adds that review score similar to AG handgrading.
+#
+# Original Canvas rubric criteria (100-pt scale, scaled to 10):
+#   Branching & PR Workflow: 20 pts (full: each member creates branch from
+#     assignment1, PRs back to assignment1, final PR to main; partial 10:
+#     some commits but no member PRs; 0: no PR workflow)
+#   Team Statement – Completeness: 20 pts (full: all sections included;
+#     partial 15: goals missing; partial 10: some incomplete/vague; 0:
+#     major sections missing)
+#   Team Statement - Member Contributions: 20 pts (full: each member's
+#     personal info section complete; partial 10: incomplete; 0: missing)
+#   Team Goals Quality: 10 pts (full: goals articulated, unique, SE-
+#     relevant, 5 per category; partial 5: some incomplete; 0: little effort)
+#   Team Interview: 30 pts — NOT in this rubric (in-person standup review)
+#
+# Total graded here: 70 pts on the 100-pt scale, scaled to 10 in Canvas.
+# canvas_score = (rubric_total / 70) * 10
+#
+# Collaboration coefficient: per TAP, a member who does not submit their
+# own PR to assignment1 receives only 50% of the team score. The
+# team_best_attribution checker surfaces this signal; the report notes
+# the 50% coefficient policy when attribution fails.
+#
+# Roster: lives on the OneDrive share (FERPA — identifies students to
+# course), NOT in git. CSV header: Team,TA,IU Username.
+
+assignment: ICEX02
+course: SE1
+semester: FA26
+type: team
+total_points: 70
+semester_start: 2026-08-24
+canvas_points: 10
+ownership_check: team
+team_mode: team_best
+collaboration_coefficient: 0.5
+roster_file: roster.csv   # OneDrive share, next to submissions
+
+criteria:
+  # ── Evidence checks (0 pts — GitHub-side evidence for the TA) ──
+
+  - name: "PR URL submitted to Canvas"
+    points: 0
+    checker: pr_url_valid
+    params:
+      ownership_check: team
+
+  - name: "Valid Team Repo Established"
+    points: 0
+    checker: valid_student_repo
+    params:
+      expected_repo_pattern: "fa26_se1_team"
+      github_host: github.iu.edu
+
+  - name: "PR has commits from submitter"
+    points: 0
+    checker: commit_author_check
+    params: {}
+
+  - name: "Submitter created a PR in team repo"
+    points: 0
+    checker: team_best_attribution
+    params: {}
+
+  # ── Canvas rubric criteria (TA awards points, scaled to 10 in Canvas) ──
+
+  - name: "Branching & PR Workflow"
+    points: 20
+    checker: manual_review
+    params:
+      label: "20 pts: each member creates own branch from assignment1, PRs back to assignment1, final PR to main submitted. 10 pts: some commits but no member PRs. 0 pts: no PR workflow followed."
+
+  - name: "Team Statement – Completeness"
+    points: 20
+    checker: manual_review
+    params:
+      label: "20 pts: all sections included (Team Name, Goals, 5 Questions, 5 Skills, 5 Explanations, Members, Experience, Communication, Decision Process, Contact). 15 pts: goals missing. 10 pts: some sections incomplete or vague. 0 pts: major sections missing."
+
+  - name: "Team Statement - Member Contributions"
+    points: 20
+    checker: manual_review
+    params:
+      label: "20 pts: each member's personal info section complete (name, contact, experience, class year, career/personal interests, book/movie, weakness, strength). 10 pts: incomplete. 0 pts: missing."
+
+  - name: "Team Goals Quality"
+    points: 10
+    checker: manual_review
+    params:
+      label: "10 pts: goals articulated, unique, SE-relevant, cover 5 of each category. 5 pts: some incomplete. 0 pts: little effort shown."
