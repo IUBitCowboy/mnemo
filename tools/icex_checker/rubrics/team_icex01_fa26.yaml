@@ -4,14 +4,15 @@
 # email), pushes, opens a PR, a teammate merges it. Each member submits
 # their OWN PR URL to Canvas (not the one they approved).
 #
-# Canvas: 10 points. The exercise is about team process, not code
-# correctness — evidence checks are 0-pt; the TA awards the 10 points
-# via a single manual_review criterion.
+# Canvas rubric (10 pts total):
+#   Repository Setup: 2 pts — team repo created, instructor/TA added
+#   Individual Contribution: 5 pts — own branch, README edited, committed,
+#     pushed, opened PR. Partial (2.5) for incomplete steps.
+#   Submission: 3 pts — student submitted their own PR URL in Canvas
 #
-# OPEN QUESTION (@user): is the 10 points flat pass/fail ("participated
-# = full points") or split across criteria? Skeleton assumes flat
-# pass/fail per the exercise's Criteria for Success. Adjust the
-# manual_review label/points if not.
+# Evidence checks are 0-pt — the tool gathers GitHub-side evidence and
+# the TA awards points via the three manual_review criteria below,
+# matching the Canvas rubric structure.
 #
 # Roster: lives on the OneDrive share (FERPA — identifies students to
 # course), NOT in git. CSV header: Team,TA,IU Username.
@@ -55,10 +56,22 @@ criteria:
     checker: team_best_attribution
     params: {}
 
-  # ── Overall assessment (TA awards the 10 points) ──
+  # ── Canvas rubric criteria (TA awards points) ──
 
-  - name: "Team Best participation (10 pts)"
-    points: 10
+  - name: "Repository Setup"
+    points: 2
     checker: manual_review
     params:
-      label: "Award 0-10: team repo created, each member committed to README.md, each member opened a PR, PRs merged. Flat pass/fail per exercise criteria (confirm with instructor)."
+      label: "2 pts: team repo created and instructor/TA added. 0 pts: repo not created or access not given."
+
+  - name: "Individual Contribution"
+    points: 5
+    checker: manual_review
+    params:
+      label: "5 pts: own branch, README edited with name/email, committed, pushed, opened PR. 2.5 pts: some but not all steps. 0 pts: no evidence of contribution."
+
+  - name: "Submission"
+    points: 3
+    checker: manual_review
+    params:
+      label: "3 pts: student submitted their own PR URL in Canvas. 0 pts: no submission or wrong URL."
