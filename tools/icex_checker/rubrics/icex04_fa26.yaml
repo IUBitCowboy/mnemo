@@ -1,0 +1,82 @@
+# Rubric for ICEX04-FA26-C291 (printf %d/%X table + unsigned char overflow)
+#
+# Canvas assignment: 10 points. Rubric total = 10 = canvas_points.
+# Learning objectives per spec: printf format specifiers (%d, %X) and
+# overflow in a C variable. The spec's MUST: the while/do-while loop
+# terminates on DETECTED OVERFLOW, not on the power index — that is the
+# pedagogical core and carries the largest weight (3), mirroring the
+# loop weighting in ICEX03.
+#
+# The spec does not name the .c file; target_file below assumes
+# ICEX04.c by course convention (matches branch name) — TAs adjust if
+# the actual submission file differs.
+#
+# Ratings (rubric tiers) are consumed by the Canvas CSV pipeline
+# (rubric_to_csv.py). The icex_checker loader ignores them (extra keys
+# tolerated); automated checkers gather EVIDENCE, TA awards points in
+# Canvas per the tiers.
+#
+# Reference values verified by running an overflow-terminated unsigned
+# char implementation (both legal termination strategies print rows
+# 2^0..2^7; last printed decimal = 128, hex = 80; a 2^8 row or a
+# printed 0 means the overflow check is misplaced).
+
+assignment: ICEX04
+course: C291
+semester: FA26
+total_points: 10
+canvas_points: 10
+semester_start: 2026-08-24
+
+criteria:
+  - name: "Description Block & Predicted Table"
+    points: 2
+    checker: diff_content_check
+    params:
+      target_file: "ICEX04.c"
+      must_contain: "unsigned char"
+    ratings:
+      - { points: 2,   description: "Program description block present AND pre-code prediction written out (expected first 4 rows + final decimal value, in comment block or accompanying file)" }
+      - { points: 1,   description: "Description block present but prediction missing (or prediction without description block)" }
+      - { points: 0,   description: "Neither present" }
+
+  - name: "Table Format: header, 2^i, %d/%X, six spaces"
+    points: 3
+    checker: diff_content_check
+    params:
+      target_file: "ICEX04.c"
+      must_contain: "%X"
+    ratings:
+      - { points: 3,   description: "Header row (Power of 2 / Hexadecimal / Decimal); each row shows 2^i label, hex and decimal values separated by six spaces, printed with %X and %d" }
+      - { points: 1.5, description: "Table present but format deviates: wrong separator, missing header, 2^i form missing, or hex/decimal swapped or misformatted" }
+      - { points: 0,   description: "No table / no format-specifier use" }
+
+  - name: "unsigned char + Power Index Variable"
+    points: 1
+    checker: diff_content_check
+    params:
+      target_file: "ICEX04.c"
+      must_contain: "unsigned char"
+    ratings:
+      - { points: 1,   description: "Result value declared as unsigned char AND a separate variable tracks the power index" }
+      - { points: 0,   description: "Wrong value type (e.g. int/short) or no index variable" }
+
+  - name: "Loop Terminates on Overflow Detection, NOT Index"
+    points: 3
+    checker: diff_content_check
+    params:
+      target_file: "ICEX04.c"
+      must_contain: "while"
+    ratings:
+      - { points: 3,   description: "while (or do/while) loop terminates by detecting the unsigned char overflow (e.g. value wraps to 0, or next doubling would exceed 255) — NOT by counting powers; final printed decimal = 128 (2^7, hex 80)" }
+      - { points: 1.5, description: "Loop prints powers of 2 but terminates by power-index count instead of overflow detection (spec MUST violated); or prints past overflow / stops early" }
+      - { points: 0,   description: "No loop / does not print powers of 2" }
+
+  - name: "PR Workflow & Submission"
+    points: 1
+    checker: pr_url_valid
+    params:
+      min_comment_length: 10
+    ratings:
+      - { points: 1,   description: "PR opens ICEX04 into main; TA and instructor are reviewers; valid URL submitted to Canvas" }
+      - { points: 0,   description: "No PR / wrong branch / reviewers not assigned / URL invalid" }

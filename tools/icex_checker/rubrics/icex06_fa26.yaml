@@ -1,0 +1,98 @@
+# Rubric for ICEX06-FA26-C291 (two arrays, three loop forms, byte storage)
+#
+# Canvas assignment: 10 points. Rubric total = 10 = canvas_points.
+# Stated purposes: two arrays + while/for loop constructions + printf +
+# understanding of array storage in bytes. The distinctive deliverable is
+# the hand-written block comment predicting the second table in HEX byte
+# values (spec: DO NOT WRITE CODE FOR THIS) — that carries the byte-
+# storage understanding and gets full tier scrutiny.
+#
+# The spec does not name the .c file; target_file below assumes
+# ICEX06.c by course convention (matches branch name) — TAs adjust if
+# the actual submission file differs.
+#
+# Ground truth verified by compiling+running a reference implementation
+# (/tmp/icex06_ref.c, macOS; silo x86-64 identical for these values):
+#   First table (for):      cell 0..3, a = 1 2 3 4, b = 0 0 0 0
+#   While loop doubles:     b = 2 4 6 8
+#   Second table (do/while): cell 0..3, a = 1 2 3 4, b = 2 4 6 8
+#   short = 2 bytes; final arrays in 16-bit hex:
+#     a = 0x0001 0x0002 0x0003 0x0004
+#     b = 0x0002 0x0004 0x0006 0x0008
+#   Little-endian byte order on silo shows per-cell bytes as
+#   01 00 / 02 00 / ... and 02 00 / 04 00 / ... — grade the VALUE
+#   (0x0002), not the byte order (architecture display).
+#
+# Ratings (rubric tiers) are consumed by the Canvas CSV pipeline
+# (rubric_to_csv.py). The icex_checker loader ignores them (extra keys
+# tolerated); automated checkers gather EVIDENCE, TA awards points in
+# Canvas per the tiers.
+
+assignment: ICEX06
+course: C291
+semester: FA26
+total_points: 10
+canvas_points: 10
+semester_start: 2026-08-24
+
+criteria:
+  - name: "Two 4-cell short Arrays (1-4 and null-set zeros)"
+    points: 1
+    checker: diff_content_check
+    params:
+      target_file: "ICEX06.c"
+      must_contain: "short"
+    ratings:
+      - { points: 1,   description: "Two 4-cell short arrays: one initialized 1-4, the other zero-initialized via null set ({0}); a separate variable tracks the index" }
+      - { points: 0,   description: "Wrong type/size, wrong values, or zero-array written as explicit {0,0,0,0} instead of the null set" }
+
+  - name: "First Table via for Loop (cell # + both arrays)"
+    points: 2
+    checker: diff_content_check
+    params:
+      target_file: "ICEX06.c"
+      must_contain: "for"
+    ratings:
+      - { points: 2,   description: "for loop prints a 4-row table listing cell number and each array's value at that cell (a = 1..4, b = 0 0 0 0)" }
+      - { points: 1,   description: "Table printed but incomplete (missing cell number or one array) or wrong loop construction used" }
+      - { points: 0,   description: "No first table" }
+
+  - name: "while Loop Doubles into Second Array"
+    points: 2
+    checker: diff_content_check
+    params:
+      target_file: "ICEX06.c"
+      must_contain: "while"
+    ratings:
+      - { points: 2,   description: "while loop writes double each initialized cell into the corresponding cell of the other array — final b = 2, 4, 6, 8 (verified values)" }
+      - { points: 1,   description: "Loop present but doubling or cell correspondence wrong (e.g. copies without doubling, off-by-one, overwrites array a)" }
+      - { points: 0,   description: "No doubling loop" }
+
+  - name: "Reprint Table via do/while"
+    points: 2
+    checker: diff_content_check
+    params:
+      target_file: "ICEX06.c"
+      must_contain: "do"
+    ratings:
+      - { points: 2,   description: "do/while loop reprints the 4-row table with updated values (a = 1..4, b = 2 4 6 8)" }
+      - { points: 1,   description: "Reprint present but wrong loop construction (plain while/for) or values stale/wrong" }
+      - { points: 0,   description: "No reprint" }
+
+  - name: "Block Comment: Final Arrays in Hex Byte Values (NO code)"
+    points: 2
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 2,   description: "Block comment shows the second-time table with final values in hex appropriate for short (2 bytes): a = 0x0001 0x0002 0x0003 0x0004 and b = 0x0002 0x0004 0x0006 0x0008; hand-written prediction, no code written for it" }
+      - { points: 1,   description: "Prediction present but incomplete or imprecise: only one array, wrong hex width for short, decimal left in, byte-order confusion (LE byte display graded as value-correct), OR written as executable code instead of a comment (spec forbids)" }
+      - { points: 0,   description: "No hex prediction comment" }
+
+  - name: "PR Workflow & Submission"
+    points: 1
+    checker: pr_url_valid
+    params:
+      min_comment_length: 10
+    ratings:
+      - { points: 1,   description: "PR opens ICEX06 branch into main; TA and instructor assigned as reviewers; valid URL submitted to Canvas" }
+      - { points: 0,   description: "No PR / wrong branch / reviewers not assigned / URL invalid" }

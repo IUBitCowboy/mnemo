@@ -1,0 +1,70 @@
+# Rubric for ICEX03-FA26-C291 (do/while + while + switch/fall-thru)
+#
+# Canvas assignment: 10 points. Rubric total = 10 = canvas_points.
+# Content emphasis per instructor: comment block, do/while loop written
+# correctly, complete switch clause.
+#
+# Ratings (rubric tiers) are consumed by the Canvas CSV pipeline
+# (rubric_to_csv.py). The icex_checker loader ignores them (extra keys
+# tolerated); automated checkers gather EVIDENCE, TA awards points in
+# Canvas per the tiers.
+
+assignment: ICEX03
+course: C291
+semester: FA26
+total_points: 10
+canvas_points: 10
+semester_start: 2026-08-24
+
+criteria:
+  - name: "Comment Block & output_example.txt"
+    points: 2
+    checker: diff_content_check
+    params:
+      target_file: "ICEX03.c"
+      must_contain: "Program name"
+    ratings:
+      - { points: 2,   description: "Full comment block (name/programmer/description) AND expected-output file present" }
+      - { points: 1,   description: "Comment block OR output_example.txt missing or incomplete" }
+      - { points: 0,   description: "Neither present" }
+
+  - name: "Loop A: do/while (z-a ASCII, 5/line)"
+    points: 3
+    checker: diff_content_check
+    params:
+      target_file: "ICEX03.c"
+      must_contain: "do"
+    ratings:
+      - { points: 3,   description: "Correct do/while loop printing z..a, inner for loop formats 5 ASCII values per line" }
+      - { points: 1.5, description: "Loop present but logic or 5-per-line format wrong; wrong loop type" }
+      - { points: 0,   description: "No loop / not attempted" }
+
+  - name: "Vowel (v) marker"
+    points: 1
+    checker: diff_content_check
+    params:
+      target_file: "ICEX03.c"
+      must_contain: "v"
+    ratings:
+      - { points: 1,   description: "(v) printed immediately after every vowel" }
+      - { points: 0,   description: "Missing, misplaced, or wrong letters" }
+
+  - name: "Loop B: while + switch (fall-thru)"
+    points: 3
+    checker: diff_content_check
+    params:
+      target_file: "ICEX03.c"
+      must_contain: "switch"
+    ratings:
+      - { points: 3,   description: "while loop covers Z..a; complete switch classifies arithmetic / relational / other; fall-thru used as demonstrated in class" }
+      - { points: 1.5, description: "Loop or switch present but classification incomplete or fall-thru not used correctly" }
+      - { points: 0,   description: "Missing / not attempted" }
+
+  - name: "PR Workflow & Submission"
+    points: 1
+    checker: pr_url_valid
+    params:
+      min_comment_length: 10
+    ratings:
+      - { points: 1,   description: "PR opens ICEX03 into main; TA and instructor are reviewers; valid URL submitted to Canvas" }
+      - { points: 0,   description: "No PR / wrong branch / reviewers not assigned / URL invalid" }

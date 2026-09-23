@@ -1,0 +1,90 @@
+# Rubric for ICEX05-FA26-C291 (gatekeeper ledger: planted bug + scanf traps)
+#
+# Canvas assignment: 10 points. Rubric total = 10 = canvas_points.
+# Staged debugging exercise: theorize -> observe -> fix -> extend ->
+# challenge -> reflect. Criteria map to Tasks 1, 3, 4, 5, 6 + PR.
+# The planted bug: read #4's "%c" captures the leftover newline (code 10)
+# after the exclusion-set read #3 stops at (but does not consume) '\n'.
+# The fix: one character — leading space in the format (" %c").
+#
+# NOTE: assignment text's Submit section says `git checkout -b icex03` —
+# typo in the handout; the branch/PR is icex05. TAs: accept the icex05
+# branch (or an obviously-intended equivalent), do not dock for the
+# assignment's own typo.
+#
+# Ground truth verified by running reference conversions (macOS libc;
+# only case-2 %d out-of-range handling is libc-dependent):
+#   -5      -> %d -5, %x fffffffb, %u 4294967291 (same 32 bits, two's complement)
+#   2147483649 (2^31+1) -> bit pattern 0x80000001; %d shows -2147483647 here
+#   1e39    -> float stores inf, scanf returns 1 (silent)
+#   ALL out-of-range inputs return 1 (successful conversion) — that is
+#   the Task 5 punchline: scanf's return counts conversions, not range.
+#
+# Ratings (rubric tiers) are consumed by the Canvas CSV pipeline
+# (rubric_to_csv.py). The icex_checker loader ignores them (extra keys
+# tolerated); automated checkers gather EVIDENCE, TA awards points in
+# Canvas per the tiers.
+
+assignment: ICEX05
+course: C291
+semester: FA26
+total_points: 10
+canvas_points: 10
+semester_start: 2026-08-24
+
+criteria:
+  - name: "Task 1: Theory Table (before running)"
+    points: 1
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 1,   description: "All three theory rows filled with correct predictions: verdict stores the leftover newline (code 10, not 'A'), %d shows 10, the fix is one character (leading space in the %c format)" }
+      - { points: 0,   description: "Theory table blank or filled after running (predictions not committed as theory)" }
+
+  - name: "Task 3: The One-Character Fix Works"
+    points: 3
+    checker: diff_content_check
+    params:
+      target_file: "ledger.c"
+      must_contain: "%c"
+    ratings:
+      - { points: 3,   description: "Fix applied to read #4 only; program records verdict 'A' (code 65) for the exact given input (100 / 98.6 / delivery of ale / A); badge, temperature, reason lines unaffected" }
+      - { points: 1.5, description: "Fix attempted but verdict still wrong, or the fix altered/broke the other three reads (e.g. swallowed reason text), or more than the one-character change was needed and side effects remain" }
+      - { points: 0,   description: "Bug not fixed — verdict still prints the newline (code 10)" }
+
+  - name: "Task 4: Badge Validation via scanf Return"
+    points: 2
+    checker: diff_content_check
+    params:
+      target_file: "ledger.c"
+      must_contain: "INPUT ERROR"
+    ratings:
+      - { points: 2,   description: "Non-numeric badge (e.g. abc) prints exactly 'INPUT ERROR: badge not a number', returns 1, exits immediately (no temperature/reason/verdict reads); uses scanf's return value" }
+      - { points: 1,   description: "Validation present but message text differs, does not return 1 / exit, or later reads still execute after the error" }
+      - { points: 0,   description: "No validation — garbage badge flows into the ledger" }
+
+  - name: "Task 5 Challenge: Out-of-Range Predictions + Explanations"
+    points: 2
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 2,   description: "All three badge cases predicted+verified (-5 three lenses, 2147483649 wrap, 1e39 as temperature) AND all four explanation questions answered correctly (two's-complement lens sentence; 2^31+1 bit-pattern arithmetic; float stores inf and scanf is silent; return value counts conversions, not range)" }
+      - { points: 1,   description: "Challenge attempted but predictions or explanations incomplete/partially wrong (e.g. misses that return is still 1, or lens explanation garbled)" }
+      - { points: 0,   description: "Challenge not attempted" }
+
+  - name: "Task 6: Reflect — Scientific Loop"
+    points: 1
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 1,   description: "debug_log.md or ledger.c comments contain the four-step loop (THEORIZE / EXPERIMENT / MODIFY / TEST) tied to the planted newline bug, incl. what input would prove the fix broken" }
+      - { points: 0,   description: "Reflection missing" }
+
+  - name: "PR Workflow & Submission"
+    points: 1
+    checker: pr_url_valid
+    params:
+      min_comment_length: 10
+    ratings:
+      - { points: 1,   description: "PR opens icex05 branch into main; instructor and TA assigned as reviewers; valid URL submitted to Canvas (assignment text's 'icex03' branch name is a known typo — accept icex05)" }
+      - { points: 0,   description: "No PR / wrong branch / reviewers not assigned / URL invalid" }

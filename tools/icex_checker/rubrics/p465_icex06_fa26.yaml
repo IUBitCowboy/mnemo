@@ -1,0 +1,82 @@
+# Rubric for P465 ICEX06-FA26 (Your First Dockerfile — transcript submission)
+#
+# Canvas assignment: 10 points. Rubric total = 10 = canvas_points.
+# SUBMISSION SHAPE: text entry — one terminal transcript pasted into the
+# Canvas text box. No repo, no PR. ALL criteria are manual_review
+# (evidence lives in the pasted transcript, not in a git diff).
+#
+# FIDELITY: criteria and point weights are the assignment's own published
+# table ("How you earn the 10 points": 2/3/2/2/1). Mid-tiers extend the
+# handout's binary rows per its stated principle: "A documented failure
+# is honest work and can still earn most of the points."
+#
+# NAME COLLISION NOTE: C291 also has an ICEX06 (in-class C exercise).
+# This file is p465_icex06_fa26.yaml; Canvas rubric title is
+# "ICEX06 (P465)" — distinct from C291's "ICEX06 (C291)". When running
+# the icex_checker, pass this file explicitly; find_rubric's prefix
+# sweep will not match it for a bare "ICEX06" lookup.
+#
+# Ground truth verified by building+running a reference image on the
+# Studio (Sep 23 2026): script prints exactly two lines —
+#   "Hello from container <hostname>" where <hostname> IS the container
+#   id (verified: docker inspect .Id starts with the printed hostname,
+#   12 hex chars) — and "Container UTC time: YYYY-MM-DD HH:MM:SS UTC"
+#   matching the handout's sample format. Base image supplies Python;
+#   nothing installed in the container.
+#
+# Integrity rails from the assignment (grade-level, not accusation):
+#   - Transcript date = freshness seal; must match the due date.
+#   - Documented failures stay in the transcript (honest work).
+#   - Text paste only; screenshots do not count.
+
+assignment: ICEX06
+course: P465
+semester: FA26
+total_points: 10
+canvas_points: 10
+semester_start: 2026-08-24
+
+criteria:
+  - name: "Script correct — both output lines"
+    points: 2
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 2,   description: "Container run prints exactly the two required lines: 'Hello from container <hostname>' and 'Container UTC time: <timestamp> UTC' (UTC, not local time)" }
+      - { points: 1,   description: "Both lines present but one is off (local time instead of UTC, missing hostname, wrong wording), or script shown but output not captured" }
+      - { points: 0,   description: "No script output in the transcript" }
+
+  - name: "Dockerfile minimal elements visible in cat"
+    points: 3
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 3,   description: "cat of the Dockerfile shows all four, in order: pinned official Python base image (specific version, not latest), WORKDIR set, COPY hello.py, default command running hello.py with the image's Python" }
+      - { points: 1.5, description: "Two or three of the four present; common misses: base image unpinned/:latest, no WORKDIR, no COPY, CMD wrong" }
+      - { points: 0,   description: "Dockerfile not shown in the transcript, or missing three+ elements (e.g. the Dockerfile.txt Windows save error)" }
+
+  - name: "Image builds — tagged with IU username"
+    points: 2
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 2,   description: "Build completes successfully in the transcript AND image is tagged <iu-username>/hello (e.g. jdoe/hello) with the trailing . build-directory argument" }
+      - { points: 1,   description: "Build completed but tag is not the student's IU username (or generic tag), OR failed build(s) left in the transcript with no successful rebuild (failure documented, but the deliverable missing)" }
+      - { points: 0,   description: "No build / no build evidence in transcript" }
+
+  - name: "Container runs — hostname is a container id"
+    points: 2
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 2,   description: "Container runs from the student's image; two lines print; hostname is a container-style id (12 hex chars, verified: equals the container's ID), NOT the student's laptop hostname" }
+      - { points: 1,   description: "Container ran but hostname looks like the host machine's name, or output truncated/partial" }
+      - { points: 0,   description: "No successful container run in transcript" }
+
+  - name: "One session, five steps in order, from the date"
+    points: 1
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 1,   description: "Single continuous transcript, steps in order: date → cat Dockerfile → build → run (housekeeping optional after); starts with the date (freshness seal, date consistent with due date); pasted as TEXT — no screenshots" }
+      - { points: 0,   description: "Screenshots instead of text, no date at top, or steps out of order/missing from one session" }

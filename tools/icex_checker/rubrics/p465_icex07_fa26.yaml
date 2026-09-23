@@ -1,0 +1,90 @@
+# Rubric for P465 ICEX07-FA26 (Docker volumes + bind-mount backup)
+#
+# Canvas assignment: 10 points. Rubric total = 10 = canvas_points.
+# SUBMISSION SHAPE (same as P465 ICEX06): text entry to Canvas —
+# (1) the ordered command list, (2) a terminal listing showing the files
+# copied from the volume to the host directory. Can be one combined or
+# two files. NO repo, NO PR — all criteria manual_review.
+#
+# WEIGHTS: handout publishes NO point table this time — weights are
+# rubric design, aligned to the exercise's three concepts: named volume
+# persistence, file creation inside the volume, dual-mount backup
+# (volume + host bind in ONE container run) with host-side proof.
+#
+# ubuntu:latest: the handout ITSELF specifies "a base Docker image like
+# Ubuntu:latest" — do NOT penalize :latest here (contrast with ICEX06,
+# where pinning was the graded point).
+#
+# HANDOUT HINT NUANCE: the handout says -rm "automatically unmounts the
+# Docker volume when the container exits". Operationally: --rm removes
+# the container; the NAMED volume persists (that persistence is the
+# point — container 2 reads container 1's files). Do not grade the
+# wording; grade the working flow. --rm is good practice, its absence
+# is harmless.
+#
+# Ground truth verified end-to-end on the Studio (Sep 23 2026,
+# reference sequence, all steps ran):
+#   docker volume create critical_data
+#   docker run --rm -v critical_data:/data ubuntu sh -c '...'
+#     -> files created in volume (alpha.txt, bravo.txt, listed in-container)
+#   mkdir -p <host backup dir>
+#   docker run --rm -v critical_data:/data -v /tmp/icex07_backup:/backup \
+#     ubuntu sh -c 'cp -r /data/. /backup/ && ls -la /backup'
+#     -> container lists the copied files AND the host directory then
+#        contains alpha.txt/bravo.txt with correct content (verified
+#        by cat on the host). Volume persistence across containers
+#        confirmed. -v and --mount forms are equivalent; accept either.
+#
+# assignment text says team work allowed but INDIVIDUAL submission.
+
+assignment: ICEX07
+course: P465
+semester: FA26
+total_points: 10
+canvas_points: 10
+semester_start: 2026-08-24
+
+criteria:
+  - name: "Volume critical_data created"
+    points: 1
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 1,   description: "docker volume create critical_data shown (name spelled exactly); optionally verified with volume ls/inspect" }
+      - { points: 0,   description: "No volume creation, wrong name, or bind-mount directory used in place of a named volume (mounts a host dir as /data instead)" }
+
+  - name: "Container creates files inside the volume"
+    points: 2
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 2,   description: "Container run mounts critical_data and creates file(s) inside it (interactive -ti shell or scripted); evidence of files in the volume shown (ls in the container, or files visible to the next container)" }
+      - { points: 1,   description: "Container ran and files created but written to the container filesystem rather than the mounted volume (no mount flag), or no evidence of the files shown" }
+      - { points: 0,   description: "No file creation step" }
+
+  - name: "Second container: volume AND host bind mounted together"
+    points: 3
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 3,   description: "One container run carries BOTH mounts in the same command: the critical_data volume and a host directory bind (-v host_path:/backup or --mount equivalent); backup copy executed inside this container" }
+      - { points: 1.5, description: "Second container mounts the volume but no host bind (copy cannot land on host), or the two mounts are split across two separate containers, or bind given but volume missing" }
+      - { points: 0,   description: "No second container / no dual mount attempted" }
+
+  - name: "Backup proven on the host (volume -> host direction)"
+    points: 2
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 2,   description: "Host-side evidence: listing of the host backup directory showing the copied files (names and ideally content) AFTER the container run — proves data crossed volume to host; direction is volume -> host" }
+      - { points: 1,   description: "Listing shown only from inside the container, or direction reversed (host -> volume), or host listing missing files shown in the volume" }
+      - { points: 0,   description: "No backup evidence" }
+
+  - name: "Submission complete: ordered command list + terminal listing"
+    points: 2
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 2,   description: "Both parts submitted: commands listed in correct execution order AND the terminal listing demonstrating the copy; text paste (screenshots don't count)" }
+      - { points: 1,   description: "One of the two parts missing (e.g. listing but no ordered command list), or order scrambled relative to the transcript, or screenshot instead of text" }
+      - { points: 0,   description: "Neither part, or empty submission" }

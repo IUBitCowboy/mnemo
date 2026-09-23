@@ -1,0 +1,77 @@
+# Rubric for WEVL01-FA26-C291 (WE1: The Trial of the Triple Base)
+#
+# Canvas assignment: 10 points. Rubric total = 10 = canvas_points.
+# SUBMISSION SHAPE: students upload a photo/scan (PDF/JPG/PNG) of
+# HANDWRITTEN work. No code, no repo, no PR — all criteria manual_review.
+#
+# FIDELITY: weights are the handout's own published table:
+#   Base Conversions (Part A, 9 problems) 6
+#   Two's Complement (Part B, 3 pairs)    2
+#   Overflow Analysis (Part C, 2 problems) 2
+#
+# ANSWER KEY (computed with Python integer arithmetic, Sep 23 2026 —
+# every value below is tool-verified; TAs grade against this key):
+#   Part A — Binary to Dec & Hex:
+#     01011010 = 90  = 0x5A
+#     11001111 = 207 = 0xCF
+#     00001101 = 13  = 0x0D
+#   Part A — Hex to Bin & Dec:
+#     0x2F = 47  = 00101111
+#     0xA5 = 165 = 10100101
+#     0xDF = 223 = 11011111
+#   Part A — Dec to Bin & Hex:
+#     42  = 00101010 = 0x2A
+#     128 = 10000000 = 0x80
+#     201 = 11001001 = 0xC9
+#   Part B — (positive 8-bit, two's complement negative):
+#     15  -> 00001111 / 11110001
+#     64  -> 01000000 / 11000000
+#     1   -> 00000001 / 11111111
+#   Part C — overflow past 255:
+#     258: true binary 100000010 (9 bits); 8-bit keeps 00000010 = 2;
+#          LOST bit = the 9th bit (2^8 place, worth 256)
+#     300: true binary 100101100; 8-bit result 00101100 = 44
+#          (300 - 256 = 44)
+#
+# HANDWORK RULE: the assignment requires intermediate steps BY HAND on
+# paper (expansion method, successive division, nibble split, mirror).
+# Results copied without visible intermediate steps belong in the mid
+# tier of Part A (the steps ARE the practice). Typed/digitally rendered
+# work contradicts the "document by hand" instruction — mid tier at
+# best; ask the TA's judgment on intent (e.g. printed template filled
+# in by hand is acceptable).
+
+assignment: WEVL01
+course: C291
+semester: FA26
+total_points: 10
+canvas_points: 10
+semester_start: 2026-08-24
+
+criteria:
+  - name: "Base Conversions: 9 problems in Part A"
+    points: 6
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 6,   description: "All 9 conversions correct with intermediate steps shown by hand per the Scribe's Guide: 01011010=90=0x5A, 11001111=207=0xCF, 00001101=13=0x0D, 0x2F=47=00101111, 0xA5=165=10100101, 0xDF=223=11011111, 42=00101010=0x2A, 128=10000000=0x80, 201=11001001=0xC9" }
+      - { points: 3,   description: "Mostly correct but flawed: 1-3 wrong results, OR correct results but intermediate steps missing/abbreviated, OR work typed/rendered digitally instead of handwritten" }
+      - { points: 0,   description: "4+ problems wrong, or Part A missing" }
+
+  - name: "Two's Complement: 3 pairs in Part B"
+    points: 2
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 2,   description: "All 3 pairs correct with mirror steps shown (positive 8-bit, invert, add 1): 15/11110001, 64/11000000, 1/11111111" }
+      - { points: 1,   description: "Attempted but one pair wrong, or results right without the invert/add-1 steps, or forgot the +1 on one value" }
+      - { points: 0,   description: "Part B missing or mostly wrong" }
+
+  - name: "Overflow Analysis: 2 problems in Part C"
+    points: 2
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 2,   description: "Both overflow cases correct with explanation: 258 -> 9-bit true form 100000010, 8-bit keeps 00000010 (decimal 2), lost bit = the 9th (2^8 = 256 place); 300 -> 100101100 true, 8-bit keeps 00101100 (decimal 44)" }
+      - { points: 1,   description: "One case fully correct; or binaries right but lost-bit/final-decimal explanation missing for one" }
+      - { points: 0,   description: "Part C missing or both wrong" }

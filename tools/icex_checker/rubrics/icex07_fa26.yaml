@@ -1,0 +1,86 @@
+# Rubric for ICEX07-FA26-C291 (stdin classification, %s lecture practice)
+#
+# Canvas assignment: 10 points. Rubric total = 10 = canvas_points.
+# Stated purposes: arrays-to-functions, %s, stdlib functions, stdin/stdout
+# streams and command-line REDIRECTION. The gradeable spec: read up to 255
+# chars or EOF from stdin, classify each char (letter/digit/punct/whitespace),
+# print total; test via sample.txt redirected as stdin; paste terminal
+# transcript into the Canvas text box below the PR URL (NEW submission
+# element — first ICEX to require pasted run evidence in Canvas).
+#
+# Ground truth verified by compiling+running a reference implementation
+# (/tmp/icex07_ref.c, macOS; behavior portable):
+#   "a bb ccc dddd eee ff g\n" -> 23 chars (16 letters, 7 whitespace
+#   including the trailing newline); 400-char input -> exactly 255 read
+#   (the cap binds BEFORE EOF — a loop without the cap reads 400);
+#   empty input -> 0, no crash.
+#
+# Ratings (rubric tiers) are consumed by the Canvas CSV pipeline
+# (rubric_to_csv.py). The icex_checker loader ignores them (extra keys
+# tolerated); automated checkers gather EVIDENCE, TA awards points in
+# Canvas per the tiers.
+
+assignment: ICEX07
+course: C291
+semester: FA26
+total_points: 10
+canvas_points: 10
+semester_start: 2026-08-24
+
+criteria:
+  - name: "Read Loop: stdin up to 255 chars or EOF"
+    points: 3
+    checker: diff_content_check
+    params:
+      target_file: "icex07.c"
+      must_contain: "getchar"
+    ratings:
+      - { points: 3,   description: "Loop reads characters from stdin and stops at whichever comes first: EOF or 255 characters (verified: 400-char input must still read exactly 255)" }
+      - { points: 1.5, description: "Loop reads stdin but only one stop condition implemented (e.g. runs past the 255 cap, or stops early), or reads the whole input as one string/buffer instead of per character" }
+      - { points: 0,   description: "No read loop / does not read stdin" }
+
+  - name: "Classification: letter / digit / punctuation / whitespace"
+    points: 3
+    checker: diff_content_check
+    params:
+      target_file: "icex07.c"
+      must_contain: "letter"
+    ratings:
+      - { points: 3,   description: "Every character is labeled into the four categories correctly (verified sample: 16 letters, 7 whitespace incl. the trailing newline); ctype functions or equivalent manual logic" }
+      - { points: 1.5, description: "Classification attempted but incomplete or partially wrong (e.g. whitespace category missing, space and newline conflated with 'other', digits mislabeled)" }
+      - { points: 0,   description: "No per-character classification" }
+
+  - name: "Total Characters Printed After the Loop"
+    points: 1
+    checker: diff_content_check
+    params:
+      target_file: "icex07.c"
+      must_contain: "Total"
+    ratings:
+      - { points: 1,   description: "Total count printed once after the loop and matches the input actually used (23 for the sample line with newline)" }
+      - { points: 0,   description: "Total missing or wrong (e.g. counts bytes of the buffer, not characters read)" }
+
+  - name: "sample.txt Committed + Input Redirection Used"
+    points: 1
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 1,   description: "sample.txt committed with test-like content (e.g. 'a bb ccc dddd eee ff g') AND the run shown uses command-line redirection (< sample.txt) as stdin" }
+      - { points: 0,   description: "No sample file, or input typed interactively with no redirection demonstrated" }
+
+  - name: "Terminal Transcript Pasted in Canvas (below URL)"
+    points: 1
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 1,   description: "Canvas text box contains the PR URL AND, below it, the pasted terminal transcript showing the program running with sample.txt redirected as input (spec requirement)" }
+      - { points: 0,   description: "Transcript missing — URL only" }
+
+  - name: "PR Workflow & Submission"
+    points: 1
+    checker: pr_url_valid
+    params:
+      min_comment_length: 10
+    ratings:
+      - { points: 1,   description: "PR opens ICEX07 branch into main; TA and instructor assigned as reviewers; valid URL submitted to Canvas" }
+      - { points: 0,   description: "No PR / wrong branch / reviewers not assigned / URL invalid" }
