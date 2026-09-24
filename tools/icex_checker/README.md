@@ -115,12 +115,14 @@ values, and checker types. The tool looks for the rubric in this order:
 1. **`--rubric` flag** — explicit path to a YAML file
 2. **Auto-detect** — if the submission title contains an assignment ID (e.g.
    `ICEX01`), the tool searches for a matching file in `rubrics/` inside the
-   tool directory. Rubrics are organized by course — `rubrics/c291/`,
-   `rubrics/se1/`, `rubrics/p465/` — and the tool infers the course from the
-   submission's repo name (`fa26_c291` → C291, `fa26_se1_team01` → SE1,
-   `fa26_p465` → P465), so same-named assignments in different classes
-   (e.g. ICEX06 in C291 and P465) resolve to the correct rubric. If the
-   course can't be inferred, the flat `rubrics/` layout still works.
+   tool directory. Rubrics are organized by course — `rubrics/c291/` and
+   `rubrics/se1/` — and the tool infers the course from the submission's
+   repo name (`fa26_c291` → C291; `fa26_se1_team*`, `fa26_p465`, and
+   `fa26_p565` → SE1, the collective name for the software engineering
+   sections), so same-named assignments in different classes (e.g. ICEX06
+   in C291 and SE1/P465) resolve to the correct rubric. If the course
+   can't be inferred and the assignment ID matches rubrics in more than
+   one course, auto-detect declines to guess — pass `--rubric` explicitly.
 
 The rubric for ICEX01 is included at `rubrics/c291/icex01_fa26.yaml`. You will
 receive new rubric files from the instructor for each ICEX assignment.

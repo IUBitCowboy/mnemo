@@ -172,8 +172,10 @@ def _validate_date(value, field):
 def infer_course_from_repo(repo_name):
     """Infer the course code from a submission repo name (issue #2).
 
-    Known patterns: 'fa26_c291' -> C291, 'fa26_se1_team*' -> SE1,
-    'fa26_p465' -> P465. Returns None for unknown patterns.
+    'fa26_c291' -> C291. 'fa26_p465'/'fa26_p565' and 'fa26_se1_team*'
+    all map to the collective SE1 (P465 undergrad + P565 grad sections
+    meet concurrently; the instructor refers to both as SE1).
+    Returns None for unknown patterns.
     """
     m = re.search(r"_c(\d+)(?:_|$)", repo_name or "")
     if m:
@@ -183,7 +185,8 @@ def infer_course_from_repo(repo_name):
         return "SE%s" % m.group(1)
     m = re.search(r"_p(\d+)(?:_|$)", repo_name or "")
     if m:
-        return "P%s" % m.group(1)
+        # P465/P565 are sections of the collective SE1
+        return "SE1"
     return None
 
 
@@ -212,9 +215,18 @@ def find_rubric(assignment_id, search_dir, course=None):
     # Case-insensitive sweep (assignment ids are uppercase, files may vary).
     # Issue #2: files in course subdirs may carry a course prefix
     # ('p465_icex06_fa26.yaml') — match when the needle appears as the
-    # assignment token in the stem.
+    # assignment token in the stem. With no course known, sweep the
+    # course subdirectories too; a unique match auto-detects, and an
+    # ambiguous match (same needle in two courses) returns None — the
+    # tool never guesses, the TA passes --rubric.
     needle = assignment_id.lower()
-    for d in search_roots:
+    search_dirs = list(search_roots)
+    if not course:
+        for sub in sorted((base / "rubrics").glob("*/")) if (base / "rubrics").is_dir() else []:
+            if sub not in search_dirs:
+                search_dirs.append(sub)
+    matches = []
+    for d in search_dirs:
         if not d.is_dir():
             continue
         for f in sorted(d.glob("*.yaml")):
@@ -225,5 +237,9 @@ def find_rubric(assignment_id, search_dir, course=None):
                 or stem.endswith("_" + needle)
                 or (needle + "_") in stem
             ):
-                return f
+                matches.append(f)
+    if course:
+        return matches[0] if matches else None
+    if len(matches) == 1:
+        return matches[0]
     return None

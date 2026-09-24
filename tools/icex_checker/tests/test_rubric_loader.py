@@ -116,24 +116,51 @@ class TestCourseInference:
     def test_se1_team_repo_pattern(self):
         assert rubric.infer_course_from_repo("fa26_se1_team01") == "SE1"
 
-    def test_p465_repo_pattern(self):
-        assert rubric.infer_course_from_repo("fa26_p465") == "P465"
+    def test_p465_section_maps_to_collective_se1(self):
+        """Issue #2 comment: P465 undergrad + P565 grad sections meet
+        concurrently and are collectively 'SE1' — repo pattern infers SE1."""
+        assert rubric.infer_course_from_repo("fa26_p465") == "SE1"
+
+    def test_p565_grad_section_maps_to_se1(self):
+        assert rubric.infer_course_from_repo("fa26_p565") == "SE1"
 
     def test_unknown_pattern_returns_none(self):
         assert rubric.infer_course_from_repo("some_random_repo") is None
 
     def test_find_rubric_searches_course_subdirectory(self, tmp_path):
-        """rubrics/c291/icex06.yaml and rubrics/p465/icex06.yaml both exist —
-        course inference must pick the right one."""
+        """rubrics/c291/icex06.yaml and rubrics/se1/p465_icex06.yaml both
+        exist — course inference must pick the right one."""
         c291_dir = tmp_path / "rubrics" / "c291"
-        p465_dir = tmp_path / "rubrics" / "p465"
+        se1_dir = tmp_path / "rubrics" / "se1"
         c291_dir.mkdir(parents=True)
-        p465_dir.mkdir(parents=True)
+        se1_dir.mkdir(parents=True)
         (c291_dir / "icex06_fa26.yaml").write_text("# c291\n", encoding="utf-8")
-        (p465_dir / "icex06_fa26.yaml").write_text("# p465\n", encoding="utf-8")
+        (se1_dir / "p465_icex06_fa26.yaml").write_text("# se1\n", encoding="utf-8")
 
         assert rubric.find_rubric("ICEX06", str(tmp_path), course="C291") == c291_dir / "icex06_fa26.yaml"
-        assert rubric.find_rubric("ICEX06", str(tmp_path), course="P465") == p465_dir / "icex06_fa26.yaml"
+        assert rubric.find_rubric("ICEX06", str(tmp_path), course="SE1") == se1_dir / "p465_icex06_fa26.yaml"
+
+    def test_find_rubric_no_course_sweeps_subdirs_on_unique_match(self, tmp_path):
+        """Transcript-only submissions have no repo, so no course — a needle
+        matching exactly ONE file across course subdirs still auto-detects
+        (issue #2: p465_icex06 lives in rubrics/se1/)."""
+        se1_dir = tmp_path / "rubrics" / "se1"
+        se1_dir.mkdir(parents=True)
+        (se1_dir / "p465_icex06_fa26.yaml").write_text("# se1\n", encoding="utf-8")
+
+        assert rubric.find_rubric("ICEX06", str(tmp_path), course=None) == se1_dir / "p465_icex06_fa26.yaml"
+
+    def test_find_rubric_no_course_ambiguous_across_courses_returns_none(self, tmp_path):
+        """ICEX06 in both c291/ and se1/ with no course inferred -> ambiguous,
+        tool must not guess; TA passes --rubric."""
+        c291_dir = tmp_path / "rubrics" / "c291"
+        se1_dir = tmp_path / "rubrics" / "se1"
+        c291_dir.mkdir(parents=True)
+        se1_dir.mkdir(parents=True)
+        (c291_dir / "icex06_fa26.yaml").write_text("# c291\n", encoding="utf-8")
+        (se1_dir / "p465_icex06_fa26.yaml").write_text("# se1\n", encoding="utf-8")
+
+        assert rubric.find_rubric("ICEX06", str(tmp_path), course=None) is None
 
     def test_find_rubric_without_course_falls_back_to_flat(self, tmp_path):
         """No course inferred -> old behavior: flat rubrics/ dir wins."""
@@ -144,15 +171,15 @@ class TestCourseInference:
         assert rubric.find_rubric("ICEX06", str(tmp_path), course=None) == flat / "icex06_fa26.yaml"
 
     def test_course_prefixed_file_matches_in_course_subdir(self, tmp_path):
-        """Issue #2: 'p465_icex06_fa26.yaml' in rubrics/p465/ must match
-        needle ICEX06 — the course prefix does not break the sweep."""
-        p465_dir = tmp_path / "rubrics" / "p465"
-        p465_dir.mkdir(parents=True)
-        (p465_dir / "p465_icex06_fa26.yaml").write_text("# p465\n", encoding="utf-8")
+        """Issue #2: 'p465_icex06_fa26.yaml' in rubrics/se1/ must match
+        needle ICEX06 — the section prefix does not break the sweep."""
+        se1_dir = tmp_path / "rubrics" / "se1"
+        se1_dir.mkdir(parents=True)
+        (se1_dir / "p465_icex06_fa26.yaml").write_text("# p465\n", encoding="utf-8")
 
-        found = rubric.find_rubric("ICEX06", str(tmp_path), course="P465")
+        found = rubric.find_rubric("ICEX06", str(tmp_path), course="SE1")
 
-        assert found == p465_dir / "p465_icex06_fa26.yaml"
+        assert found == se1_dir / "p465_icex06_fa26.yaml"
 
 
 class TestV11FieldsTolerated:
