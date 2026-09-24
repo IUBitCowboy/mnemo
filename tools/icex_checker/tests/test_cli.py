@@ -132,7 +132,7 @@ class TestVersion:
         out = capsys.readouterr().out
         assert code == 0
         assert "icex_checker" in out
-        assert "1.0.0" in out
+        assert "1.1.1" in out
 
 
 class TestSingleSubmission:
