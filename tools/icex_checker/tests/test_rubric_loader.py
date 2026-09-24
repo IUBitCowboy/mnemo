@@ -106,6 +106,55 @@ class TestAutoDetect:
         assert rubric.find_rubric("ICEX99", str(tmp_path)) is None
 
 
+class TestCourseInference:
+    """Issue #2: repo name -> course code for disambiguating same-named
+    assignments across classes (ICEX06 exists in C291 and P465)."""
+
+    def test_c291_repo_pattern(self):
+        assert rubric.infer_course_from_repo("fa26_c291") == "C291"
+
+    def test_se1_team_repo_pattern(self):
+        assert rubric.infer_course_from_repo("fa26_se1_team01") == "SE1"
+
+    def test_p465_repo_pattern(self):
+        assert rubric.infer_course_from_repo("fa26_p465") == "P465"
+
+    def test_unknown_pattern_returns_none(self):
+        assert rubric.infer_course_from_repo("some_random_repo") is None
+
+    def test_find_rubric_searches_course_subdirectory(self, tmp_path):
+        """rubrics/c291/icex06.yaml and rubrics/p465/icex06.yaml both exist —
+        course inference must pick the right one."""
+        c291_dir = tmp_path / "rubrics" / "c291"
+        p465_dir = tmp_path / "rubrics" / "p465"
+        c291_dir.mkdir(parents=True)
+        p465_dir.mkdir(parents=True)
+        (c291_dir / "icex06_fa26.yaml").write_text("# c291\n", encoding="utf-8")
+        (p465_dir / "icex06_fa26.yaml").write_text("# p465\n", encoding="utf-8")
+
+        assert rubric.find_rubric("ICEX06", str(tmp_path), course="C291") == c291_dir / "icex06_fa26.yaml"
+        assert rubric.find_rubric("ICEX06", str(tmp_path), course="P465") == p465_dir / "icex06_fa26.yaml"
+
+    def test_find_rubric_without_course_falls_back_to_flat(self, tmp_path):
+        """No course inferred -> old behavior: flat rubrics/ dir wins."""
+        flat = tmp_path / "rubrics"
+        flat.mkdir()
+        (flat / "icex06_fa26.yaml").write_text("# flat\n", encoding="utf-8")
+
+        assert rubric.find_rubric("ICEX06", str(tmp_path), course=None) == flat / "icex06_fa26.yaml"
+
+    def test_course_prefixed_file_matches_in_course_subdir(self, tmp_path):
+        """Issue #2: 'p465_icex06_fa26.yaml' in rubrics/p465/ must match
+        needle ICEX06 — the course prefix does not break the sweep."""
+        p465_dir = tmp_path / "rubrics" / "p465"
+        p465_dir.mkdir(parents=True)
+        (p465_dir / "p465_icex06_fa26.yaml").write_text("# p465\n", encoding="utf-8")
+
+        found = rubric.find_rubric("ICEX06", str(tmp_path), course="P465")
+
+        assert found == p465_dir / "p465_icex06_fa26.yaml"
+
+
 class TestV11FieldsTolerated:
     """v1.1 rubric fields must load on the current loader without changes."""
 

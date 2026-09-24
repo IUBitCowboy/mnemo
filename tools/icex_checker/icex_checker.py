@@ -35,7 +35,13 @@ from errors import (
 from github_client import GitHubClient
 from report import Assessment, build_json_report, build_text_report
 from roster import load_roster as load_roster_file
-from rubric import RubricNotFoundError, RubricParseError, find_rubric, load_rubric
+from rubric import (
+    RubricNotFoundError,
+    RubricParseError,
+    find_rubric,
+    infer_course_from_repo,
+    load_rubric,
+)
 
 TOOL_VERSION = "1.1.1"
 TOOL_DIR = pathlib.Path(__file__).resolve().parent
@@ -414,14 +420,24 @@ def _process_one(args, submission_path):
 
 
 def _resolve_rubric(args, sub):
-    """Explicit --rubric, else auto-detect by assignment id (FR-5)."""
+    """Explicit --rubric, else auto-detect by assignment id (FR-5).
+
+    Issue #2: when the submission's repo name identifies the course
+    (fa26_c291 -> C291), course-aware auto-detect disambiguates
+    same-named assignments across classes.
+    """
     if args.rubric:
         return args.rubric
     if sub.assignment_id:
-        found = find_rubric(sub.assignment_id, str(TOOL_DIR))
+        repo = None
+        owner_repo_match = re.match(r"https?://[^/]+/[^/]+/([^/]+)/pull/", sub.pr_url or "")
+        if owner_repo_match:
+            repo = owner_repo_match.group(1)
+        course = infer_course_from_repo(repo) if repo else None
+        found = find_rubric(sub.assignment_id, str(TOOL_DIR), course=course)
         if found:
             return found
-        found = find_rubric(sub.assignment_id, "./rubrics")
+        found = find_rubric(sub.assignment_id, "./rubrics", course=course)
         if found:
             return found
     raise RubricNotFoundError("(auto-detect)")

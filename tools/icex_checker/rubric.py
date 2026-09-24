@@ -2,6 +2,7 @@
 
 import datetime
 import pathlib
+import re
 
 import yaml
 
@@ -168,29 +169,61 @@ def _validate_date(value, field):
     raise RubricParseError("rubric field '%s' must be a YYYY-MM-DD string" % field)
 
 
-def find_rubric(assignment_id, search_dir):
+def infer_course_from_repo(repo_name):
+    """Infer the course code from a submission repo name (issue #2).
+
+    Known patterns: 'fa26_c291' -> C291, 'fa26_se1_team*' -> SE1,
+    'fa26_p465' -> P465. Returns None for unknown patterns.
+    """
+    m = re.search(r"_c(\d+)(?:_|$)", repo_name or "")
+    if m:
+        return "C%s" % m.group(1)
+    m = re.search(r"_se(\d)(?:_team\d*)?(?:_|$)", repo_name or "")
+    if m:
+        return "SE%s" % m.group(1)
+    m = re.search(r"_p(\d+)(?:_|$)", repo_name or "")
+    if m:
+        return "P%s" % m.group(1)
+    return None
+
+
+def find_rubric(assignment_id, search_dir, course=None):
     """Auto-detect a rubric file for an assignment (FR-5 fallback).
 
     Looks for '<assignment_id>.yaml' (case-insensitive) first in
-    search_dir, then in search_dir/rubrics/. Returns the matching path or
-    None.
+    search_dir, then in search_dir/rubrics/. With a known course
+    (issue #2), search_dir/rubrics/<course-lower>/ is searched FIRST so
+    same-named assignments in different classes disambiguate correctly.
+    Returns the matching path or None.
     """
     base = pathlib.Path(search_dir)
-    candidates = [
-        base / ("%s.yaml" % assignment_id),
-        base / ("%s.yml" % assignment_id),
-        base / "rubrics" / ("%s.yaml" % assignment_id),
-        base / "rubrics" / ("%s.yml" % assignment_id),
-    ]
-    for cand in candidates:
-        if cand.is_file():
-            return cand
-    # Case-insensitive sweep (assignment ids are uppercase, files may vary)
+    search_roots = []
+    if course:
+        search_roots.append(base / "rubrics" / course.lower())
+    search_roots.extend([base, base / "rubrics"])
+    for root in search_roots:
+        candidates = [
+            root / ("%s.yaml" % assignment_id),
+            root / ("%s.yml" % assignment_id),
+        ]
+        for cand in candidates:
+            if cand.is_file():
+                return cand
+    # Case-insensitive sweep (assignment ids are uppercase, files may vary).
+    # Issue #2: files in course subdirs may carry a course prefix
+    # ('p465_icex06_fa26.yaml') — match when the needle appears as the
+    # assignment token in the stem.
     needle = assignment_id.lower()
-    for d in (base, base / "rubrics"):
+    for d in search_roots:
         if not d.is_dir():
             continue
         for f in sorted(d.glob("*.yaml")):
-            if f.stem.lower() == needle or f.stem.lower().startswith(needle + "_"):
+            stem = f.stem.lower()
+            if (
+                stem == needle
+                or stem.startswith(needle + "_")
+                or stem.endswith("_" + needle)
+                or (needle + "_") in stem
+            ):
                 return f
     return None
