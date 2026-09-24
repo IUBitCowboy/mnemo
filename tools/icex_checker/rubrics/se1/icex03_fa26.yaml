@@ -1,0 +1,72 @@
+# Rubric for SE1 ICEX03-FA26 (build Angband on silo + splash modification)
+#
+# Canvas assignment: 10 points. Rubric total = 10 = canvas_points.
+# SUBMISSION SHAPE: ONE screenshot uploaded to Canvas (running game with
+# the modification displayed). No repo, no PR, no transcript — all
+# criteria manual_review, graded from what the screenshot shows.
+#
+# NAME COLLISION: C291 also has an ICEX03. File is se1_icex03_fa26.yaml;
+# Canvas rubric title "ICEX03 (SE1)" (distinct from "ICEX03 (C291)").
+# Pass --rubric explicitly when running the checker; bare "ICEX03"
+# auto-detect is ambiguous across courses.
+#
+# GROUND TRUTH (verified in the SE1 teaching tree, Angband 4.2.6-64-gf3e6fdd7c):
+#   - The splash screen IS lib/screens/news.txt — a DATA file, not C code.
+#     The ASCII outline of "Angband" is followed by a line containing
+#     $VERSION, which the renderer (src/ui-display.c show_splashscreen)
+#     replaces with the build version string.
+#   - "Underneath the outline and before the version number" = insert
+#     the "built by <name>" line between the art block and the $VERSION
+#     line in lib/screens/news.txt.
+#   - lib/screens/Makefile lists news.txt in DATA, so edit-source ->
+#     make -> make install propagates the line to the installed copy.
+#     (Students could also edit the INSTALLED news.txt directly and skip
+#     the rebuild — the handout says recompile and install; grade the
+#     visible result, not the method — the screenshot cannot show which
+#     path was used.)
+#   - $HOME install: git clones have no ./configure — ./autogen.sh first
+#     (needs autoconf/automake), then ./configure --prefix=$HOME/<dir>,
+#     make, make install, run $HOME/<dir>/bin/angband. Docs:
+#     angband.readthedocs.io/en/latest/hacking/compiling.html (autotools
+#     section). A configure -h peek is the handout's own hint.
+#   - TA awareness: silo home quotas are ~10GB; the build tree is sizable.
+#     A student who ran out of quota mid-build and screenshots a partial
+#     result has DOCUMENTED the failure — see mid tiers.
+#   - The example string "built by seiffert" is the INSTRUCTOR's name.
+#     A student submitting "built by seiffert" verbatim copied the
+#     example — handout says use their OWN last name or account name.
+
+assignment: ICEX03
+course: SE1
+semester: FA26
+total_points: 10
+canvas_points: 10
+semester_start: 2026-08-24
+
+criteria:
+  - name: "Angband builds and runs on silo (splash visible)"
+    points: 3
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 3,   description: "Screenshot shows the rendered splash screen: the Angband ASCII outline AND the version number both visible — proof the source build + $HOME install (configure --prefix, make, make install) succeeded" }
+      - { points: 1.5, description: "Game running but the splash itself not shown (e.g. in-game screen), or splash visible but missing the version number so the build result is only half-evidenced" }
+      - { points: 0,   description: "No screenshot of the running game" }
+
+  - name: "Splash modification: built by <own name>, correct position"
+    points: 4
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 4,   description: "Line reading 'built by <student's OWN last name or account name>' appears UNDERNEATH the Angband outline and BEFORE the version number line" }
+      - { points: 2,   description: "Modification present but flawed: wrong position (above the outline, below the version, or inside the art), OR the example name 'seiffert' kept instead of the student's own name" }
+      - { points: 0,   description: "No modification visible on the splash" }
+
+  - name: "Screenshot evidence quality"
+    points: 3
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 3,   description: "One clear screenshot; outline, the built-by line, and the version number are all readable (position is judgeable); uploaded as image/PDF to Canvas" }
+      - { points: 1.5, description: "Screenshot unclear: cropped so position can't be judged, blurry/small, or multiple fragments that must be assembled by the TA" }
+      - { points: 0,   description: "Not a screenshot of the running game (e.g. only the terminal build log, or a photo of someone else's screen)" }
