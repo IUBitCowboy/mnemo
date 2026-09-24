@@ -55,6 +55,35 @@ OTHER_FILE_DIFF = (
     "+# ICEX01 Submission\n"
 )
 
+# GitHub emits full repo paths: a student editing the file in place gets
+# '+++ b/exercises/wk1/ICEX01/hello.c' (issue #3/#6).
+NESTED_PATH_DIFF = (
+    "diff --git a/exercises/wk1/ICEX01/hello.c b/exercises/wk1/ICEX01/hello.c\n"
+    "index abc1234..def5678 100644\n"
+    "--- a/exercises/wk1/ICEX01/hello.c\n"
+    "+++ b/exercises/wk1/ICEX01/hello.c\n"
+    "@@ -1,5 +1,5 @@\n"
+    " #include <stdio.h>\n"
+    " int main() {\n"
+    "-    printf(\"Hello World!\\n\");\n"
+    "+    printf(\"Hello Zoidberg!\\n\");\n"
+    "     return 0;\n"
+    " }\n"
+)
+
+# GitHub rename syntax: '+++ b/exercises/{old => new}/hello.c' (issue #3/#6).
+RENAME_DIFF = (
+    "diff --git a/hello.c b/exercises/{old => new}/hello.c\n"
+    "similarity index 95%\n"
+    "rename from hello.c\n"
+    "rename to exercises/new/hello.c\n"
+    "--- a/hello.c\n"
+    "+++ b/exercises/{old => new}/hello.c\n"
+    "@@ -1,5 +1,5 @@\n"
+    "-    printf(\"Hello World!\\n\");\n"
+    "+    printf(\"Hello Zoidberg!\\n\");\n"
+)
+
 
 def _ctx(client, student_name="Jane Doe", pr_url="https://github.iu.edu/jdoe/fa26_c291/pull/42"):
     return CheckerContext(
@@ -428,6 +457,41 @@ class TestDiffContentCheck:
 
         assert f.assessment == "fail"
 
+    def test_nested_path_matches_bare_target_file(self):
+        """Issues #3/#6: 'hello.c' must match 'exercises/wk1/ICEX01/hello.c'."""
+        c = _FakeClient()
+        c.diff_text = NESTED_PATH_DIFF
+        f = _finding(self._criterion(), _ctx(c))
+
+        assert f.assessment == "pass"
+        assert f.ta_confirm is True
+
+    def test_nested_path_failure_reports_true_reason(self):
+        """Issue #3: when the content check fails on a nested path, the note
+        must name the CONTENT failure, not claim the file is absent."""
+        c = _FakeClient()
+        c.diff_text = NESTED_PATH_DIFF
+        crit = _criterion(
+            "diff_content_check",
+            {"target_file": "hello.c", "must_not_contain": "Zoidberg"},
+            points=3,
+        )
+        f = _finding(crit, _ctx(c))
+
+        assert f.assessment == "partial"
+        assert "not in the diff" not in f.notes
+        assert "Zoidberg" in f.notes
+
+    def test_rename_syntax_matches_target_file(self):
+        """Issues #3/#6: GitHub rename paths 'a/{old => new}/hello.c' must
+        match a bare 'hello.c' target."""
+        c = _FakeClient()
+        c.diff_text = RENAME_DIFF
+        f = _finding(self._criterion(), _ctx(c))
+
+        assert f.assessment == "pass"
+        assert f.ta_confirm is True
+
 
 # ---------------------------------------------------------------------------
 # registry / unknown checker
@@ -774,6 +838,72 @@ class TestTeamBestAttribution:
         assert any("rhaldhah: 1" in e for e in team_evidence)
 
 
+class TestPrUrlValidUsernameOwnership:
+    """Issue #6: deterministic username-vs-owner comparison replaces
+    name-matching when the Canvas filename username is available."""
+
+    def test_username_owner_match_passes(self):
+        c = _FakeClient()
+        ctx = CheckerContext(
+            client=c, semester_start=SEMESTER_START, student_name="Jane Doe",
+            pr_url="https://github.iu.edu/jdoe/fa26_c291/pull/42",
+        )
+        ctx.username = "jdoe"  # from Canvas filename (V1-3)
+        f = _finding(
+            _criterion("pr_url_valid", {"ownership_check": "student"}), ctx
+        )
+
+        assert f.assessment == "pass"
+        assert any("owner matches IU username" in e for e in f.evidence)
+
+    def test_username_owner_mismatch_needs_review_with_confirm(self):
+        """Issue #6 live case: albarwanialmukhtar submitted a PR owned by
+        alalbarw — a genuine mismatch the tool must surface, not silence."""
+        c = _FakeClient()
+        ctx = CheckerContext(
+            client=c, semester_start=SEMESTER_START, student_name="Jane Doe",
+            pr_url="https://github.iu.edu/alalbarw/fa26_c291/pull/5",
+        )
+        ctx.username = "albarwanialmukhtar"
+        f = _finding(
+            _criterion("pr_url_valid", {"ownership_check": "student"}), ctx
+        )
+
+        assert f.assessment == "needs-review"
+        assert f.ta_confirm is True
+        assert "alalbarw" in f.notes
+        assert "albarwanialmukhtar" in f.notes
+
+    def test_username_match_takes_priority_over_name_heuristic(self):
+        """Username comparison is deterministic — it wins over name-matching
+        even when the name heuristic would say otherwise."""
+        c = _FakeClient()
+        ctx = CheckerContext(
+            client=c, semester_start=SEMESTER_START, student_name="Zaphod Beeblebrox",
+            pr_url="https://github.iu.edu/jdoe/fa26_c291/pull/42",
+        )
+        ctx.username = "jdoe"
+        f = _finding(
+            _criterion("pr_url_valid", {"ownership_check": "student"}), ctx
+        )
+
+        assert f.assessment == "pass"
+
+    def test_no_username_falls_back_to_name_matching(self):
+        """v1.0 behavior preserved when the filename yields no username."""
+        c = _FakeClient()
+        ctx = CheckerContext(
+            client=c, semester_start=SEMESTER_START, student_name="Jane Doe",
+            pr_url="https://github.iu.edu/jdoe/fa26_c291/pull/42",
+        )
+        ctx.username = None
+        f = _finding(
+            _criterion("pr_url_valid", {"ownership_check": "student"}), ctx
+        )
+
+        assert f.assessment == "pass"  # name heuristic still matches jdoe
+
+
 # ---------------------------------------------------------------------------
 # ownership_check toggle (V1-1) — pr_url_valid behavior
 # ---------------------------------------------------------------------------
@@ -830,7 +960,10 @@ class TestPrUrlValidOwnership:
         f = _finding(self._criterion("student"), self._personal_ctx(c, username="jdoe"))
 
         assert f.assessment == "pass"
-        assert any("owner matches student name" in e for e in f.evidence)
+        assert any(
+            "owner matches IU username" in e or "owner matches student name" in e
+            for e in f.evidence
+        )
 
     def test_none_mode_skips_all_ownership(self):
         c = _FakeClient()

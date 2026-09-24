@@ -378,10 +378,39 @@ class TestBatch:
         _install_fake(monkeypatch)
         _html(tmp_path, "a.html")
         out_dir = tmp_path / "out"
-        code = cli.main(["--batch", str(tmp_path), "--rubric", str(RUBRIC), "--output-dir", str(out_dir)])
+        code = cli.main(["--batch", str(tmp_path), "--rubric", str(RUBRIC), "--output-dir", str(out_dir), "--output-format", "json"])
         assert code == 0
         assert (out_dir / "a.json").is_file()
         assert (out_dir / "summary.json").is_file()
         summary = json.loads((out_dir / "summary.json").read_text(encoding="utf-8"))
         assert len(summary["submissions"]) == 1
         assert summary["submissions"][0]["status"] == "processed"
+
+    def test_batch_writes_error_json_for_failed_submission(self, monkeypatch, capsys, tmp_path):
+        """Issue #4: failed submissions get an individual error JSON too,
+        not just a summary.json row (README contract)."""
+        _install_fake(monkeypatch)
+        _html(tmp_path, "good.html")
+        p = tmp_path / "bad.html"
+        p.write_text("<html><head><title>Week01 - ICEX01: Nobody</title></head><body></body></html>", encoding="utf-8")  # no PR URL
+        out_dir = tmp_path / "out"
+        code = cli.main(["--batch", str(tmp_path), "--rubric", str(RUBRIC), "--output-dir", str(out_dir), "--output-format", "json"])
+        assert code == 2
+        assert (out_dir / "good.json").is_file()
+        err_path = out_dir / "bad.json"
+        assert err_path.is_file()
+        data = json.loads(err_path.read_text(encoding="utf-8"))
+        assert data["file"] == "bad.html"
+        assert data["status"] == "failed"
+
+    def test_batch_text_format_writes_txt_reports(self, monkeypatch, capsys, tmp_path):
+        """Issue #7: --output-format text in batch mode writes .txt reports."""
+        _install_fake(monkeypatch)
+        _html(tmp_path, "a.html")
+        out_dir = tmp_path / "out"
+        code = cli.main(["--batch", str(tmp_path), "--rubric", str(RUBRIC),
+                         "--output-dir", str(out_dir), "--output-format", "text"])
+        assert code == 0
+        assert (out_dir / "a.txt").is_file()
+        text = (out_dir / "a.txt").read_text(encoding="utf-8")
+        assert "ICEX CHECKER REPORT" in text or "TA ACTION ITEMS" in text

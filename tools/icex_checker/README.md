@@ -183,9 +183,9 @@ python3 icex_checker.py --batch <directory> [options]
 | `--token TOKEN` | (env/gh) | GitHub Enterprise API token |
 | `--github-host HOST` | `github.iu.edu` | GitHub Enterprise host |
 | `--save-json FILE` | (none) | Save full assessment as JSON to this path |
-| `--output-format` | `text` | Output format: `text` (human-readable) or `json` |
+| `--output-format` | `text` | Output format: `text` (human-readable) or `json`. In batch mode with `--output-dir`, controls the per-submission file type: `text` writes `<name>.txt` reports, `json` writes `<name>.json` |
 | `--batch DIR` | (none) | Batch mode: process all `.html` files in this directory |
-| `--output-dir DIR` | (none) | Batch mode: write JSON files here (requires `--batch`) |
+| `--output-dir DIR` | (none) | Batch mode: write one report per submission here — `.json` (or `.txt` with `--output-format text`), including an error JSON for failed submissions (requires `--batch`) |
 | `--verbose` | off | Include API response details in output |
 | `--version` | off | Print version and exit |
 

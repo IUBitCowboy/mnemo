@@ -273,6 +273,25 @@ def _pr_url_valid(ctx, criterion):
         )
 
     # ownership_check == "student" (default): owner should match the submitter
+    # Issue #6 fix: when the Canvas-filename IU username is available,
+    # compare it deterministically against the repo owner. This replaces
+    # the fragile display-name heuristic and kills the intermittency.
+    if getattr(ctx, "username", None):
+        if owner == ctx.username:
+            evidence.append("owner matches IU username: %s" % owner)
+            return Finding(
+                criterion, "pass", criterion.points, evidence,
+                "URL resolves to a real PR in the student's own repository "
+                "(owner matches the Canvas-filename IU username).",
+            )
+        return Finding(
+            criterion, "needs-review", None, evidence,
+            "Repo owner '%s' does not match submitter's IU username '%s' — "
+            "TA must verify the student actually owns this repository "
+            "(github.iu.edu logins do not always match IU usernames)."
+            % (owner, ctx.username),
+            ta_confirm=True,
+        )
     if ctx.student_name:
         if not _owner_matches_student(owner, ctx.student_name):
             return Finding(
@@ -453,7 +472,7 @@ def _diff_content_check(ctx, criterion):
             criterion, "fail", 0, evidence,
             "Diff is empty or unparseable.",
         )
-    if target_file not in files:
+    if not _file_matches_target(target_file, files):
         return Finding(
             criterion, "fail", 0, evidence,
             "Target file '%s' is not in the diff." % target_file,
@@ -489,8 +508,36 @@ def _files_in_diff(diff):
     files = []
     for line in diff.splitlines():
         if line.startswith("+++ b/"):
-            files.append(line[6:])
+            files.append(_normalize_diff_path(line[6:]))
     return files
+
+
+def _normalize_diff_path(path):
+    """Normalize a diff file path for target-file matching (issues #3/#6).
+
+    Handles GitHub's rename syntax ('exercises/{old => new}/hello.c'
+    collapses to 'exercises/new/hello.c') so renamed files still match.
+    """
+    return re.sub(r"\{[^}]*=>\s*", "", path).replace("}", "", 1)
+
+
+def _file_matches_target(target_file, files):
+    """True when target_file matches a file in the diff.
+
+    Matches when the diff path equals the target, ends with '/target',
+    or (for bare targets like 'hello.c') the diff path's basename equals
+    the target. Bare-basename matching only fires when the diff path is
+    longer than the target, so explicit full paths still work.
+    """
+    norm_target = _normalize_diff_path(target_file)
+    for f in files:
+        if f == norm_target:
+            return True
+        if f.endswith("/" + norm_target):
+            return True
+        if "/" in f and f.rsplit("/", 1)[1] == norm_target:
+            return True
+    return False
 
 
 def _added_lines_for(diff, target_file):
@@ -503,7 +550,7 @@ def _added_lines_for(diff, target_file):
     added = []
     for line in lines:
         if line.startswith("+++ b/"):
-            in_target = line[6:] == target_file
+            in_target = _file_matches_target(target_file, [_normalize_diff_path(line[6:])])
             continue
         if line.startswith("diff --git "):
             in_target = False

@@ -37,7 +37,7 @@ from report import Assessment, build_json_report, build_text_report
 from roster import load_roster as load_roster_file
 from rubric import RubricNotFoundError, RubricParseError, find_rubric, load_rubric
 
-TOOL_VERSION = "1.0.0"
+TOOL_VERSION = "1.1.1"
 TOOL_DIR = pathlib.Path(__file__).resolve().parent
 
 # ---------------------------------------------------------------------------
@@ -436,6 +436,23 @@ def _split_pr_url(url):
     return m.group("owner"), m.group("repo"), int(m.group("number"))
 
 
+def _write_submission_report(out_dir, stem, assessment, args):
+    """Write one submission's report file, honoring --output-format.
+
+    Issue #7: batch mode previously ignored --output-format for the
+    per-submission files and always wrote JSON. Now text is text.
+    """
+    if getattr(args, "output_format", "text") == "json":
+        data = build_json_report(assessment)
+        (out_dir / (stem + ".json")).write_text(
+            json.dumps(data, indent=2), encoding="utf-8"
+        )
+    else:
+        (out_dir / (stem + ".txt")).write_text(
+            build_text_report(assessment), encoding="utf-8"
+        )
+
+
 def _run_batch(args):
     """Batch mode (FR-10, EF-10, EF-11)."""
     batch_dir = pathlib.Path(args.batch)
@@ -466,14 +483,27 @@ def _run_batch(args):
                 }
             )
             if out_dir:
-                data = build_json_report(result)
-                (out_dir / (f.stem + ".json")).write_text(
-                    json.dumps(data, indent=2), encoding="utf-8"
-                )
+                _write_submission_report(out_dir, f.stem, result, args)
         else:
             failures += 1
             print("ERROR: %s" % result)
             results.append({"file": f.name, "status": "failed", "error": result})
+            # Issue #4: every submission gets an individual output file,
+            # including failures (README contract).
+            if out_dir:
+                (out_dir / (f.stem + ".json")).write_text(
+                    json.dumps(
+                        {
+                            "tool": "icex_checker",
+                            "tool_version": TOOL_VERSION,
+                            "file": f.name,
+                            "status": "failed",
+                            "error": str(result),
+                        },
+                        indent=2,
+                    ),
+                    encoding="utf-8",
+                )
 
     print()
     print("SUMMARY")
