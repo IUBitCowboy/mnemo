@@ -1,0 +1,121 @@
+# Rubric for ICEX10-FA26-C291 (iteration: header file + Makefile + own test)
+#
+# Canvas assignment: 10 points. Rubric total = 10 = canvas_points.
+# Student product = ICEX09's WK07 branch GROWN: a NEW ICEX10 commit
+# on top of the ICEX09 commit in the SAME PR (draft → Ready for
+# review with reviewers assigned at the flip — GitHub attaches
+# reviewers only after Ready). Files in the ICEX10 commit:
+# random.h (include guard + DEBUG gate + usage() prototype;
+# random.c must carry no #define DEBUG after the move), Makefile
+# (build/test/clean, .PHONY; test = battery → output file → diff
+# against random_known_good.txt; freshness owned by make), and ONE
+# student-designed additional check integrated into test.
+#
+# Ground truth (silo, GNU Make 4.3, gcc 13.3.0) verified 2026-10-04:
+# make build idempotent; touch random.c/random.h → rebuild; battery
+# six runs → diff CLEAN against the ORACLE-GENERATED known-good
+# (students generate random_known_good.txt on silo from the
+# instructor's public reference binary
+# /u/seiffert/public/c291/random — staged 2026-10-04, verified 78
+# on -seed 7 100; NO worked random.c ships in the class repo).
+# Reference values behind the oracle (instructor-only): 100→41,
+# -seed 7 100→78, -seed 8 100→97, -seed 0 50→34, 5→1,
+# -seed 3 1000→747. On another libc the SAME program produces
+# different values (Apple libc: -seed 7 100 → 50) — tests are
+# RELATIVE to the student's recorded reference runs; grading NEVER
+# assumes particular bytes. Tampered known-good → diff fails make
+# test; make clean removes only the binary + test output.
+#
+# EXTRA CREDIT (+2, Canvas-only wording, released at class start —
+# NEVER in the class repo): a student's own additional check that
+# EXPOSES an ICEX09 defect + documented error recovery (check →
+# observed failure vs reference → theory → fix → re-run). Grading:
+# EC recorded separately (canvas_points EXCLUDE it; rubric criteria
+# stay sum=10); TA awards +2 per the Canvas section's evidence bar
+# (no real observed failure pasted = manufactured = no EC).
+#
+# Student-flow probe (starter → fill stub → ICEX09 behavior restored
+# byte-for-byte → Makefile from spec → own test integrated) ran
+# clean locally with the silo known-good file used as-is.
+#
+# NOTE (2026-09-30): must_contain_modified is the key _diff_content_check
+# actually reads. Plain must_contain was a silent no-op (icex03-07).
+
+assignment: ICEX10
+course: C291
+semester: FA26
+total_points: 10
+canvas_points: 10
+semester_start: 2026-08-24
+
+criteria:
+  - name: "random.h: include guard, DEBUG gate, usage() prototype; random.c carries no #define DEBUG"
+    points: 2
+    checker: diff_content_check
+    params:
+      target_file: "random.h"
+      must_contain_modified: "RANDOM_H"
+    ratings:
+      - { points: 2, description: "Header has the RANDOM_H guard (#ifndef/#define/#endif), the DEBUG gate (the safe #ifndef-DEBUG wrapper), and the usage() prototype; random.c no longer defines DEBUG — the header is the configuration's only home; program behavior unchanged from ICEX09" }
+      - { points: 1, description: "Header exists with DEBUG + prototype moved but the guard is missing or malformed (double include would compile twice), or random.c still carries a #define DEBUG" }
+      - { points: 0, description: "No header file, or configuration not actually moved" }
+
+  - name: "Makefile build: builds when missing/out-of-date, else does nothing"
+    points: 1
+    checker: diff_content_check
+    params:
+      target_file: "Makefile"
+      must_contain_modified: "random.bin: random.c random.h"
+    ratings:
+      - { points: 1, description: "build target with random.bin depending on BOTH random.c and random.h (however spaced/laid out — if the string check misses, confirm the dependency list manually before docking); compiling recipe present; second consecutive make build does nothing (timestamp-honest)" }
+      - { points: 0, description: "No build target, or dependency list wrong (e.g. header missing from prerequisites — header edits then never trigger rebuilds)" }
+
+  - name: "Makefile test: battery → output file → diff, freshness owned by make"
+    points: 2
+    checker: diff_content_check
+    params:
+      target_file: "Makefile"
+      must_contain_modified: "diff"
+    ratings:
+      - { points: 2, description: "test target runs the pinned battery into an output file (stdout-only redirects), diffs against random_known_good.txt, and the output file TARGET depends on the BINARY (+ known-good file — layout/spacing may vary, confirm manually if the string check misses): a second make test in a row re-runs nothing; the battery re-runs when the binary is newer" }
+      - { points: 1, description: "test runs and diffs but freshness is wrong (always re-runs, or never re-runs after a code change), or the diff order/streams leak narration into the compared output" }
+      - { points: 0, description: "No test target, or no diff against a known-good file" }
+
+  - name: "Makefile clean + .PHONY"
+    points: 1
+    checker: diff_content_check
+    params:
+      target_file: "Makefile"
+      must_contain_modified: ".PHONY"
+    ratings:
+      - { points: 1, description: "clean removes exactly random.bin and the test output file (nothing else, nothing missing); .PHONY declares the action targets" }
+      - { points: 0.5, description: "clean exists but misses a file, removes something extra, or .PHONY missing" }
+      - { points: 0, description: "No clean target" }
+
+  - name: "Own additional check: one case the pinned battery misses, integrated + justified"
+    points: 2
+    checker: manual_review
+    params:
+      label: "TA judges from the diff + debug_log.md: the added check must be a genuinely NEW case (not a re-run of the six), its expectation pinned from a real run, integrated into the test target; debug_log states what it catches. Verify it still passes with DEBUG off (test decision must not depend on narration)."
+    ratings:
+      - { points: 2, description: "One new case, correctly integrated (make test runs it), expectation honest (matches a real run of the student's own program), and debug_log.md names the uncovered case it adds" }
+      - { points: 1, description: "Case exists but is a near-duplicate of a pinned run, its expectation not pinned from a real run, or not actually wired into the test target" }
+      - { points: 0, description: "No additional check" }
+
+  - name: "Code Quality (Kurt's house style)"
+    points: 1
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 1, description: "Header comment blocks (random.h, Makefile), prototypes above main, consistent 4-space indent, meaningful names, clean plain gcc compile (make build with no warnings)" }
+      - { points: 0, description: "Style sloppiness: missing header blocks, no prototypes, chaotic indentation, or does not compile without flags" }
+
+  - name: "PR Workflow & Submission"
+    points: 1
+    checker: pr_url_valid
+    params:
+      github_host: "github.iu.edu"
+      min_comment_length: 10
+    ratings:
+      - { points: 1, description: "The SAME WK07 PR gains a NEW ICEX10 commit (its commit list shows both meetings' work: 'wk07 ICEX09: random' then 'wk07 ICEX10: header + makefile'); PR marked Ready for review; instructor and TA assigned as reviewers AT THE FLIP (reviewers on a draft are impossible in GitHub); same PR URL submitted" }
+      - { points: 0, description: "New branch instead of WK07 / no new commit (ICEX10 work missing from the PR) / PR left in draft / wrong or missing URL" }
