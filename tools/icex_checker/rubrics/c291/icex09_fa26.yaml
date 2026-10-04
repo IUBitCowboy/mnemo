@@ -1,0 +1,122 @@
+# Rubric for ICEX09-FA26-C291 (double pointers in practice: argv walk)
+#
+# Canvas assignment: 10 points. Rubric total = 10 = canvas_points.
+# Student product = ONE file, random.c (PR from WK07 branch, opened
+# in DRAFT state — ICEX09 introduces iterating on a program: the
+# same branch/PR carries ICEX10's header-file + Makefile iteration
+# before the PR is marked Ready for review; "draft" grades what the
+# contract requires NOW, never half-done work). The
+# program (student spec, pinned usage text) processes the standard
+# command line arguments:
+#
+#     random [-seed seed-value] max-size
+#     random -h | help
+#
+#   - -h | help anywhere -> pinned 6-line usage block, exit(1)
+#   - no max-size (incl. -seed 7 alone, and atoi("junk")==0) -> usage, exit(1)
+#   - seed = -seed's value (its NEXT argv word) else max-size itself
+#   - srand exactly once; print exactly "Random number: N", N = rand() % max_size + 1
+#   - every failing state exits 1 through usage(); normal run exits 0
+#
+# Ground truth verified by compiling+running the reference solution
+# (fa26/lectures/wk07_icex09_random_solved.c) on silo (gcc 13.3.0,
+# -Wall -Wextra clean) AND locally (Apple clang, plain gcc; identical
+# behavior; rand() values differ by libc — silo 41/78/97 for
+# 100/-seed 7/-seed 8, local clang 1/50/57; the seed contract, not
+# the particular value, is the cross-platform invariant).
+# Silo battery 2026-10-04, 21 executable cases: usage exits all
+# status 1 (9 cases: -h, help, no-args, -seed-7-only, junk, -5, -h 100,
+# -seed, 0), run exits all status 0 (12 cases), same-seed runs are
+# byte-identical ([5]==[6], [7]==[8], [19]==[20] incl. -seed 0),
+# flag-order invariance ([7]==[21]: "100 -seed 7" == "-seed 7 100"
+# -> 78), 100abc parses as 100 (atoi stops at 'a', [14]==[5]),
+# range spread covers 1..max across seeds 1..30. usage() block is
+# byte-identical silo/README/Canvas/solution.
+#
+# Point mirrors: the Canvas page's evidence table has 7 rows
+# (3/1/1/2/1/1/1); the criteria below mirror it row-for-row. The
+# seed-contract row is manual_review because its evidence is
+# BEHAVIOR (./random.bin 100 twice -> identical values), which a
+# diff/text checker cannot honestly see; the TA grades it from the
+# srand/default-seed structure in the diff (label spells this out).
+#
+# NOTE (2026-09-30): must_contain_modified is the key _diff_content_check
+# actually reads. Plain must_contain was a silent no-op; icex03-07
+# rubrics carry the wrong key and false-pass their content checks.
+
+assignment: ICEX09
+course: C291
+semester: FA26
+total_points: 10
+canvas_points: 10
+semester_start: 2026-08-24
+
+criteria:
+  - name: "Argv walk: one for loop, strcmp on C-string words, stdout silent, stderr decisions"
+    points: 3
+    checker: diff_content_check
+    params:
+      target_file: "random.c"
+      must_contain_modified: "strcmp("
+    ratings:
+      - { points: 3, description: "One for loop over i in 1..argc examines argv[i]; compares with strcmp against -seed/-h/help; converts the first non-flag word with atoi; stdout carries NOTHING during the walk and stderr shows a narrated line per decision point" }
+      - { points: 1.5, description: "Walk exists but stdout prints during the walk, or uses == on C-string words (pointer compare, not word compare), or atoi applied to argv[0] (the program name), or no stderr decision logging" }
+      - { points: 0, description: "No argv walk (usage wire-check still in main, or logic not driven by argv)" }
+
+  - name: "-seed handler: value from argv[i+1], i advanced past it, missing value -> usage"
+    points: 1
+    checker: diff_content_check
+    params:
+      target_file: "random.c"
+      must_contain_modified: "argv[i + 1]"
+    ratings:
+      - { points: 1, description: "Seed value read from the NEXT word (argv[i + 1] form), index advanced past the consumed word (extra i++), and -seed with nothing after it routes to usage; a have_seed flag distinguishes -seed 0 from no -seed" }
+      - { points: 0.5, description: "-seed handled but flawed: value correct yet index not advanced past the consumed word (later words misparsed), missing-value case unguarded, or -seed 0 misclassified. NOTE: students may write argv[i+1] with no spaces — if the string check misses, confirm the handler manually before docking; the missing-value guard is TA judgment" }
+      - { points: 0, description: "No real -seed handler (never reads the word after -seed) or cannot handle -seed 0 correctly" }
+
+  - name: "usage(): exact pinned block + exit(1); fires on -h/help and no-max-size"
+    points: 1
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 1, description: "usage() prints the pinned block character-for-character and ends with exit(1); fires on -h OR help anywhere, on -seed with no value, and when max-size is absent/0/negative/junk" }
+      - { points: 0.5, description: "usage text close but not exact, or exit(1) missing (printf and return), or one of the trigger conditions missing" }
+      - { points: 0, description: "usage() missing, prints wrong content, or returns to main normally" }
+
+  - name: "max-size pickup + print: first non-flag word, rand()%max_size + 1, srand once, exit 0"
+    points: 2
+    checker: diff_content_check
+    params:
+      target_file: "random.c"
+      must_contain_modified: "rand() % max_size + 1"
+    ratings:
+      - { points: 2, description: "First non-flag word becomes max_size via atoi; prints exactly 'Random number: %d' from rand() % max_size + 1; srand called exactly once BEFORE rand; normal run exits 0" }
+      - { points: 1, description: "Program prints a value in 1..max but one element is off: missing +1 (0 appears), srand missing or called repeatedly (same-seed runs differ), or a later word parsed as a number" }
+      - { points: 0, description: "No output, out-of-range values, or no srand at all" }
+
+  - name: "Seed contract: no -seed means max-size itself is the seed"
+    points: 1
+    checker: manual_review
+    params:
+      label: "TA grades from the diff: seed = (-seed's value) ELSE max_size, with a flag distinguishing -seed 0 from no -seed; NOT seeded from the clock. Confirm behavior if unsure: two runs of './random.bin 100' must print the identical value."
+    ratings:
+      - { points: 1, description: "Without -seed, max-size is the seed: ./random.bin 100 reproduces the same value every run (41 on silo); -seed 7 100 reproduces 78; a different seed value changes the value" }
+      - { points: 0, description: "Default seed missing or wrong (e.g. uses time()): same command gives different values across runs" }
+
+  - name: "Code Quality (Kurt's house style)"
+    points: 1
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 1, description: "Header comment block, prototypes above main, consistent 4-space indent, meaningful names, compiles clean with plain gcc" }
+      - { points: 0, description: "Style sloppiness: missing header block, no prototypes, chaotic indentation, or does not compile without flags" }
+
+  - name: "PR Workflow & Submission"
+    points: 1
+    checker: pr_url_valid
+    params:
+      github_host: "github.iu.edu"
+      min_comment_length: 10
+    ratings:
+      - { points: 1, description: "PR opens the WK07 branch into main as a DRAFT, TA and instructor assigned as reviewers, draft PR URL pasted into the Canvas assignment (plus the <answer> stderr line). Missed-draft forgiveness: a Ready-but-unmerged PR is still evidence of the workflow — note it, accept the point, mention the flip" }
+      - { points: 0, description: "No PR / wrong branch / reviewers not assigned / URL invalid or missing / PR already merged (the iteration bridge died before ICEX10)" }
