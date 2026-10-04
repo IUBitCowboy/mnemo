@@ -118,5 +118,5 @@ criteria:
       github_host: "github.iu.edu"
       min_comment_length: 10
     ratings:
-      - { points: 1, description: "PR opens the WK07 branch into main as a DRAFT, TA and instructor assigned as reviewers, draft PR URL pasted into the Canvas assignment (plus the <answer> stderr line). Missed-draft forgiveness: a Ready-but-unmerged PR is still evidence of the workflow — note it, accept the point, mention the flip" }
-      - { points: 0, description: "No PR / wrong branch / reviewers not assigned / URL invalid or missing / PR already merged (the iteration bridge died before ICEX10)" }
+      - { points: 1, description: "PR opens the WK07 branch into main as a DRAFT (reviewers are NOT assigned while draft: GitHub attaches reviewers only after the PR goes Ready — they arrive in ICEX10); draft PR URL pasted into the Canvas assignment (plus the <answer> stderr line). Missed-draft forgiveness: a Ready-but-unmerged PR is still evidence of the workflow — note it, accept the point, mention the flip" }
+      - { points: 0, description: "No PR / wrong branch / URL invalid or missing / PR already merged (the iteration bridge died before ICEX10)" }
