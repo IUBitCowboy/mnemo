@@ -1,0 +1,74 @@
+<div class="userMessage">
+<h2 style="background-color: #990000; width: 100%; text-align: left; padding-left: 30px;"><strong><span style="color: #ffffff;">Week 6</span></strong></h2>
+<p>&nbsp;</p>
+
+<h2 style="margin-top: 18px; background-color: #f3f2eb; border-bottom: 5px inset #990000;"><strong>&nbsp;Purpose&nbsp;</strong></h2>
+<p>In this in-class exercise you will work individually. You may exchange brief observations with your teammates, but the strategy and its wording must be your own.</p>
+<p>The purpose of this exercise is to design a logging strategy for your team&rsquo;s Monster File Editor (MFE), applying the principles and vocabulary from this week&rsquo;s logging lecture (Week 6, Day 1). Write it so your team could adopt it in the MFE Part 2 build, which is due at the end of Week 6.</p>
+
+<h2 style="margin-top: 18px; background-color: #f3f2eb; border-bottom: 5px inset #990000;"><strong>&nbsp;Task&nbsp;</strong></h2>
+<p>Using the markdown template below, design a logging strategy for the MFE. For each bracketed prompt, delete the prompt text and write your own answer in its place. The template&rsquo;s section headings are fixed; the thinking and the wording are yours. Consult your lecture notes and the Python logging HOWTO (<a href="https://docs.python.org/3/howto/logging.html">https://docs.python.org/3/howto/logging.html</a>).</p>
+<p>If a prompt exposes something your team has not decided yet, record it as an open question in the last section rather than inventing a fake answer. What you submit is a strategy &mdash; a document. No terminal transcript is required for this ICEX.</p>
+
+<p><strong>Template &mdash; copy the block below into Canvas and fill it in</strong></p>
+<div style="padding: 0 1.5em;"><pre><code># MFE Logging Strategy — ICEX08
+
+Course: SE1/P465
+Date: [today's date]
+Author: [your IU username]
+
+## Why the MFE logs
+
+[Name at least two distinct purposes logging serves for the MFE &mdash; drawn from the lecture's "reasons for logging" &mdash; and justify each one in MFE terms, not in generic terms.]
+
+## What the MFE logs
+
+[List the events the MFE should log, worked through the MFE's actual flow: starting up, reading monster.txt, the selection menu, showing current values, accepting edits, the review display, validation, and saving monster.txt-v2. Your inventory must cover each of these four kinds from the lecture: (1) program lifecycle events, (2) important program-flow points, (3) errors and unexpected flows, and (4) the save itself &mdash; saving monster.txt-v2 is the act a logging strategy most owes an audit record for. Name the events concretely, e.g. "user selected monster X from category Y", not "selection happens".]
+
+## Log details and levels
+
+[State the timestamp format you will use (the lecture named a standard), what origin information each record carries, and assign a logging level to at least three of the events above. Justify each level using the lecture's level definitions &mdash; a warning is for unusual events the program can work around, an error is recoverable, critical is unrecoverable. Consider: what is a validation failure that the user must fix? What is a save that failed?]
+
+## Python logging plan
+
+[How your team wires it up: (1) logger naming &mdash; one root logger or per-module loggers, and their names; (2) at least one handler and where records go &mdash; console, file, or both &mdash; and why that fits a terminal application; (3) the formatter fields; (4) how the active level is controlled at runtime so operational choices do not require code changes.]
+
+## Log management
+
+[Where records live and how growth is handled, whether logs are append-only, and whether anything logged could be sensitive. The MFE is a course tool &mdash; say in one or two sentences what your actual exposure concerns are.]
+
+## Principles applied
+
+[Pick at least two of the lecture's principles of logging in code and state, concretely, how each one shapes the MFE's source code &mdash; for example, how the code stays readable around the logging calls, or what "report, not analyze" forbids.]
+
+## Team recommendations and open questions
+
+[Name at least one logging convention your team should adopt in common for the MFE (naming, format, destination) and at least one thing you are still unsure about.]</code></pre></div>
+
+<h2 style="margin-top: 18px; background-color: #f3f2eb; border-bottom: 5px inset #990000;"><strong>&nbsp;What to submit to Canvas&nbsp;</strong></h2>
+<p>Paste your completed markdown into the ICEX08 text entry on Canvas. Text only &mdash; it is a markdown document, not a screenshot and not a file upload. Keep the template&rsquo;s section headings so the strategy can be compared across teammates.</p>
+
+<h2 style="margin-top: 50px; background-color: #f3f2eb; border-bottom: 5px inset #990000;"><strong>&nbsp;How you earn the 10 points&nbsp;</strong></h2>
+<div style="padding: 0 1.5em;"><table>
+<tbody>
+<tr><td><strong>Evidence in your strategy</strong></td><td><strong>Points</strong></td></tr>
+<tr><td>Template structure followed; header carries today's date and your IU username</td><td>1</td></tr>
+<tr><td>Why: two or more distinct purposes, justified in MFE terms</td><td>1</td></tr>
+<tr><td>What: event inventory covers lifecycle, program flow, errors/unexpected flows, and the monster.txt-v2 save record, with concrete event names</td><td>2</td></tr>
+<tr><td>Details &amp; levels: timestamp format and origin stated; three or more events assigned levels with justification consistent with the lecture's definitions</td><td>2</td></tr>
+<tr><td>Python logging plan: logger naming, handler(s) and destination, formatter fields, runtime level control</td><td>2</td></tr>
+<tr><td>Management &amp; principles: destination, retention, exposure, append-only reasoning, plus two code principles applied concretely</td><td>1</td></tr>
+<tr><td>Individual voice: one shared team convention recommended and one honest open question</td><td>1</td></tr>
+<tr><td><strong>Total</strong></td><td><strong>10</strong></td></tr>
+</tbody>
+</table></div>
+<p>An incomplete section that names its open question honestly is worth more than a confidently vague sentence &mdash; say what you do not know yet. A strategy that copies the lecture slide phrases without applying them to the MFE earns little.</p>
+
+<h2 style="margin-top: 18px; background-color: #f3f2eb; border-bottom: 5px inset #990000;"><strong>&nbsp;Integrity&nbsp;</strong></h2>
+<p>This is an individual assignment &mdash; your strategy is your design. AI tools may be used only under the course AI Use Policy; if you use one, attach <code>ai_use.md</code> in the text entry. An agent or an AI tool may explain logging concepts to you, but the strategy decisions, the event inventory, and the wording must be yours.</p>
+
+<h2 style="margin-top: 18px; background-color: #f3f2eb; border-bottom: 5px inset #990000;"><strong>&nbsp;If you get stuck&nbsp;</strong></h2>
+<p>List what you tried, the exact point where you stopped, and what you expected to happen. That is the evidence list that makes a help request answerable &mdash; bring it to the TA or instructor during class.</p>
+
+<p style="font-size: 0.9em; color: #666;"><em>This page was generated with AI assistance (Mnemo system) and has been reviewed and approved by the instructor.</em></p>
+</div>

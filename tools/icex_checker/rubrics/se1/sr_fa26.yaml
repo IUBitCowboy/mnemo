@@ -1,0 +1,97 @@
+# Rubric for SE1 SR (Weekly Stand-up Report, FA26) — ONE canonical rubric
+# associated with ALL SR01..SR15 assignments in Canvas.
+#
+# Canvas assignment: 10 points. Rubric total = 10 = canvas_points.
+# SUBMISSION SHAPE: text entry in Canvas OR an uploaded file (handout
+# allows both; team submits one report per week). All manual_review.
+#
+# WHY ONE RUBRIC: the handout is identical for every SRNN; a single
+# rubric with 15 associations is drift-proof by construction (edit once,
+# all weeks update). Canvas supports multiple assignment associations
+# per rubric.
+#
+# WEEKLY SHAPE: the report summarizes the PRIOR week's three stand-ups:
+#   1. Attendees per meeting
+#   2. Current tasks per member
+#   3. Tasks completed by each member since last standup
+#   4. Next tasks after current ones
+#   5. Unresolved issues needing parking-lot / follow-up discussion
+# Even-numbered semester weeks: one of the week's standups includes the
+# Team TA.
+#
+# NOT A RUBRIC CRITERION — attendance enforcement: "Team members who
+# miss standup will have their Standup Report score lowered to 50% of
+# the team's SR score." This is a PER-MEMBER adjustment the TA applies
+# AFTER awarding the team score (Canvas regrade/score adjustment), not
+# a property of the report itself. The attendees lists ARE the evidence
+# the TA uses for it. Do not deduct team points for an absent member.
+#
+# NO PUBLISHED POINT TABLE — weights rubric-designed to the handout's
+# own emphasis: the five content elements and the meeting cadence.
+#
+# TA RAILS:
+#   - Even-week TA rule: it applies to the MEETINGS being summarized.
+#     If the summarized week is even-numbered, one meeting entry should
+#     show the TA as attendee. Parity is computed from the semester
+#     calendar (semester_start 2026-08-24 = week 1), not the SR number —
+#     when in doubt about which week a report covers, accept an explicit
+#     TA-attended entry or a stated exception; never auto-zero on parity.
+#   - Reports are deliberately SHORT (meetings are 5-10 min). Brevity is
+#     compliance, not laziness — do not reward padding.
+#   - "No unresolved issues" is a valid entry for element 5 — an empty
+#     issues section with an explicit 'none' is compliant; silence is not.
+#   - The template suggestion is just that (a suggestion) — format
+#     freedom is fine as long as the elements are discernible.
+#   - Same text/file each week (identical teams, standing tasks) can be
+#     legitimate; grade THIS week's content, not novelty.
+
+assignment: SR
+course: SE1
+semester: FA26
+total_points: 10
+canvas_points: 10
+semester_start: 2026-08-24
+
+criteria:
+  - name: "Three standups summarized (prior week)"
+    points: 3
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 3,   description: "All three of the prior week's standup meetings summarized (in-person or video chat); on even-numbered summarized weeks one entry shows the Team TA present" }
+      - { points: 1.5, description: "One or two meetings covered instead of three, or meetings merged into one undifferentiated blob; even-week TA meeting missing without explanation" }
+      - { points: 0,   description: "No meeting summaries / wrong week's content entirely" }
+
+  - name: "Each member's status: current, completed, next"
+    points: 3
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 3,   description: "Every team member covered with all three status elements: currently working on, completed since last standup, next up after current" }
+      - { points: 1.5, description: "Some members or elements missing (e.g. completions omitted, one member absent from the list entirely) — partial coverage" }
+      - { points: 0,   description: "No per-member status / generic team-only statements" }
+
+  - name: "Unresolved issues / parking-lot captured"
+    points: 2
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 2,   description: "Issues needing follow-up identified and flagged for parking-lot/scheduled discussion (or an explicit 'none this week'); standups kept short by design — issues surfaced, not resolved in the report" }
+      - { points: 1,   description: "Section present but vague (problems mentioned without follow-up intent) or only some issues surfaced that the status sections imply" }
+      - { points: 0,   description: "Element missing entirely" }
+
+  - name: "Attendees listed per meeting (incl. even-week TA)"
+    points: 1
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 1,   description: "Attendees named for each meeting; on even-numbered summarized weeks the TA appears in one meeting's attendee list" }
+      - { points: 0,   description: "No attendees / attendance not discernible" }
+
+  - name: "Submission form: text entry or file, current week"
+    points: 1
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 1,   description: "Submitted as Canvas text or file upload; content matches THIS SR's reporting window (the prior week's meetings), legible and complete" }
+      - { points: 0,   description: "Empty, or content for the wrong week with no correction" }

@@ -1,0 +1,129 @@
+# Rubric for ICEX11-FA26-C291 (structs + typedef: an array of Student)
+#
+# Canvas assignment: 10 points. Rubric total = 10 = canvas_points.
+# Stated purposes: THE STUDENT defines the record (starter comment
+# briefs the four fields — two names, a class year bounded 1..4, a
+# GPA with fractional values — no C types named; sizes chosen by
+# the student), an array of MAX_STUDENTS=5, ONE scanf per record
+# with the pinned format "%24s %24s %d %f" (first name straight
+# into the struct; last name into a local then strcpy()'d in; & on
+# both numbers; count!=4 stops without advancing), stderr
+# instrumentation behind a #ifndef-wrapped DEBUG gate the student
+# defines, second loop prints the roster + the count line, stdin
+# from a file via <.
+#
+# Ground truth verified 2026-10-12 on silo (gcc 13.3.0, Ubuntu
+# 24.04.4 — one battery, /tmp/icex11_silo_battery.txt) AND on the
+# Mac (Apple clang, gcc -Wall -Wextra clean; deterministic outputs
+# identical on both):
+#   students.txt (5 records) -> echo 5 lines + print 5 lines +
+#   "5 of 5 students on the roster." exit 0; 7 lines -> count 1;
+#   6 lines -> count 1; 3 lines -> count 0; 10 offered -> cap 5;
+#   sizeof: REFERENCE layout (two 26-byte name arrays, int year,
+#   float gpa) measures 60 bytes, gpa at byte 56, on BOTH
+#   platforms (wk08_icex11_sizeof_probe.c, silo + Mac identical,
+#   no padding) — a STUDENT's own layout may differ from 60 and
+#   is NEVER graded on bytes; only behavior is graded.
+#
+# Checker note: criterion 1 uses pattern_count with a SINGLE-LINE
+# regex (typedef\s+struct\s+\w+\s*{...} Name;) — pattern_count
+# counts per line, so any multi-line struct definition would
+# never match a multi-line pattern. at_least:1 means extra
+# typedefs do not fail the row; TA confirms the four fields +
+# roster array in the diff before awarding.
+#   missing & on .year -> plain build SILENT (1 warning only under
+#   -Wall: "format '%d' expects 'int *'") + segfault exit 139;
+#   extra & on .first -> works anyway (decay) but warns; s.first ==
+#   "Ada" is 0, strcmp == 1; spaceless "%24s%24s%d%f" also reads 4
+#   fields (the spaces are explicit-skipping, not load-bearing);
+#   -DDEBUG=0 build SILENT (0 stderr bytes) with all narration
+#   lines still in the source.
+#
+# EXTRA CREDIT: none this meeting. (If a Canvas EC section is
+# added, it lands OUTSIDE this criteria sum per the standing rule.)
+#
+# NOTE: must_contain_modified is the key _diff_content_check
+# actually reads (plain must_contain is a silent no-op: icex03-07).
+
+assignment: ICEX11
+course: C291
+semester: FA26
+total_points: 10
+canvas_points: 10
+semester_start: 2026-08-24
+
+criteria:
+  - name: "Student defines the record: typedef'd struct + Student roster[MAX_STUDENTS]"
+    points: 2
+    checker: pattern_count
+    params:
+      target_file: "roster.c"
+      pattern: "typedef\\s+struct\\s+\\w+\\s*\\{[^}]*\\}\\s*\\w+;"
+      expected_count: 1
+      comparison: "at_least"
+    ratings:
+      - { points: 2, description: "ONE typedef'd struct with the four record fields in some order (two name arrays sized to leave the terminator's slot free, a year field that holds 1..4 whole values, a gpa field that holds fractions) plus the roster array of them in main() — declared with the name the typedef gave the type" }
+      - { points: 1, description: "struct defined without typedef (must name struct every use — works, loses the week's lesson), or a name array too small for the 24-character scan width + terminator, or the year/gpa field types cannot hold the contract's values" }
+      - { points: 0, description: "No struct defined, or records kept in parallel loose variables" }
+
+  - name: "ONE scanf per record: \"%24s %24s %d %f\", first name straight into the struct, last name via strcpy()"
+    points: 2
+    checker: diff_content_check
+    params:
+      target_file: "roster.c"
+      must_contain_modified: "%24s %24s %d %f"
+    ratings:
+      - { points: 2, description: "One scanf call reads the whole record: the pinned format string (width 24 on both names), the FIRST name's argument is roster[i].first with NO &, the LAST name is scanned into a local and strcpy()'d into roster[i].last, and both numbers carry & on the struct fields (roster[i].year, roster[i].gpa)" }
+      - { points: 1, description: "Reads all four fields but with a structural miss: two scanf calls for one record (the stdin stream position lesson lost), last name scanned directly into the struct (the copy requirement skipped), widths missing on the name fields, or the & absent from a number field that then warns/crashes" }
+      - { points: 0, description: "No scanf, or fewer than all four fields read" }
+
+  - name: "Stop on EOF/partial line WITHOUT advancing; cap at 5"
+    points: 2
+    checker: diff_content_check
+    params:
+      target_file: "roster.c"
+      must_contain_modified: "!= 4"
+    ratings:
+      - { points: 2, description: "The fill loop checks scanf's count: a return other than 4 leaves count unadvanced and ends the read; the 6th offered record is not read once the cap is reached; roster count line reflects exactly the full records stored" }
+      - { points: 1, description: "EOF handled but the count advances on a partial line (count off by one on 7/6/3-line inputs), or the cap reads extra records into the fencepost" }
+      - { points: 0, description: "Loop reads past EOF (count inflated / garbage record stored) or no count check at all" }
+
+  - name: "Second loop prints each record + the count line"
+    points: 1
+    checker: diff_content_check
+    params:
+      target_file: "roster.c"
+      must_contain_modified: "roster[i]"
+    ratings:
+      - { points: 1, description: "After the fill loop, a second loop walks the array printing first last year gpa one line per record, ending with the \"N of 5 students on the roster.\" count line (gpa printed %g in the sample — %f accepted, layout may vary)" }
+      - { points: 0.5, description: "Records print once but as they are READ instead of from the array afterwards, or the count line missing/from a stale variable" }
+      - { points: 0, description: "No printed roster from the structures" }
+
+  - name: "Instrumentation: #ifndef-DEBUG gate, tag-prefixed stderr narration, clean stdout"
+    points: 1
+    checker: manual_review
+    params:
+      label: "TA judges from the diff: #define DEBUG (wrapped #ifndef) defined by the student in roster.c (starter ships none); every stderr line tagged and gated; usage-contract-style failure text (if any) NOT gated; verify with a -DDEBUG=0 run that the build is silent and the code compiled that way."
+    ratings:
+      - { points: 1, description: "DEBUG gate present in roster.c (starter ships none — the definition is the student's), narration tag-prefixed behind if (DEBUG), stdout clean (only the roster), and the -DDEBUG=0 build runs SILENT" }
+      - { points: 0.5, description: "Gate or tags present but narration leaks to stdout, or the quiet build still babbles (gate wrong)" }
+      - { points: 0, description: "No instrumentation, or narration deleted instead of gated" }
+
+  - name: "Code Quality (Kurt's house style)"
+    points: 1
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 1, description: "Header comment block, prototypes above main, consistent 2-space indent, meaningful names, clean plain gcc compile" }
+      - { points: 0, description: "Style sloppiness: missing header block, no prototypes, chaotic indentation, or does not compile without flags" }
+
+  - name: "PR Workflow & Submission"
+    points: 1
+    checker: pr_url_valid
+    params:
+      github_host: "github.iu.edu"
+      min_comment_length: 10
+    ratings:
+      - { points: 1, description: "PR opens WK08 into main as a DRAFT (submission is the draft URL; run evidence pasted in the PR itself); draft is COMPLETE work per the two-meeting plan — review comes in ICEX12 when the PR flips Ready" }
+      - { points: 0, description: "No PR / PR opened Ready or merged early / wrong branch / URL invalid or missing" }
+# ICEX11 rubric ends. All criteria sum: 2+3+2+1+1+1+1 = 10. ✓

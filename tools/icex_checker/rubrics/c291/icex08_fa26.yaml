@@ -1,0 +1,110 @@
+# Rubric for ICEX08-FA26-C291 (call by reference: 2D char arrays + char* functions)
+#
+# Canvas assignment: 10 points. Rubric total = 10 = canvas_points.
+# Stated purposes: call by reference via char* parameters, 2D char arrays
+# (both dimensions declared; inner >= 10 for "wednesday"), %s printing,
+# string-walking loops, in-place mutation visible in main(), returned
+# change counts (toUpper=50, camelCase=43 across 7 lowercase day names).
+# Starter compiles and runs but prints nothing — students define the
+# array, the print function, and the two conversion functions.
+#
+# Ground truth verified by compiling+running a reference implementation
+# (fa26/lectures/wk06_icex08_days_solved.c; Apple clang 21, gcc -Wall
+# clean, identical output; silo down 2026-09-30, arithmetic on counts
+# independently verified — 50 letters total, 7 first letters kept
+# uppercase M,T,W,T,F,S,S, so camelCase changes all 43 interior letters
+# because it runs AFTER toUpper):
+#   lowercase pass prints 7 lowercase names;
+#   toUpper pass prints "toUpper changed 50 characters:" + SHOUTED names;
+#   camelCase pass prints "camelCase changed 43 characters:" + names in
+#   Day form; roster is ONE array mutated in place (no copies).
+#
+# Ratings (rubric tiers) are consumed by the Canvas CSV pipeline
+# (rubric_to_csv.py). The icex_checker loader ignores them (extra keys
+# tolerated); automated checkers gather EVIDENCE, TA awards points in
+# Canvas per the tiers.
+#
+# NOTE (2026-09-30): must_contain_modified is the key _diff_content_check
+# actually reads. Plain must_contain was a silent no-op; icex03-07
+# rubrics carry the wrong key and false-pass their content checks.
+
+assignment: ICEX08
+course: C291
+semester: FA26
+total_points: 10
+canvas_points: 10
+semester_start: 2026-08-24
+
+criteria:
+  - name: "2D Array Declaration + Initialization (lowercase)"
+    points: 2
+    checker: diff_content_check
+    params:
+      target_file: "days.c"
+      must_contain_modified: "[7][10]"
+    ratings:
+      - { points: 2,   description: "Both dimensions declared (inner holds the longest name + terminator, e.g. [7][10]), all seven day names initialized lowercase, array is in main()" }
+      - { points: 1,   description: "2D array present but one dimension wrong (inner 9 drops the terminator -> next row corrupted), names not lowercase, or dimensions hardcoded oddly" }
+      - { points: 0,   description: "No 2D array of the seven day names" }
+
+  - name: "printArray(): %s, correct signature, prints all rows"
+    points: 2
+    checker: diff_content_check
+    params:
+      target_file: "days.c"
+      must_contain_modified: "%s"
+    ratings:
+      - { points: 2,   description: "void printArray(char days[][10]) walks rows with %s and prints all 7 names every time it is called; correct 2D-to-function signature (second dimension present)" }
+      - { points: 1,   description: "Function prints the names but signature is wrong (missing inner dimension), loops past 7 rows, or %s unused" }
+      - { points: 0,   description: "No printing function / names never reach stdout" }
+
+  - name: "toUpper(): in-place conversion + returned count"
+    points: 1
+    checker: diff_content_check
+    params:
+      target_file: "days.c"
+      must_contain_modified: "int toUpper"
+    ratings:
+      - { points: 1,   description: "int toUpper(char * str) walks the string, converts lowercase in place with letter arithmetic, returns changed count; after the pass roster prints fully SHOUTED and count totals 50" }
+      - { points: 0.5, description: "Function converts but is incomplete: non-letters mishandled, count wrong (not 50), or mutates a copy instead of main()'s array" }
+      - { points: 0,   description: "Function missing or does not mutate/convert" }
+
+  - name: "camelCase(): first letter + returned count"
+    points: 1
+    checker: diff_content_check
+    params:
+      target_file: "days.c"
+      must_contain_modified: "int camelCase"
+    ratings:
+      - { points: 1,   description: "int camelCase(char * str) makes one letter uppercase per name, lowers the rest IN PLACE, returns changed count; pass runs AFTER toUpper so 43 interior letters change and the roster prints Monday..Sunday" }
+      - { points: 0.5, description: "Chronicle form reached but count wrong (not 43), first-letter indexing off (position 0 skipped), or lowercase pass missing" }
+      - { points: 0,   description: "Function missing or produces wrong output" }
+
+  - name: "main(): three call sites + correct call forms"
+    points: 2
+    checker: diff_content_check
+    params:
+      target_file: "days.c"
+      must_contain_modified: "printArray(days)"
+    ratings:
+      - { points: 2,   description: "main() prints the roster after each pass (three total) and calls toUpper(days[i]) / camelCase(days[i]) in a loop over the 7 rows — the per-row call form that makes call-by-reference visible" }
+      - { points: 1,   description: "Functions called but call form or loop is off (e.g. no per-row iteration), or roster printed fewer than three times" }
+      - { points: 0,   description: "Functions defined but never called per row, or roster never printed" }
+
+  - name: "Code Quality (Kurt's house style)"
+    points: 1
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 1,   description: "Header comment block, prototypes above main, consistent 4-space indent, meaningful names, compiles clean with plain gcc" }
+      - { points: 0,   description: "Style sloppiness: missing header block, no prototypes, chaotic indentation, or does not compile without flags" }
+
+  - name: "PR Workflow & Submission"
+    points: 1
+    checker: pr_url_valid
+    params:
+      github_host: "github.iu.edu"
+      min_comment_length: 10
+    ratings:
+      - { points: 1,   description: "PR opens icex08 branch into main; TA and instructor assigned as reviewers; PR URL pasted into the Canvas assignment as the submission" }
+      - { points: 0,   description: "No PR / wrong branch / reviewers not assigned / URL invalid or missing" }

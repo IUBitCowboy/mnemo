@@ -1,0 +1,16 @@
+assignment: ICEX02
+course: C291
+semester: FA26
+total_points: 100
+semester_start: 2026-08-24
+ag_url: https://autograder.luddy.indiana.edu/web/project/2502
+ag_max_points: 85
+handgrading_points: 15
+canvas_points: 10
+criteria:
+  - name: AG Test Score
+    points: 85
+    checker: manual_review
+  - name: Handgrading
+    points: 15
+    checker: manual_review

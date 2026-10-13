@@ -86,9 +86,15 @@ need answered to get unblocked?)*
 - **Section 7 gives the instructor the hook for the hotfix.** The student's
   one remaining question tells the instructor exactly what to address in the
   PR review.
-- **Instructor's Diagnostic Hints are exercise-specific.** The muse populates
-  these with 2–3 hints for the most likely failure points. These hints are
-  not solutions — they point toward the right diagnostic area.
+- **Instructor's Diagnostic Hints are exercise-specific.** These hints are
+  not solutions — they point toward the right diagnostic area. The muse
+  populates 2–3 hints for the most likely failure points.
+- **Candidate-Proposal Pattern (Clio proposes, instructor disposes).**
+  Diagnostic hints steer where a struggling student looks first — a
+  pedagogical choice the instructor owns. Propose **3 candidate hint sets**
+  of 2–3 calibrated hints each, presented neutrally with no recommended
+  favorite (see the Avoid Sycophancy skill); the instructor selects, revises,
+  or supplies their own set before the exercise is finalized.
 
 ## When to Use
 

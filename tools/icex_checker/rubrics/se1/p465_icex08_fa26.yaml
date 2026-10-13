@@ -1,0 +1,122 @@
+# Rubric for P465 ICEX08-FA26 (Logging strategy for the MFE)
+#
+# Canvas assignment: 10 points. Rubric total = 10 = canvas_points.
+# SUBMISSION SHAPE: text entry to Canvas — the student's completed markdown
+# logging strategy, pasted as text. NO repo, NO PR, NO terminal transcript —
+# this is a design-document ICEX, so every criterion is manual_review.
+#
+# DELIBERATE EXCEPTION (design rationale in the assignment master,
+# clio/cmods/student/icex/p465_icex08_logging_strategy.md): PR-URL default
+# overridden by instructor decision 2026-09-30 ("submit their plan as a
+# markdown text file in Canvas... provide the template"). The template's
+# fixed section headings are the compensating control making omissions
+# visible; strategies are comparable across teammates by heading.
+#
+# WEIGHTS: the handout's own published point table (ICEX06 pattern —
+# handout table is grading authority): 1/1/2/2/2/1/1 = 10.
+#
+# LECTURE ANCHOR (WK06-D1 - Logging.key, 21 slides): Reasons s1, Strategies
+# s6, Details s7, Levels s8, Principles-in-code s9, Log Management s11,
+# Python HOWTO s15-16. Prometheus/Grafana (s19-21) deliberately NOT
+# assessed — MFE is a short-lived terminal tool; observability defers to the
+# MoJ Phase 2 lecture.
+#
+# MFE FIDELITY (A04 Part 1 contract): monster.txt read -> selection ->
+# current values -> edit -> review -> Cancel/Save -> monster.txt-v2,
+# one-shot session. The save record is graded inside the "What" criterion —
+# it is the audit event a logging strategy most owes a record for.
+#
+# INDIVIDUAL VOICE: template headings are shared; everything inside the
+# brackets must be the student's own wording. Slide-phrase recitation
+# without MFE application earns the bottom tier of the affected criterion.
+# Honest open questions are rewarded (stated on the page): an incomplete
+# section that names what the team has not decided earns above a vague
+# confident sentence.
+#
+# Timing: in-class ~30-min individual window, same day as the logging
+# lecture (W6 L1). LATE per standard policy.
+#
+# TA guidance: grade the thinking, not the prose. Markdown rendering is
+# irrelevant — a plain-text bulleted answer satisfies any section. "Concrete
+# event names" means MFE-specific events (e.g. "user selected monster X",
+# "save to monster.txt-v2 failed"), not lecture-generic phrases
+# ("configuration changes"). Accept equivalent vocabulary for levels
+# (INFO/INFORMATION, WARN/WARNING).
+
+assignment: ICEX08
+course: P465
+semester: FA26
+total_points: 10
+canvas_points: 10
+semester_start: 2026-08-24
+
+criteria:
+  - name: "Template structure followed; header carries today's date and IU username"
+    points: 1
+    checker: manual_review
+    params:
+      label: "All seven template section headings present in order; Date line shows the class date; Author line carries the student's IU username."
+    ratings:
+      - { points: 1,   description: "All sections present in template order; header has today's date and their IU username" }
+      - { points: 0.5, description: "One section missing or header incomplete (no date, or no username, or a display name instead of the IU username)" }
+      - { points: 0,   description: "Multiple sections missing, or not the template" }
+
+  - name: "Why: two or more distinct purposes justified in MFE terms"
+    points: 1
+    checker: manual_review
+    params:
+      label: "Lecture s1 'Reasons for Logging' applied to the MFE, not recited generically."
+    ratings:
+      - { points: 1,   description: "Two or more distinct purposes, each justified with MFE-specific reasoning (e.g. fault isolation when monster.txt edits go wrong; audit trail for the save)" }
+      - { points: 0.5, description: "Two purposes named but justified generically (could apply to any program), or only one concrete purpose" }
+      - { points: 0,   description: "Section absent or no distinct purposes" }
+
+  - name: "What: event inventory covers lifecycle, program flow, errors, and the save record"
+    points: 2
+    checker: manual_review
+    params:
+      label: "Lecture s6 'Logging Strategies' shape applied to the MFE flow; the monster.txt-v2 save record is required."
+    ratings:
+      - { points: 2,   description: "All four kinds covered (lifecycle, program flow, errors/unexpected flows, the save of monster.txt-v2) with concrete MFE event names, flowing the actual contract (read monster.txt -> selection -> current values -> edit -> review -> save)" }
+      - { points: 1.5, description: "Three of the four kinds covered, or all four present but event names stay generic (e.g. 'selection happens')" }
+      - { points: 1,   description: "Two kinds covered, or inventory skips the save record" }
+      - { points: 0,   description: "No real inventory (absent, or lecture phrases only)" }
+
+  - name: "Details & levels: timestamp format, origin, and three plus justified levels"
+    points: 2
+    checker: manual_review
+    params:
+      label: "Lecture s7 Details (ISO 8601/RFC 3339 named as the standard) + s8 Levels."
+    ratings:
+      - { points: 2,   description: "Timestamp standard named (ISO 8601 or RFC 3339, or a described format with equivalent fields); origin information stated; three or more events assigned levels with justifications consistent with the lecture's definitions (debug/info/warn/error/critical semantics)" }
+      - { points: 1,   description: "Timestamp and origin covered but fewer than three leveled events, OR three levels assigned with weak or mixed justifications, or origin missing" }
+      - { points: 0,   description: "Section absent or no levels assigned" }
+
+  - name: "Python logging plan: loggers, handlers, formatter, runtime level control"
+    points: 2
+    checker: manual_review
+    params:
+      label: "Lecture s15 Python HOWTO (loggers/handlers/formatters/filters) applied to the MFE."
+    ratings:
+      - { points: 2,   description: "All four elements addressed: logger naming decision (root vs per-module, names); at least one handler with destination and a fit-for-a-terminal-app rationale; formatter fields; runtime level control without code changes (config, env var, or CLI flag)" }
+      - { points: 1,   description: "Two or three of the four elements addressed, or all four named but without the MFE reasoning" }
+      - { points: 0,   description: "Section absent or one element or fewer" }
+
+  - name: "Management & principles: destination, growth, exposure, plus two code principles"
+    points: 1
+    checker: manual_review
+    params:
+      label: "Lecture s11 Log Management + s9 Principles of logging in code."
+    ratings:
+      - { points: 1,   description: "Destination/growth/retention reasoned (append-only stance taken), exposure concern stated for a course tool, AND two code principles applied concretely to the MFE's source" }
+      - { points: 0.5, description: "Management addressed OR principles addressed, but not both" }
+      - { points: 0,   description: "Neither" }
+
+  - name: "Individual voice: one team convention recommended and one honest open question"
+    points: 1
+    checker: manual_review
+    params:
+      label: "Reward for the honest-uncertainty convention stated on the page: a named open question beats vague confidence."
+    ratings:
+      - { points: 1,   description: "At least one concrete team-wide convention recommended (naming, format, or destination) AND at least one genuine open question stated" }
+      - { points: 0,   description: "Section absent, or both halves are filler with no concrete content" }

@@ -86,12 +86,14 @@ KB files are injected as a priming exchange (not appended to the system prompt),
 
 ### Artifact generation (Clio)
 
-Clio supports three artifact layers. Load one before starting a session:
+Clio supports four artifact layers. Load one before starting a session:
 
 ```bash
 generation icex         # In-Class Exercises + TA roles + 10-pt rubrics
 generation slides       # slide deck template
 generation project      # project assignments + 100-pt rubrics + MoJ template
+generation pages        # LMS page content: weekly overviews, reference
+                        # pages, lecture-notes shells, announcements
 generation clear        # unload the artifact layer
 ```
 
@@ -203,6 +205,8 @@ mnemo/
     clio_icex.md          # Artifact layer: ICEXs, TA roles, rubrics
     clio_slides.md        # Artifact layer: slide decks
     clio_project.md       # Artifact layer: project assignments, MoJ template
+    clio_pages.md         # Artifact layer: LMS pages (overviews, reference
+                          # pages, lecture-notes shells, announcements)
     clio_persona.md       # Deprecated monolith — do not use for new work
     inbox/                # Captured quick-ideas for Clio
   Calliope/
@@ -213,8 +217,8 @@ mnemo/
     calliope_persona.md   # Deprecated monolith — do not use for new work
     KB/                   # C291 knowledge base files
   skills/                  # Mnemo skills (cross-course, auto-loaded)
-    pedagogy/             # 18 pedagogical principles (evidence-reviewed)
-    techniques/           # 11 reusable workflow patterns
+    pedagogy/             # 20 pedagogical principles (evidence-reviewed)
+    techniques/           # 14 reusable workflow patterns
   tools/
     chat.py               # CLI entry point
     providers.py          # Anthropic / Gemini / Ollama adapters
@@ -227,6 +231,7 @@ mnemo/
       mode_chat.md        # Injected KB: conversational mode
   knowledge_base/
     decisions_log.md      # Cross-course design decisions and rationale
+    instructor_principles.md  # Instructor AI-use principles (not auto-loaded)
   SHARED_ASSETS/          # Shared CSS, bootstrap scripts, workflow diagram
   requirements.txt
 ```
@@ -258,12 +263,29 @@ A muse is a course-specific persona built on the three-layer architecture:
    conventions. Generic patterns (DoD format, SBP, rubric HTML, slide deck
    structure) come from Mnemo skills automatically.
 
-4. **Add a persona alias** in `~/.mnemo_config`:
+4. **Decide the candidate-proposal checkpoints** ("Clio proposes, instructor
+   disposes") — for each generated element the muse will produce, ask:
+
+   - Does this element shape a pedagogical outcome the instructor should own?
+   - Would the instructor want to review or override it before it reaches
+     students?
+   - Is the muse's first guess likely to need adjustment?
+
+   If yes to any of these, the element is a **candidate-proposal checkpoint**:
+   the muse proposes N candidates and the instructor selects, rejects, or
+   provides their own — the muse never presents a recommended favorite (see
+   the Avoid Sycophancy skill). Configure a count per element and encode it
+   in the muse's `candidates.manifest` (no manifest → default 4) as well as
+   in the artifact layer where those conventions live. Elements
+   that are mechanical formatting (fixed template sections, file names,
+   structure the instructor has already standardized) do not need the pattern.
+
+5. **Add a persona alias** in `~/.mnemo_config`:
    ```bash
    MNEMO_PERSONA_EUTERPE="/path/to/mnemo/Euterpe/euterpe_base.md"
    ```
 
-5. **Test:** `chat with euterpe` → `generation icex` → `generation focus on`
+6. **Test:** `chat with euterpe` → `generation icex` → `generation focus on`
    → verify output quality and that skills are present in the assembled prompt.
 
 **Key rules:**
@@ -273,3 +295,7 @@ A muse is a course-specific persona built on the three-layer architecture:
 - Course-specific pedagogical analysis dimensions go in the base file; the
   format template comes from the skill.
 - Artifact layers are mutually exclusive — only one is active at a time.
+- Candidate proposals are a **pre-galley checkpoint**; they happen during
+  generation, before the artifact exists. The HIL provenance lifecycle
+  (`hil galley` → `hil review` → `hil approve`) picks up afterward as the
+  post-generation record.

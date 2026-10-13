@@ -40,8 +40,9 @@ By the end of this lecture, you will be able to:
   slide (from Cognitive Load Management skill).
 - **Historical Hook** (optional) — placed near the slide where the relevant
   concept is introduced, not locked to Slide 2. The muse proposes 3 candidate
-  hooks (or none); the instructor selects, rejects, or provides their own.
-  See the Historical Hook skill and the muse's slide deck conventions.
+  hooks (or none), presented neutrally with no recommended favorite; the
+  instructor selects, rejects, or provides their own. See the Historical
+  Hook skill and the muse's slide deck conventions.
 - **Speaker Notes** on complex slides to guide the instructor's delivery.
 - **Key Takeaways + Cliffhanger** as the closing slide — summarize and pose an
   unsolved problem to build anticipation.

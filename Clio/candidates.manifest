@@ -1,0 +1,31 @@
+# candidates.manifest — Clio (SE1/P465)
+#
+# The instructor-owned candidate-proposal configuration for this muse.
+# "Clio proposes, instructor disposes": every element below is a generated
+# element where the muse makes a pedagogical choice the instructor should
+# own. The count is how many alternatives Clio proposes; the instructor
+# selects, rejects, or provides their own.
+#
+# Ratified by the instructor during the muse design dialogue. The Professor
+# audits this file (tools/professor_scan.py audit) against Clio's files and
+# the shared Mnemo skills; shared Layer-1 skills defer to it.
+#
+# element-slug | candidate-count | single|multiple | source-file | what-the-instructor-chooses
+
+# Slide 2 origin story — which historical narrative anchors the deck
+historical-hook | 3 | single | Clio/clio_slides.md | Which origin story anchors Slide 2 of the deck
+
+# CONTRIBUTIONS.md Evidence & Reflection prompt
+evidence-reflection-question | 4 | single | skills/techniques/contributions-format.md | The reflection question that steers the learning outcome of the exercise
+
+# TA Follow-up Guide coaching questions for the next team meeting
+coaching-question | 4 | multiple | skills/techniques/ta-followup-guide.md | The coaching questions the TA uses at the next team meeting
+
+# References AI Assistant Prompt — models AI use for this exercise
+ai-assistant-prompt | 3 | single | skills/techniques/references-section.md | The curated AI prompt that models AI use for this exercise
+
+# ── Added during the technique-skill generalization (sibling workstream
+# t_1880902b); counts carried over from the shared skills. Confirm or
+# adjust during instructor review.
+hint-set | 3 | single | skills/techniques/aar-template.md | The AAR hint set for the exercise
+criteria-and-weighting-scheme | 2 | single | skills/techniques/rubric-format.md | The criteria-and-weighting scheme for a new rubric

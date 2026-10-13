@@ -1,0 +1,66 @@
+# EXTRA CREDIT rubric for SE1 ASN03-FA26 (D4 patch + D5 verification work)
+#
+# 60 points total, awarded per the instructor's Sep 17 announcement:
+#   "I will be giving an additional 60 points of extra credit to teams
+#   that submit work on Phase 2 & 3 as well as Deliverable D4 and D5."
+#   "30 points of extra credit each for D4 and D5 to the team."
+# ANY demonstrable work toward the deliverables earns credit — a partial
+# implementation earns partial-to-full of each 30; the bar is evidence
+# of real work toward the deliverable, not shipped completeness.
+#
+# XC SUBMISSION SHAPE (announcement): NEW team repo on github.iu.edu for
+# the team's Angband fork; instructor + TA added as collaborators; PR
+# created for the changes; PR URL added to the README.md of the A03
+# submission on Canvas. The XC deliverable covers D4 and D5.
+#
+# THIS RUBRIC IS ASSOCIATED WITH THE SAME ASSIGNMENT but scores are
+# entered as extra credit (Canvas assignment points_possible must allow
+# the +60, or the XC is entered as a separate assignment — instructor's
+# choice; the rubric itself is standalone).
+#
+# GROUND TRUTH anchors (4.2.6-64-gf3e6fdd7c): the Sep 9 impact analysis
+# maps the real landing path — per-character state (player.h) -> save/
+# load (wr_*/rd_* save.c) -> block version (savefile.c savers[]/loaders[],
+# never exercised: every block v1) -> display (ui-player.c panel,
+# ui-death.c tombstone) -> score (fixed 128-byte record, score.h:40,
+# DON'T touch) -> tests (tests/game/basic.c). Hengband reference:
+# InnerGameData::total_play_time (uint32 seconds), accrues once at
+# game close before save, char-sheet display. Smoke run expects: wall
+# time next to "Game" turn counter (ui-player.c:831 panel), tombstone
+# line below "Killed on Level", persistence across save/quit/reload,
+# no double-accrual across the four save funnels.
+
+assignment: ASN03XC
+course: SE1
+semester: FA26
+total_points: 60
+canvas_points: 60
+semester_start: 2026-08-24
+
+criteria:
+  - name: "XC-D4: Implementation patch (30 pts)"
+    points: 30
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 30,  description: "Working patch: feature builds (course build w/ patch applied), smoke transcript shows wall time on the character screen AND the tombstone, persistence across save/quit/reload demonstrated, commit ownership by the D4 owner pairs (attribution in history); fork repo + PR + collaborators per the announcement steps" }
+      - { points: 20,  description: "Patch applies and builds with substantial feature work, but one surface missing (screen XOR tombstone) or persistence path not demonstrated; partial but clearly real implementation" }
+      - { points: 10,  description: "Partial progress: design-true code on the branch that does not yet build, or a single surface working — demonstrable work per the announcement's ANY-work rule" }
+      - { points: 0,   description: "No patch work submitted" }
+
+  - name: "XC-D5: Verification & test work (30 pts)"
+    points: 30
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 30,  description: "Test plan + executable tests on the branch covering the core matrix: save/load round-trip preserves the accumulator; legacy (pre-feature) savefile loads sanely; multi-session accrual sums; no double-accrual via enumerated save paths; transcripts included; hours-vs-cost accounting attempted" }
+      - { points: 20,  description: "Tests written and run but matrix incomplete (e.g. no legacy-savefile case) with honest reporting of what's missing; or transcripts present for fewer rows with analysis" }
+      - { points: 10,  description: "Some test scaffolding or a partial matrix with real evidence of effort toward D5 — demonstrable work per the announcement" }
+      - { points: 0,   description: "No verification work" }
+
+  - name: "XC submission mechanics (announcement steps)"
+    points: 0
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 0,   description: "Informational row (0 pts): NEW team fork repo on github.iu.edu exists, instructor+TA are collaborators, PR created, PR URL in the A03 README.md — missing steps cost nothing here but should be flagged back to the team; credit for work stands regardless" }

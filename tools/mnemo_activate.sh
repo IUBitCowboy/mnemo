@@ -10,7 +10,7 @@
 #   kb clear               — clear all KB context files
 #   provider <name>        — set provider: anthropic | gemini | ollama
 #   model <name>           — set model (empty = provider default)
-#   generation [icex|slides|project]  — set artifact context layer
+#   generation [icex|slides|project|pages|newmuse]  — set artifact context layer
 #   generation [clear|focus on|off]   — clear layer or toggle full-output mode
 #   generation [on|off]               — aliases: on=focus on, off=clear+focus off
 #   generation                        — show current artifact and focus state
@@ -391,7 +391,7 @@ model() {
 
 generation() {
     case "$1" in
-        icex|slides|project)
+        icex|slides|project|pages|newmuse)
             # Resolve artifact layer from persona directory
             if [[ -z "$MNEMO_PERSONA" ]]; then
                 echo "mnemo: no persona set — run 'chat with <name>' first" >&2; return 1
@@ -456,7 +456,7 @@ generation() {
             echo "  Focus      : $focus_label"
             ;;
         *)
-            echo "usage: generation [icex|slides|project|clear|focus on|off|on|off]" >&2; return 1
+            echo "usage: generation [icex|slides|project|pages|newmuse|clear|focus on|off|on|off]" >&2; return 1
             ;;
     esac
 }
@@ -608,7 +608,7 @@ add kb <file>               append a KB file to session context
 kb [clear|show]             manage KB file list
 provider anthropic|gemini|ollama   switch provider (resets model)
 model [<name>]              set or show model override
-generation icex|slides|project     load an artifact layer
+generation icex|slides|project|pages   load an artifact layer
   generation clear          clear artifact layer
   generation focus on|off   toggle full-output mode
   generation on|off         aliases for focus on / clear+off

@@ -1,0 +1,74 @@
+# Rubric for SE1 ICEX04-FA26 (Vagrant + VMWare: launch, login, execute)
+#
+# Canvas assignment: 10 points. Rubric total = 10 = canvas_points.
+# SUBMISSION SHAPE: transcript text-entry — the terminal lines from
+# `vagrant up` (laptop prompt visible) THROUGH the responses of the
+# in-VM `date` and `whoami` commands. No repo, no PR — all criteria
+# manual_review.
+#
+# WEIGHTS: handout publishes NO point table; the handout states the
+# demonstration purpose itself — "will demonstrate you being able to
+# launch your VM, login to it, and execute commands inside your VM" —
+# so weights follow that sentence: launch 3, login+execute inside 4,
+# evidence-window fidelity 3.
+#
+# GROUND TRUTH (Studio, Sep 24 2026):
+#   - Vagrant 2.4.9: `vagrant init <box>` writes config.vm.box = "<box>"
+#     into Vagrantfile and prints the placement confirmation (verified).
+#   - BOTH box names are live on Vagrant Cloud: generic/ubuntu2204
+#     (Windows/Intel path, ~285K downloads) and gyptazy/ubuntu22.04-arm64
+#     (Apple Silicon path, ARM64 Jammy). Architecture-dependent choice —
+#     EITHER is correct for the right machine.
+#   - vagrant up itself was NOT runnable on the Studio (no VMware
+#     Fusion/utility); graded claims are limited to what the transcript
+#     shows. Default `vagrant ssh` user is `vagrant` — whoami inside the
+#     VM printing `vagrant` is the canonical inside-the-VM proof.
+#
+# HANDOUT QUIRKS (grade rails):
+#   - Line 78 typo: "vagant up". A transcript showing `vagant: command
+#     not found` followed by the correct `vagrant up` is HONEST work
+#     following the handout verbatim — never dock it.
+#   - The required paste window starts AT `vagrant up`: the earlier
+#     steps (box add, vagrant init, plugin install) are NOT in the
+#     window and must NOT be required or guessed at. The box name is
+#     usually not visible in the up output — never punish either box.
+#   - Logout + `vagrant halt` are taught but OUTSIDE the required
+#     window — not gradeable, not required.
+#   - The utility-install section appears twice in the handout (prose
+#     duplication; no grading impact).
+#   - ~1GB disk + download time notes are prep guidance, not gradeable.
+
+assignment: ICEX04
+course: SE1
+semester: FA26
+total_points: 10
+canvas_points: 10
+semester_start: 2026-08-24
+
+criteria:
+  - name: "VM launch: vagrant up from the laptop prompt"
+    points: 3
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 3,   description: "Laptop prompt clearly visible, `vagrant up` runs, boot completes (provider brings the machine up; success/running message shown)" }
+      - { points: 1.5, description: "`vagrant up` attempted but failed with the error left visible (e.g. utility not registered, hypervisor disabled) — documented failure, no successful boot" }
+      - { points: 0,   description: "No vagrant up in the paste" }
+
+  - name: "Login + commands executed INSIDE the VM"
+    points: 4
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 4,   description: "`vagrant ssh` succeeds; VM prompt is distinct from the laptop prompt (different user/host); BOTH `date` and `whoami` run inside the VM with outputs shown — whoami expected to print `vagrant` (the default VM user)" }
+      - { points: 2,   description: "Logged in but only one of the two commands run, OR date/whoami executed on the laptop prompt instead of inside the VM, OR whoami shows the laptop username (never actually logged in)" }
+      - { points: 0,   description: "No ssh / no in-VM commands" }
+
+  - name: "Evidence window: up -> date/whoami, text paste"
+    points: 3
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 3,   description: "Continuous paste covering the required window exactly: starts at `vagrant up` with the laptop prompt visible, ends with the date and whoami responses; pasted as text (no screenshots); any failures left in place" }
+      - { points: 1.5, description: "Window present but flawed: laptop prompt not visible, output elided/gapped, screenshots instead of text, or the paste cuts off before both responses" }
+      - { points: 0,   description: "Fragments that do not demonstrate the sequence, or empty submission" }

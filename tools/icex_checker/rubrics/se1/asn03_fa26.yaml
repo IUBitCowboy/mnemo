@@ -1,0 +1,117 @@
+# Rubric for SE1 ASN03-FA26 (A03: Wall-clock play-time IMPACT ANALYSIS)
+# + SEPARATE extra-credit rubric for the implementation work (60 pts).
+#
+# THE RECONCILIATION (instructor correction, Sep 17 announcement):
+# ASN03 is IMPACT ANALYSIS ONLY. The published assignment accidentally
+# included an implementation component (D4 patch + D5 verification +
+# Phase 2) — material that belonged to A05 mixed in during Canvas
+# assembly. Base score: D1-D3 + Phase 0 + attribution, NO D4/D5, NO
+# implementation. Teams that did implementation work receive EXTRA
+# CREDIT (30 pts each for D4 and D5, +up to 60) via a SEPARATE rubric
+# (se1/asn03_xc_fa26.yaml), submitted via a NEW team repo for their
+# Angband fork + PR referenced in README.md of the A03 submission.
+# Grading rule: announcement is authoritative over the handout.
+#
+# Canvas assignment: 100 points (SE1 ASN scale) + 60 XC in the second
+# rubric. Rubric total = 100 = canvas_points.
+#
+# SUBMISSION SHAPE (per handout §7, unchanged by the announcement):
+# PR URL to Canvas; deliverables live on assignment branch ca1-walltime
+# under assignments/A03/. Team-collaboration mode: every deliverable
+# has exactly two owners, attribution via commit ownership; oral
+# spot-checks move individual scores ±10% (Canvas-side, not rubric).
+#
+# WEIGHTS: handout's own published table (§6), renormalized after
+# removing the implementation phase:
+#   original: D1-D5 quality 70%, solo scan 15%, attribution/staffing 15%
+#   corrected: scans + attribution keep their 15s; the 70 splits 3 ways
+#   over D1-D3 (20 each) with REPORT coherence at 10 (the handout folds
+#   report coherence into D1-D3 scores, so the report criterion is a
+#   light check, not a full deliverable weight). Final: 15+15+20+20+20+10
+#   = 100.
+#
+# TA ANCHORS (verified in the 4.2.6-64-gf3e6fdd7c tree, Sep 9+24 2026 —
+# the Sep 9 impact analysis IS the worked reference for this feature):
+#   - Existing capability: NO wall-clock accumulation anywhere; only the
+#     game clock `turn` (game-world.c:45, wr_misc save.c:628, shown as
+#     "Game" in get_panel_misc ui-player.c:824-833) + death-time stamp
+#     (ui-death.c:112) + score-date strftime (score.c:213).
+#   - Strong prior art: Hengband ships the feature — InnerGameData::
+#     total_play_time (uint32 seconds, src/system/inner-game-data.h),
+#     accrued once at game close before save (game-closer.cpp ~:174),
+#     displayed on char sheet page 1 (status-first-page.h ENTRY_PLAY_TIME
+#     19). Mechanism extraction ("accrues at close, stores seconds,
+#     displays on char sheet — Angband equivalents are A,B,C") is the
+#     full-credit shape; "Hengband does it in file X" alone = mid tier.
+#   - Classic traps a strong analysis names: the four save funnels
+#     (regular/death/panic/autosave) and double-accrual when an autosave
+#     fires then the player quits; savefile block-versioning exists but
+#     is UNPROVEN (every block v1, no v2 loader shipped); the score file
+#     is a fixed 128-byte record (score.h:40) — new fields break
+#     score-util.c parsing; character dump inherits display changes for
+#     free (write_character_dump screen-scrapes display_player).
+#   - Phase 0a is graded for genuine solo work, NOT correctness: a wrong
+#     hit-list from real searching beats a right one from nowhere (the
+#     handout's own sentence).
+
+assignment: ASN03
+course: SE1
+semester: FA26
+total_points: 100
+canvas_points: 100
+semester_start: 2026-08-24
+
+criteria:
+  - name: "Solo scans (Phase 0a): genuine individual work"
+    points: 15
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 15,  description: "scans/<username>.md from EVERY member, each with real file names + line numbers, real-time touchpoints enumerated, a candidate hit-list, and honest unknowns; scans genuinely differ" }
+      - { points: 7.5, description: "All scans present but thin (some members' scans lack real line numbers, unknowns are decorative, or hit-lists look copied)" }
+      - { points: 0,   description: "Scans missing, or clearly not individual work (identical content)" }
+
+  - name: "Reconciliation, strengths staffing, attribution (Phase 0b + branch)"
+    points: 15
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 15,  description: "RECONCILIATION.md records real disagreements + resolutions; strengths matrix with concrete bases; every deliverable has exactly two owners with written non-ceremonial reasons; CONTRIBUTIONS.md matches branch commit ownership; branch ca1-walltime exists with scans committed first" }
+      - { points: 7.5, description: "Files present but staffing reasons are ceremony (no recorded strengths basis), reconciliation thin (five identical scans), or some owners untraceable in the branch history" }
+      - { points: 0,   description: "No reconciliation/matrix/attribution artifacts" }
+
+  - name: "D1 — Prior-art & requirements memo"
+    points: 20
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 20,  description: "6-10 testable numbered requirements (idle-terminal and precision decisions made, not dodged); existing real-time touchpoints enumerated WITH evidence transcripts; prior-art mechanism extracted AND mapped to named files in our tree (e.g. Hengband accrues at close-game, stores uint32 seconds, char-sheet display -> our equivalents named)" }
+      - { points: 10,  description: "Requirements or evidence thin; prior art cited without the mapping ('Hengband does X' with no Angband-site equivalents), or acceptance items partially met" }
+      - { points: 0,   description: "Missing / claims without transcripts" }
+
+  - name: "D2 — Persistence & accrual design"
+    points: 20
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 20,  description: "Accumulator placement justified; EVERY save path enumerated (quit/death/panic/autosave) with accrual point per path + double-accrual trap identified; savefile block/versioning story with a worked old-save compatibility case; overflow arithmetic shown with units justified; file hit-list with size + risk estimates" }
+      - { points: 10,  description: "Design present but a known trap missed (only the quit path enumerated, no double-accrual discussion, arithmetic asserted not shown), or old-save story hand-waved" }
+      - { points: 0,   description: "No persistence design / contradicts the codebase" }
+
+  - name: "D3 — Display & representation design"
+    points: 20
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 20,  description: "Internal vs visual representation argued (duration vs timestamp distinction drives the timezone section); character-screen + tombstone mockups fitting real terminal dimensions; fixed-size score-record collision investigated and scoped; free-inheritance surfaces (character dump) reported with cost; exact format strings with thresholds" }
+      - { points: 10,  description: "Mockups present but layout not checked against constraints, timezone section asserted not derived, or the fixed-size score record ignored" }
+      - { points: 0,   description: "No usable display design" }
+
+  - name: "REPORT.md coherence (Phase 3)"
+    points: 10
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 10,  description: "REPORT.md assembles D1-D3 into one coherent maintainer-ready analysis (exec summary, requirements, decisions+justifications, hit-list, cost accounting); reads as one report, not stapled sections" }
+      - { points: 5,   description: "Report present but visibly stitched (redundant, contradictory, or sections that contradict each other)" }
+      - { points: 0,   description: "No final report" }

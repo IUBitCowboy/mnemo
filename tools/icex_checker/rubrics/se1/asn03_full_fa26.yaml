@@ -1,0 +1,148 @@
+# Rubric for SE1 ASN03-FA26 — COMBINED 160-pt version (base 100 + extra credit 60)
+# Canvas title: ASN03 (SE1). Attached to the A03 assignment with
+# points_possible = 160 (Kurt decision Sep 24 2026: XC rides the same
+# assignment; Canvas allows one rubric per assignment, so base+XC merge).
+#
+# SOURCE OF RECORD: this file is GENERATED from asn03_fa26.yaml (base,
+# 100) + asn03_xc_fa26.yaml (XC, 60) — edit those, regenerate this.
+# Structure: base criteria sum 100 + XC-D4 30 + XC-D5 30 + mechanics 0.
+# Teams without implementation work display 100/160 (62.5%) — accepted
+# display per the instructor points_possible=160 decision.
+
+assignment: ASN03
+course: SE1
+semester: FA26
+total_points: 160
+canvas_points: 160
+semester_start: 2026-08-24
+criteria:
+- name: 'Solo scans (Phase 0a): genuine individual work'
+  points: 15
+  checker: manual_review
+  params: {}
+  ratings:
+  - points: 15
+    description: scans/<username>.md from EVERY member, each with real file names + line numbers, real-time
+      touchpoints enumerated, a candidate hit-list, and honest unknowns; scans genuinely differ
+  - points: 7.5
+    description: All scans present but thin (some members' scans lack real line numbers, unknowns are
+      decorative, or hit-lists look copied)
+  - points: 0
+    description: Scans missing, or clearly not individual work (identical content)
+- name: Reconciliation, strengths staffing, attribution (Phase 0b + branch)
+  points: 15
+  checker: manual_review
+  params: {}
+  ratings:
+  - points: 15
+    description: RECONCILIATION.md records real disagreements + resolutions; strengths matrix with concrete
+      bases; every deliverable has exactly two owners with written non-ceremonial reasons; CONTRIBUTIONS.md
+      matches branch commit ownership; branch ca1-walltime exists with scans committed first
+  - points: 7.5
+    description: Files present but staffing reasons are ceremony (no recorded strengths basis), reconciliation
+      thin (five identical scans), or some owners untraceable in the branch history
+  - points: 0
+    description: No reconciliation/matrix/attribution artifacts
+- name: D1 — Prior-art & requirements memo
+  points: 20
+  checker: manual_review
+  params: {}
+  ratings:
+  - points: 20
+    description: 6-10 testable numbered requirements (idle-terminal and precision decisions made, not
+      dodged); existing real-time touchpoints enumerated WITH evidence transcripts; prior-art mechanism
+      extracted AND mapped to named files in our tree (e.g. Hengband accrues at close-game, stores uint32
+      seconds, char-sheet display -> our equivalents named)
+  - points: 10
+    description: Requirements or evidence thin; prior art cited without the mapping ('Hengband does X'
+      with no Angband-site equivalents), or acceptance items partially met
+  - points: 0
+    description: Missing / claims without transcripts
+- name: D2 — Persistence & accrual design
+  points: 20
+  checker: manual_review
+  params: {}
+  ratings:
+  - points: 20
+    description: Accumulator placement justified; EVERY save path enumerated (quit/death/panic/autosave)
+      with accrual point per path + double-accrual trap identified; savefile block/versioning story with
+      a worked old-save compatibility case; overflow arithmetic shown with units justified; file hit-list
+      with size + risk estimates
+  - points: 10
+    description: Design present but a known trap missed (only the quit path enumerated, no double-accrual
+      discussion, arithmetic asserted not shown), or old-save story hand-waved
+  - points: 0
+    description: No persistence design / contradicts the codebase
+- name: D3 — Display & representation design
+  points: 20
+  checker: manual_review
+  params: {}
+  ratings:
+  - points: 20
+    description: Internal vs visual representation argued (duration vs timestamp distinction drives the
+      timezone section); character-screen + tombstone mockups fitting real terminal dimensions; fixed-size
+      score-record collision investigated and scoped; free-inheritance surfaces (character dump) reported
+      with cost; exact format strings with thresholds
+  - points: 10
+    description: Mockups present but layout not checked against constraints, timezone section asserted
+      not derived, or the fixed-size score record ignored
+  - points: 0
+    description: No usable display design
+- name: REPORT.md coherence (Phase 3)
+  points: 10
+  checker: manual_review
+  params: {}
+  ratings:
+  - points: 10
+    description: REPORT.md assembles D1-D3 into one coherent maintainer-ready analysis (exec summary,
+      requirements, decisions+justifications, hit-list, cost accounting); reads as one report, not stapled
+      sections
+  - points: 5
+    description: Report present but visibly stitched (redundant, contradictory, or sections that contradict
+      each other)
+  - points: 0
+    description: No final report
+- name: 'XC-D4: Implementation patch (30 pts)'
+  points: 30
+  checker: manual_review
+  params: {}
+  ratings:
+  - points: 30
+    description: 'Working patch: feature builds (course build w/ patch applied), smoke transcript shows
+      wall time on the character screen AND the tombstone, persistence across save/quit/reload demonstrated,
+      commit ownership by the D4 owner pairs (attribution in history); fork repo + PR + collaborators
+      per the announcement steps'
+  - points: 20
+    description: Patch applies and builds with substantial feature work, but one surface missing (screen
+      XOR tombstone) or persistence path not demonstrated; partial but clearly real implementation
+  - points: 10
+    description: 'Partial progress: design-true code on the branch that does not yet build, or a single
+      surface working — demonstrable work per the announcement''s ANY-work rule'
+  - points: 0
+    description: No patch work submitted
+- name: 'XC-D5: Verification & test work (30 pts)'
+  points: 30
+  checker: manual_review
+  params: {}
+  ratings:
+  - points: 30
+    description: 'Test plan + executable tests on the branch covering the core matrix: save/load round-trip
+      preserves the accumulator; legacy (pre-feature) savefile loads sanely; multi-session accrual sums;
+      no double-accrual via enumerated save paths; transcripts included; hours-vs-cost accounting attempted'
+  - points: 20
+    description: Tests written and run but matrix incomplete (e.g. no legacy-savefile case) with honest
+      reporting of what's missing; or transcripts present for fewer rows with analysis
+  - points: 10
+    description: Some test scaffolding or a partial matrix with real evidence of effort toward D5 — demonstrable
+      work per the announcement
+  - points: 0
+    description: No verification work
+- name: XC submission mechanics (announcement steps)
+  points: 0
+  checker: manual_review
+  params: {}
+  ratings:
+  - points: 0
+    description: 'Informational row (0 pts): NEW team fork repo on github.iu.edu exists, instructor+TA
+      are collaborators, PR created, PR URL in the A03 README.md — missing steps cost nothing here but
+      should be flagged back to the team; credit for work stands regardless'

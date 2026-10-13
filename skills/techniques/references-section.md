@@ -40,6 +40,21 @@ exercise. The prompt must be specific to this exercise's content (not a generic
 - **No ghostwriting:** the prompt should ask for explanation or guidance, not
   a complete solution to the exercise itself
 
+## Candidate-Proposal Pattern (Clio proposes, instructor disposes)
+
+The AI Assistant Prompt models how students should use AI in this course —
+a pedagogical choice the instructor owns. Do not decide it unilaterally:
+
+- Propose **3 candidate prompts**, each differing substantively in emphasis
+  (for example, reasoning-first vs. verification-first framing).
+- Present the candidates neutrally, with **no recommended favorite** —
+  presenting options neutrally keeps the choice with the instructor (see
+  the Avoid Sycophancy skill).
+- The instructor may select one, reject all three and ask you to try again,
+  or provide their own prompt.
+- Only the selected prompt goes into the template below — never publish more
+  than one.
+
 Example structure:
 
 ```markdown

@@ -1,0 +1,131 @@
+# Rubric for SE1 ASN05-FA26 (A05: MFE Implementation and Revision)
+#
+# Canvas assignment: 100 points + 10 extra credit = 110 points_possible
+# (raise the Canvas assignment's points to 110 — same XC-rides-the-
+# assignment pattern as ASN03; teams without the EC work display
+# 100/110, accepted per instructor decision Sep 24).
+#
+# PUBLISHED TABLE FIDELITY (ASN05 handout's own grading rubric):
+#   Functionality 30 / Connection to Plan 20 / Verification 20 /
+#   Reflection 15 / Documentation 10 / Submission 5 = 100. Plus one EC
+#   criterion (+10) honoring ASN04's explicit promise of Part 2 extra
+#   credit for multi-monster editing.
+#
+# DRIFT RULINGS (Kurt, Sep 24 2026 — ASN04 leads; these override any
+# conflicting wording in the ASN05 handout until its text is amended):
+#   1. LANGUAGE-AGNOSTIC: "Write the Python code" in ASN05 is the
+#      handout's example, not a binding constraint. The implementation
+#      language is the team's project decision made in Part 1 (ASN04
+#      never locked one). Grade the running program's behavior, not the
+#      language.
+#   2. CONTAINER DEPLOYMENT IS THE DELIVERY MECHANISM (this is THE
+#      drift): ASN05 "runs as described" means the MFE is distributed
+#      as a container and executed by running that container. The USER
+#      provides the host binding path (the game-files directory bound
+#      into the container); monster.txt-v2 reaches the host through
+#      that mount. Mechanism verified end-to-end on the Studio
+#      (P465 ICEX07 reference run: bind-mounted game-files dir, v2
+#      written in-container, file lands on host with content intact).
+#   3. MULTI-MONSTER EC: ASN04 promised Part 2 extra credit for
+#      multi-monster editing; ASN05's published table omitted it.
+#      Restored here as +10 for working multi-monster editing
+#      (honoring the promise ASN04 already published).
+#
+# SUBMISSION SHAPE (ASN05 handout): GitHub Release via Canvas (differs
+# from Part 1's PR — Part 2's own spec, both are correct). Artifacts in
+# the release/repo: code, UPDATED_DESIGN/ (+CHANGELOG.md), TEST_RESULTS.md,
+# README.md, man_page.txt, PROCESS.md.
+#
+# GROUND TRUTH anchors (verified Sep 24, SE1 teaching tree 4.2.6-64-gf3e6fdd7c
+# — same facts the ASN04 rubric gave TAs; the as-built program must match):
+#   - monster.txt: 624 entries, 56 base categories, flat key:value lines.
+#   - hit-points: plain int (observed 1..20000); experience: non-negative
+#     int (observed 0..60000); desc: REPEATED desc: lines CONCATENATE
+#     (multi-line convention; parser appends, init.c:1237) — a correct
+#     MFE preserves that structure in monster.txt-v2.
+#   - Cross-file attributes (if chosen in Part 1) bind to blow_effects.txt
+#     (30 effects) / blow_methods.txt (19 methods) membership.
+#   - The game loads custom files from the USER dir first, gamedata
+#     second (src/datafile.c:92) — bonus insight; the handout's manual
+#     replace of monster.txt also works.
+# TA RAILS:
+#   - The Part 1 test plan is EXECUTED, not re-invented: TEST_RESULTS.md
+#     mirrors Part 1's case table (Actual Result / Tested By columns
+#     the Part 1 template pre-allocated). A FAIL honestly documented
+#     with output is compliant — the criterion grades accurate
+#     documentation of execution, not all-green.
+#   - PROCESS.md's "final primary contributor" for the three areas may
+#     differ from Part 1 assignments (Part 1 said re-assignment allowed).
+#   - Teams whose Part 1 chose the multi-monster EC but did not deliver
+#     it: no penalty (EC is additive), but the design choice should be
+#     visible in the CHANGELOG if dropped.
+
+assignment: ASN05
+course: SE1
+semester: FA26
+total_points: 110
+canvas_points: 110
+semester_start: 2026-08-24
+
+criteria:
+  - name: "Functionality: MFE runs as a container, full contract"
+    points: 30
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 30,  description: "Program delivered and run AS A CONTAINER (user supplies the host binding path for the game-files dir; monster.txt-v2 lands on the host through the mount); full Part 1 contract: selection handles the 624-entry file sensibly with an Exit option, current values shown, edit, review, Cancel discards and returns to selection, Save writes monster.txt-v2 and exits, monster.txt itself never overwritten; validation per the Part 1 definitions (HP positive int, experience non-negative, desc multi-line concatenation preserved in v2)" }
+      - { points: 15,  description: "Program works but deviates from the contract: not delivered/run as a container, or one-shot flow broken (overwrite risk, missing review), or validation weaker than Part 1 specified, or v2 file malformed (e.g. multi-line desc destroyed)" }
+      - { points: 0,   description: "Not functional / no working program" }
+
+  - name: "Connection to Plan: UPDATED_DESIGN/ + CHANGELOG.md"
+    points: 20
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 20,  description: "UPDATED_DESIGN/ contains the Part 1 design docs revised to the as-built state; CHANGELOG.md summarizes each design change with its reason (e.g. structure changes for validation); the as-built docs match the delivered program" }
+      - { points: 10,  description: "Docs updated but superficially (no real changes recorded, CHANGELOG thin, or docs contradict the actual program)" }
+      - { points: 0,   description: "Original docs unmodified / no CHANGELOG" }
+
+  - name: "Verification: TEST_RESULTS.md executes the Part 1 plan"
+    points: 20
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 20,  description: "Every Part 1 test case listed with description, observed actual output, and PASS/FAIL status; honest FAILs with documented output are compliant; results correspond to the delivered program" }
+      - { points: 10,  description: "Some cases executed and documented but coverage incomplete (not all Part 1 cases), or results recorded without actual output, or all-green with signs of fabrication" }
+      - { points: 0,   description: "No test results / plan not executed" }
+
+  - name: "Reflection: PROCESS.md (3 questions + final contributors)"
+    points: 15
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 15,  description: "All three questions answered substantively: most significant design-vs-reality change and why the original was insufficient; estimation accuracy with the biggest-discrepancy task and the lesson; a bug the original test plan did NOT account for; PLUS the final primary contributor named for backend, CLI, and QA/docs" }
+      - { points: 7.5, description: "Answers present but thin (one-word or generic reflections, estimation analysis without numbers, no concrete bug story), or contributor statement missing" }
+      - { points: 0,   description: "PROCESS.md missing" }
+
+  - name: "Documentation: README.md + man_page.txt (and ai_use.md currency)"
+    points: 10
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 10,  description: "README.md explains install and running the container (incl. the host binding path usage) with a clear usage example; man_page.txt is a usable user manual; course AI-use artifacts kept current (ai_use.md updated if tools changed since Part 1)" }
+      - { points: 5,   description: "Docs present but thin (no example, man page unusable, or container invocation not documented despite being the delivery mechanism)" }
+      - { points: 0,   description: "Missing" }
+
+  - name: "Submission: correctly formatted GitHub Release"
+    points: 5
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 5,   description: "Release exists on the team repo (tagged, with release notes describing the deliverable) and the release URL is submitted via Canvas; artifacts (code, docs, results) present in the release/repo state" }
+      - { points: 0,   description: "No release / wrong submission form" }
+
+  - name: "EC: multi-monster editing (ASN04 Part 2 promise)"
+    points: 10
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 10,  description: "Working multi-monster editing: one session selects and edits multiple monsters and the single monster.txt-v2 contains ALL the edits; demonstrated (transcript or test evidence) — this also supersedes the Part 1 one-shot contract as an intended extension" }
+      - { points: 5,   description: "Partial: multi-select works but a bug corrupts some edits, or edits apply but the v2 write is unreliable — demonstrable progress toward the extension" }
+      - { points: 0,   description: "Not attempted (no penalty — base 100 unaffected)" }

@@ -188,3 +188,214 @@ A full review of the detailed decision log from a specialized "Muse" instance (C
     1.  Elevating critical security content from speaker notes to **dedicated slides**.
     2.  Justifying tool choice based on **security and risk reduction**, not just convenience.
     3.  Analyzing the **data-profiling and side-channel implications** of low-level technical standards.
+---
+## 2026-10-01 @ 12:35 EDT - ICEX Planted-Problem Debrief as an On-Demand Mnemo Skill
+
+**Scope:** Workflow, Clio Artifacts, TA Notes, MCP/Hermes Skills Architecture
+
+**Description:**
+After an ICEX with a planted bug is generated, Mnemo (or Kurt) runs a debrief as a
+**follow-up prompt in the generation session**:
+
+> "What is the planted problem and what signals should the student observe that
+> lead them to the solution?"
+
+The debrief answer is appended to that ICEX's standalone TA notes file
+(`tanotes_icex_*.md`) as a `## Planted Problem Debrief` section, completing the
+file in two steps: structural TA Follow-up Guide during generation + planted-problem
+debrief after. TA notes files are instructor-facing only and never enter
+student-visible material.
+
+### Why follow-up, not baked in
+
+If the debrief question were part of the persona, KB, or generation prompt, Clio
+would know at generation time that it will need to explain the planted problem —
+creating pressure toward bugs that are clean to explain rather than
+pedagogically stealthy. Asking the debrief only after the full ICEX exists keeps
+generation and debrief cognitively separate and closes the bias window.
+
+### Placement decisions
+
+- The workflow is packaged as an invocable **Hermes skill**
+  (`icex-planted-problem-debrief`, in the Mnemo profile's skills directory) that
+  is used on demand — when an assignment design calls for it or Kurt explicitly
+  requests it — NOT as a session-workflow note and NOT inside the muse prompt
+  stack. Hermes profile skills are not auto-loaded into muse system prompts, so
+  this packaging structurally enforces the follow-up principle.
+- The muse repo's `skills/techniques/planted-bug.md` keeps governing bug DESIGN at
+  generation time (one bug, calibrated difficulty, recovery point); the debrief
+  skill operates only after generation and never feeds advice backward into the
+  generation prompt.
+- The debrief is appended at the END of the tanotes file, carries a
+  `debrief source: <session> turns A#` provenance comment using the session
+  file's Q#/A# turn numbering, and the file's HIL galley stamp
+  (`hil.py galley --turns ...`) spans both halves: the structural-guide turns
+  and the debrief turn. Lifecycle stays galley → human_reviewed → approved;
+  the debrief is append-only content until Kurt reviews.
+- The debrief response is verified against a stealth checklist before it is
+  filed: observable signals (not bug internals), signals traceable to text in
+  the student handout or starter code, a diagnosis path a team could actually
+  walk inside the exercise window, one bug, and a stated learning objective.
+  A debrief that can only explain the bug cleanly — no observable signals — is
+  a design finding that the bug itself may need a redesign, not a filing detail.
+
+**Reference:** LF task `20260311_icex_planted_problem_workflow` (project
+Reference, backlog → done via write-back seam) — original capture from a
+Mnemo design session; reframed by Kurt 2026-10-01 from one-shot session note
+to on-demand skill. Kanban card `t_957cc690`.
+
+---
+
+## 2026-10-01 @ 13:15 EDT - Invisible AI Failures Pedagogy Skill (Bigspin AI archetypes + The Void)
+
+**Scope:** Mnemo Skills (pedagogy layer), Evaluation Design, AI Failure Taxonomy
+
+**Description:**
+Added `skills/pedagogy/invisible-ai-failures.md` (auto-loaded, course-agnostic).
+Grounded in two sources: Potts & Sudhof (Bigspin AI), "Invisible failures in
+human-AI interactions" (arxiv 2603.15423) — 100K WildChat transcripts, 79% of
+failures invisible, eight archetypes (confidence trap, silent mismatch, drift,
+death spiral, contradiction unravel, walkaway, partial recovery, mystery
+failure), archetype distribution stable under a Future-2K counterfactual with
+current frontier models — and nostalgebraist's essay "The Void" on the
+under-specified HHH assistant persona.
+
+### Design decisions
+
+- **Operational framing, not taxonomy recitation:** the pedagogical core is
+  that a course can surface invisible failures (it measures what a student
+  actually understood) — so the skill mandates evaluation design that converts
+  invisible failures into visible ones (verification artifacts graded, not AI
+  output; in-your-words checkpoints; two-channel grading separating objective
+  execution from articulation).
+- **Behavioral readings from The Void, philosophy excluded:** probe behavior,
+  never self-report ("are you sure?" solicits reassurance); treat fluent
+  plausibility as the output of a powerful mimic of "good answers" — grade
+  what mimicry cannot produce.
+- **Model-independence:** archetypes presented as interaction patterns, not
+  capability snapshots; evidence section notes the Future-2K stability finding
+  plus limitations (single-turn counterfactual, AI-assisted annotation,
+  English-language corpus) and marks exact percentages as era-specific.
+- **Two-sided duty:** muse self-audits its own drafts against the same eight
+  archetypes before delivery, symmetric with the student-facing probes.
+- **Mystery failure = finding not error:** a failure matching no archetype is
+  recorded, never force-classified; same convention as the LF kernel note.
+
+**Sources verified 2026-10-01:** arXiv abs/2603.15423 (v2, cs.CL; HTML fetch
+rate-limited, PDF fetched from arxiv.org/pdf direct link and text-extracted in
+full, 16 pp); nostalgebraist linkpost verified on alignmentforum.org then essay
+body extracted from the tumblr original (nostalgebraist.tumblr.com post
+785766737747574784, ~17,300 words). Research artifacts are in the kanban
+workspace for card t_d911d6db (scratch), not in the repo.
+
+**Reference:** LF task `20260702_pedagogy_skill_from_bigspin_ai_s_8_invis`
+(project Reference, via write-back seam); kanban card `t_d911d6db`.
+
+---
+
+## 2026-10-01 @ 17:20 EDT - LMS Page Artifact Layer (generation pages) + Page Templates Skill
+
+**Scope:** Mnemo Artifact Layers, Clio Pages, Pipeline, Page Templates Skill
+
+**Description:**
+Added a fourth artifact layer for LMS-destined page content:
+`Clio/clio_pages.md`, invoked as `generation pages`. Four page types
+confirmed from SP26 Week 8 work: Weekly Module Overview (per-week, fully
+pre-generated from the KB), Canonical Reference Page (standing, structural
+persistence), Instructor Lecture & Notes (per-week generated shell, instructor
+completes post-class), Announcement (shell + instructor personalization).
+
+### Layer name: "pages," not "canvas"
+
+"Canvas" is a product name, not a concept — the instructor directed the layer
+name avoid it. The candidate set (`clio_pages` / `clio_pub` / `clio_content`)
+resolves to **pages**: the invariant shared by the four types is the
+*transport* (rendered page body a human pastes into an LMS editor) plus the
+*persistence* axis (standing vs. week-bound pages) — neither axis is the
+artifact-type axis the other three layers cover. Slides are presented; ICEXs
+and projects are submitted; pages are **read**. The word Canvas stays
+legitimate only where it names the LMS product operationally: the
+deterministic build script (`pipeline/build_canvas_page.sh` in the clio repo —
+the build's destination), the `<!-- canvas-title: ... -->` label comment, and
+historical KB text. Course-instance file names in the KB
+(`canvas_week##_overview.md`) are unchanged — those are the KB's own naming
+decision, in active use w08–w15.
+
+### Pipeline role: generation-time conventions, deterministic post-processing
+
+Verified against `mnemo_activate.sh`: `_mnemo_discover_layers` globs
+`clio_*.md` (excluding `_base`, `_persona*`), so `clio_pages.md` is
+assembled by default on the `*` scope with no code change, and
+`generation pages` works through the existing generic layer resolver. The
+layer drives the Clio *prompt*; the shell pipeline remains post-processing
+only (pandoc + `canvas_style.py` — no new styling infrastructure). The muse
+never emits HTML: styling or markup emission by the muse is a boundary error
+(care-of computer's job). One optional pipeline addition: a **Title Guard**
+flag on `build_canvas_page.sh` (`--canvas-title "...`, off by default,
+idempotent) that inserts the `canvas-title` label comment when a source was
+built without one — motivated by SP26 evidence (six of seven overview pages
+w08–w15 carry the label; w08 and three non-overview pages do not, so
+`clio_status.py` falls back on those).
+
+### HIL/galley: reused shells are per-instance generations, not stamped galleys
+
+The galley stamp attests that THIS file was generated in session S. A
+template stamped galley and then copied per instance would make `hil.py
+verify` assert false per-file provenance. So: templates live as versioned
+Mnemo-skill files (no HIL block); every generated instance is a fresh
+generation with its own HIL block carrying that session's real provenance;
+the instructor completes personal-voice sections and runs `hil.py review`.
+Consistent with the SP26 Canvas repeating-assignment decision ("do NOT
+generate all instances in a single run").
+
+### Template location and boundary
+
+Conventions are course-specific per muse (`clio_pages.md`); the four
+templates are cross-course and live in the new Mnemo technique skill
+`skills/techniques/lms-page-templates.md` (generic, `[placeholder]` fields,
+semester-stable). Type 1 codifies the proven SP26 overview structure
+(Introduction → per-day sections → Weekly Learning Objectives → Readings and
+Resources → To-Do: Individual / Team — Best / Team — Assignment) rather than
+inventing a new one. All semester facts (dates, points, policy wording) come
+from the course KB via `add kb` — never from muse files.
+
+**Reference:** LF task `20260306_mnemo_lms_page_layer` (project mnemo, via
+write-back seam); kanban card `t_27bf201b`.
+---
+## 2026-10-01 @ 17:45 EDT — HIL Candidate-Proposal Pattern ("Clio proposes, instructor disposes")
+
+**Scope:** Workflow, Mnemo System, The Professor, All Muses
+**Origin:** promoted from Lore Forge task `20260626_hil_candidate_proposal_pattern_clio_prop.md` (Zoidberg seam, 2026-10-01); LF task remains canonical project **Reference** entry.
+
+**Decision:** Every muse-generated element that makes a pedagogical choice the instructor should own follows the **candidate-proposal pattern**: the muse proposes N neutral candidates and the instructor selects, rejects, or provides their own — the muse never presents a recommended favorite (Avoid Sycophancy skill). This extends HIL from the galley-review level to the generation level.
+
+**Decided as:**
+1. **Per-element candidate counts, not standardized.** The count lives in the muse's ratified `candidates.manifest` (element-slug | count | single|multiple | source-file | what-the-instructor-chooses); count=0 disables an element; count=4 is only the no-manifest default. No confidence threshold — HIL is about ownership, not confidence; the muse cannot know instructor intent. (Both questions settled in docs/PROFESSOR_DESIGN_NOTES.md §Open questions.)
+2. **Pre-galley checkpoint, distinct from the HIL provenance lifecycle.** Candidate proposals happen during generation, before the artifact exists; `hil galley → hil review → hil approve` picks up afterward as the post-generation provenance record.
+3. **The Professor is a buildable meta-agent, not just a concept.** Implemented as a standard muse-directory persona (`Professor/` base + `newmuse` artifact layer, `generation newmuse`) that (a) identifies which generated elements need the pattern, (b) configures per-element counts during the muse design dialogue, and (c) audits a muse's ratified manifest against its files via the deterministic scanner `tools/professor_scan.py` (scan/draft/audit) — heuristic OPPORTUNITIES are never auto-promoted to instances; judgment belongs to The Professor + instructor.
+
+**Implementation surface (this date):** README.md Creating-a-New-Muse step 4 (decision-triage questions + checkpoint definition); six technique skills (contributions-format, ta-followup-guide, slide-deck-template, references-section, aar-template, rubric-format); `Clio/candidates.manifest` (6 ratified elements, audit CLEAN 6/6 anchored); `Professor/` persona (34 skills + base + newmuse layer assembles via the real toolchain); `tools/professor_scan.py` + 33-test suite (all passing); design doc `docs/PROFESSOR_DESIGN_NOTES.md`.
+---
+
+## 2026-10-01 @ 18:12 EDT — BDD/KISS Conversation Principles into Course Decks + Transparency-Discussion Seed
+
+**Scope:** Clio Artifacts (SE1/P465 decks), W16 Final Review, Cross-Course Principles, AI Literacy
+**Origin:** kanban decomposition of LF task `20260313_bdd_kiss_complexity_tests.md` — analysis card t_06d1f9eb (deliverable `bdd_kiss_analysis_lecture_fit.md`, quote-verified through three rounds), drafting card t_e366898f (this entry).
+
+**Decision:** The slide-worthy principles from the 2026-03-11 instructor–AI conversation (311-line transcript) enter the FA26 course decks as instructor-framed principles per the analysis placement map; the conversation itself becomes the worked example seeding the Week 16 final review + AI transparency discussion.
+
+**Implemented:**
+
+- **L4** (`lec_mj04_testing.md`, Week 9): new Slide 8 "GIVEN/WHEN/THEN Is a Contract" — the design-by-contract anchor (Meyer: precondition/invariant/postcondition). The conversation's Law-of-Demeter label was wrong; the slide teaches the corrected anchor and keeps the wrong label as the check-the-anchor specimen. Slides 9–10: "Test Complexity as a Design Smell" (signal table) and "KISS Is a Correctness Criterion — Not an Aesthetic" (required-for-correctness gate). 18 → 21 slides.
+- **L6** (`lec_mj06_web_security.md`, Week 10): new Slide 9 "Complexity Is Attack Surface" — the L4 gate repointed at security; every unjustified complexity factor is potential attack surface. 15 → 16 slides.
+- **L14** (`lec_mj14_ollama_integration.md`, Week 15): new Slide 14 "The Mock Rule — Verify the Call, Not the Output" — unit tests mock the AI and verify the call; the spec gates generation (the AI never writes the tests that judge it). Labeled practice guidance, not a research finding. 18 → 19 slides.
+- **L15** (`lec_mj15_docker_compose.md`, Week 15 Day 2): new Slide 17 "AI Transparency Discussion — The Specimen Conversation" — three greppable specimen beats from the transcript (wrong anchor; unexamined premise; validation register), each with line cites students verify during the W16 discussion; counter-move: request failure modes, not validation. 18 → 19 slides.
+- **Instructor seed doc** for the W16 discussion (beats, discussion flow, awareness-lecture refinement candidates, open instructor decisions) delivered on the kanban card; the awareness-lecture framework stays three aphorisms deep — refinement slots are proposed, not applied.
+
+**Key caveats carried into the materials (do not regress):**
+
+1. **p^n is a heuristic, never a law.** The independence assumption is named-but-undefended (transcript line 173) and silently dropped from the model's own summary (line 300). No deck presents the formula as law; the teaching beat is the 173-vs-300 qualifier drop. The verified numbers (0.95^10 = 0.5987, 0.95^20 = 0.3585; correlated/disjoint comparison) live only in the instructor seed document.
+2. **Attribution discipline.** Test-complexity-as-design-smell and KISS-as-correctness-criterion are the instructor's formulations (2026-03-11); the AI's tables and formalizations are elaborations, not citation-grade source material.
+3. **Quote integrity.** Decks quote only verified verbatim fragments with line cites — including the AI-literacy KB aphorism, quoted clean and verbatim (the KB's separately known typo is a different KB line, and is not reproduced in any deck); everything else is labeled analysis-derived compression or course formulation.
+
+**Reference:** kanban cards t_06d1f9eb (analysis) and t_e366898f (drafting); LF task `20260313_bdd_kiss_complexity_tests.md` (canonical, via write-back seam on root-card completion).

@@ -36,6 +36,23 @@ course-specific branding, styling, and LMS integration.
 - **Project assignments:** Point values are course-specific — defined in the
   muse's project artifact layer.
 
+## Candidate-Proposal Pattern (Clio proposes, instructor disposes)
+
+Rubric criteria and their weights shape what students are graded on — a
+pedagogical choice the instructor owns:
+
+- **New rubrics:** Propose **2 candidate criteria-and-weighting schemes**
+  (same point total, differing emphasis). Present them neutrally, with no
+  recommended favorite (see the Avoid Sycophancy skill); the instructor
+  selects, revises, or supplies their own scheme.
+- **Established rubric formats** (e.g., the standard in-class 10-pt rubric
+  fixed by convention): propose the single scheme following the format and
+  flag it for instructor review in the HIL block — do not re-propose a
+  format the instructor has already fixed.
+
+The muse decides only *how well* a criterion is described; the instructor
+owns *which* criteria exist and *how much* they count.
+
 ## Pipeline Responsibility (Step 7 Goal)
 
 The pipeline refactoring (Step 7 of the redesign plan) should:

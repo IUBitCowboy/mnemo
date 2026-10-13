@@ -1,0 +1,116 @@
+# Rubric for SE1 ASN04-FA26 (A04: Monster File Editor MFE, Part 1 — Design & Specification)
+#
+# NOTE: Kurt's paste was labeled "ASN03" but the content is A04
+# ("Monster File Editor (MFE), Part 1: Design & Specification"; Part 2
+# = A05 delivers the MFE as a Docker container). Authored as ASN04 —
+# the A03 rubric pair already exists. If this text is actually meant
+# to replace A03's rubric, that's a different edit (A03 already has
+# the 160-pt combined rubric per the Sep 17 announcement).
+#
+# Canvas assignment: 100 points (SE1 ASN scale). Rubric total = 100.
+# SUBMISSION SHAPE: PR in the team repo (deliverables + Design
+# Documentation Template), PR URL to Canvas, every member's contribution
+# in commit history. Team Collaboration mode; process deliberately open;
+# ai_use.md required per course AI Use Policy.
+#
+# PART 1 IS GRADED ON THINKING, NOT WORKING CODE (handout's own sentence):
+# no code deliverable, no build. Design quality, test plan quality,
+# staffing, estimates.
+#
+# GROUND TRUTH (SE1 teaching tree, Angband 4.2.6-64-gf3e6fdd7c — facts
+# a strong design will get right, embedded for TA calibration):
+#   - monster.txt: 624 monster entries (handout's "over 600" verified);
+#     56 base categories in monster_base.txt (handout's "roughly 50");
+#     flat `key:value` line format (e.g. `hit-points:3`, `speed:110`).
+#   - Editable-attribute semantics:
+#       hit-points: plain integer, observed range 1..20000 (no dice
+#         notation in the file — validation = positive int)
+#       experience: plain integer, observed range 0..60000 (Morgoth
+#         60000; town monsters 0) — validation = non-negative int
+#       desc: REPEATED `desc:` lines CONCATENATE into one string
+#         (multi-line descriptions; parser appends via string_append,
+#         src/init.c). Continuation lines carry a leading space
+#         convention (Morgoth's desc shows it). An MFE editing desc
+#         must reproduce this multi-line convention, not write one
+#         giant line (or must prove the parser accepts one line).
+#   - Cross-file dependency example (handout's own example, verified):
+#     blow effects/must exist in blow_effects.txt (16+ effect names:
+#     NONE, HURT, POISON, DISENCHANT, DRAIN_CHARGES, EAT_GOLD, ACID,
+#     ELEC, FIRE, ... 30 total) and methods in blow_methods.txt (19:
+#     HIT, TOUCH, PUNCH, CLAW, BITE, ...). Designs choosing a cross-file
+#     attribute must show these files' structures.
+#   - "The game will accept": the game loads custom files from the USER
+#     directory FIRST, then ANGBAND_DIR_GAMEDATA (src/datafile.c:92
+#     parse_file) — relevant to where monster.txt-v2 must be placed to
+#     take effect (the handout's manual-replace flow works; a design
+#     noting the user-dir override is a bonus insight, not required).
+#   - monster.txt's own header warns: modifying risks crashes/broken
+#     savefiles — the never-overwrite-monster.txt rule in the handout
+#     mirrors the file's own comment (a design citing it shows real
+#     reading).
+#
+# WEIGHTS: no published table. The handout enumerates exactly four
+# deliverables and states Part 1 is graded on thinking; weights follow
+# the deliverable list: design doc 40 (the largest — six required
+# elements), test plan 25, task assignments 15, estimates 10,
+# PR/attribution/ai_use.md hygiene 10 = 100.
+
+assignment: ASN04
+course: SE1
+semester: FA26
+total_points: 100
+canvas_points: 100
+semester_start: 2026-08-24
+
+criteria:
+  - name: "Design documentation (screens, use cases, diagrams, file-format, containerization)"
+    points: 40
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 40,  description: "All six elements present and specific: screen flow incl. selection-with-Exit / current-values / edit / review / Cancel-Save; use case(s); class + activity diagrams (linked); milestones; file-format analysis (monster.txt key:value structure, 624 entries, 56 base categories; chosen attribute's data source + cross-file deps like blow_effects.txt/blow_methods.txt when applicable); containerization access + v2-output mechanism justified (volume vs bind mount from the Week 4 mechanisms)" }
+      - { points: 20,  description: "Most elements present but shallow: screens listed without flow, file-format analysis generic (no actual field semantics), containerization asserted without justification, or the one-shot contract / never-overwrite rule unaddressed" }
+      - { points: 0,   description: "Design doc missing or unusable" }
+
+  - name: "Attribute choice + validation definitions"
+    points: 15
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 15,  description: "Chosen 4th attribute explicit and locked; validation rules defined per editable attribute in game-accepts terms (HP: positive integer — file range observed 1..20000; experience: non-negative integer — observed 0..60000; desc: repeated desc: lines concatenate — the multi-line convention handled deliberately)" }
+      - { points: 7.5, description: "Choice made but validation vague ('must be a number'), multi-line desc convention missed, or cross-file dependencies asserted without showing the other file's structure" }
+      - { points: 0,   description: "No attribute choice / no validation definitions" }
+
+  - name: "Test plan (goals, suites, cases incl. cancel/exit/v2-write coverage)"
+    points: 25
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 25,  description: "Test goals + suites described; sample cases with preconditions/steps/expected results covering parsing, per-attribute validation (good AND bad values), review flow, Cancel and Exit behavior, and the monster.txt-v2 write; run environment chosen with a why (local vs in-container)" }
+      - { points: 12,  description: "Cases present but coverage incomplete (e.g. no Cancel/Exit cases, only happy-path validation), or expected results not concrete, or run-environment choice unexplained" }
+      - { points: 0,   description: "No test plan" }
+
+  - name: "Task assignments (initial staffing)"
+    points: 10
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 10,  description: "Every member owns named tasks, plausibly sized for a week; explicitly marked as re-assignable in Part 2" }
+      - { points: 5,   description: "Assignments present but lopsided (one member carries most tasks) or so coarse they cannot guide Part 2" }
+      - { points: 0,   description: "Missing" }
+
+  - name: "Effort estimates (per task + summary total)"
+    points: 5
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 5,   description: "Per-task hour estimates with a summary total, structured so Part 2 can compare actuals (estimate table format honored)" }
+      - { points: 0,   description: "Missing or single lump number with no per-task breakdown" }
+
+  - name: "Submission hygiene: PR, commit attribution, ai_use.md, template used"
+    points: 5
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 5,   description: "PR contains the deliverables (one or several clearly labeled files); every member appears in commit history; ai_use.md present per course policy; deliverables use the provided Design Documentation Template scaffold" }
+      - { points: 0,   description: "No PR / attribution absent / ai_use.md missing" }

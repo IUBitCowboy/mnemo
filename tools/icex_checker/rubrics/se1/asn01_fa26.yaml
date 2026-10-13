@@ -1,0 +1,113 @@
+# Rubric for SE1 ASN01-FA26 (Angband familiarization: dungeon level 10 / 50K turns + 4 questions)
+#
+# Canvas assignment: 100 points (SE1 ASN scale). Rubric total = 100 = canvas_points.
+# SUBMISSION SHAPE: two parts — (1) tombstone screenshot (dungeon level
+# path) OR Hall of Fame screenshot (50,000-turn alternate path); (2)
+# answers to 4 questions (text entry or file). All manual_review.
+#
+# WEIGHTS: no published table; split follows the handout's own play-vs-
+# reflection structure: evidence (tombstone OR HoF) 30, the 4 questions 60
+# (15 each), submission completeness 10.
+#
+# GROUND TRUTH (all verified in SE1 teaching tree, Angband 4.2.6-64-gf3e6fdd7c):
+#   - TOMBSTONE (src/ui-death.c display_exit_screen): shows "Killed on
+#     Level N" (dungeon depth), "by <killer>.", character name/class/
+#     level/exp/AU, and date. It does NOT show game turns — so the
+#     50,000-turn alternate path CANNOT use the tombstone as proof; the
+#     Hall of Fame screenshot is the right evidence there. The handout
+#     says exactly this (v - View Scores on the death screen).
+#   - `C` = Character description (ui-game.c:184): its panel shows
+#     "Turns used: Game N" (ui-player.c:831) — the handout's claim
+#     about C displaying turns is correct.
+#   - `v` nuance: "v - View Scores" is the DEATH-SCREEN menu item
+#     (ui-death.c:361). In the LIVE game `v` = Throw an item
+#     (ui-game.c:152). Students following the handout may throw weapons
+#     while hunting for scores — expected confusion, never penalize;
+#     the HoF screenshot only matters for the 50K-turn path.
+#   - ANSWER KEY for the questions (game data files, not opinion):
+#     Q1 damage types — 25 elements exist (list-elements.h): acid,
+#     electric, fire, cold, poison, light, dark, sound, shards, nexus,
+#     nether, chaos, disenchant, water, ice, gravity, inertia, force,
+#     time, plasma, meteor, missile, mana, holy orb, arrow; plus melee
+#     blow methods (blow_methods.txt: hit, punch, kick, claw, bite,
+#     sting, butt, crush, engulf, ...). ANY 4 correct = full credit.
+#     Q2 missile types — three launcher-ammo categories (list-tvals.h):
+#     shot (rounded pebble, iron, mithril), arrow (arrow, seeker,
+#     mithril), bolt (bolt, seeker, mithril). "All the missile types"
+#     = these three; individual item names are a bonus, not required.
+#     Q3 room types — 19 room builders (list-rooms.h): simple, large,
+#     crossed, circular, overlap, moria, room of chambers, monster pit,
+#     monster nest, staircase room, the vault tiers (lesser/medium/
+#     greater), interesting rooms, etc. ANY 3 distinct = full credit.
+#     Q4 subjective — no wrong answer; grade the "why", not the monster.
+#   - Character level vs dungeon level distinction: tombstone "Killed on
+#     Level N" is the DUNGEON level (player->depth) — a tombstone at
+#     Level 10 or LOWER (1-10) satisfies the objective; "Level 10 or
+#     lower in the dungeon" is depth <= 10, NOT character level <= 10.
+#   - Permadeath framing in the handout is pedagogically intentional
+#     (the course studies this codebase). A tombstone from ANY death
+#     (including the deliberate post-level-10 suicide) is compliant —
+#     the handout explicitly invites quitting to generate it.
+#
+# assignment text says individual; team work allowed during play.
+
+assignment: ASN01
+course: SE1
+semester: FA26
+total_points: 100
+canvas_points: 100
+semester_start: 2026-08-24
+
+criteria:
+  - name: "Game evidence: tombstone (depth <= 10) OR Hall of Fame (50K turns)"
+    points: 30
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 30,   description: "Tombstone screenshot shows 'Killed on Level N' with N <= 10 (dungeon depth — the Level on the tombstone is depth, not character level), OR Hall of Fame screenshot evidences the 50,000-turn alternate path" }
+      - { points: 15, description: "Screenshot present but depth > 10 without the 50K-turn alternative, or evidence ambiguous (e.g. Level line cut off), or wrong screenshot (character sheet without depth/turns proof)" }
+      - { points: 0,   description: "No game evidence submitted" }
+
+  - name: "Q1: four damage types"
+    points: 15
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 15, description: "Four distinct damage types listed (verified set: acid, electric/lightning, fire, cold, poison, light, dark, sound, shards, nexus, nether, chaos, disenchant, water, ice, gravity, inertia, force, time, plasma, meteor, missile, mana, holy orb, arrow — or melee blow methods like claw/bite/crush)" }
+      - { points: 7.5, description: "Only 2-3 listed, or duplicates with different names, or types that do not exist in the game" }
+      - { points: 0,   description: "Not answered" }
+
+  - name: "Q2: all missile types"
+    points: 15
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 15, description: "All three ammo categories named: shots (pebbles/iron/mithril), arrows (incl. seeker/mithril), bolts (incl. seeker/mithril) — individual item names beyond the three categories are a bonus" }
+      - { points: 7.5, description: "Only one or two of the three categories (e.g. arrows but not bolts/shots), or confusion with thrown items/potions" }
+      - { points: 0,   description: "Not answered" }
+
+  - name: "Q3: three dungeon room types"
+    points: 15
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 15, description: "Three distinct non-box room types described (verified set: circular, crossed, overlap, moria, room of chambers, monster pit, monster nest, lesser/medium/greater vault, interesting rooms, staircase rooms...)" }
+      - { points: 7.5, description: "Only 2 types, or three names without any distinguishing features described" }
+      - { points: 0,   description: "Not answered" }
+
+  - name: "Q4: most challenging monster attack + why"
+    points: 15
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 15, description: "A specific attack/ability named with a substantive reason grounded in their play (verified examples: nether/chaos drain effects, drain charges, eating items, confusion, teleport-away, summons, breaths)" }
+      - { points: 7.5, description: "Named but 'why' is thin/generic (e.g. 'it was strong'), or the attack described does not match Angband's mechanics" }
+      - { points: 0,   description: "Not answered" }
+
+  - name: "Submission completeness"
+    points: 10
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 10,  description: "Both parts present: screenshot(s) AND the four answers (text or file); tombstone+HoF both submitted when the turn path was used" }
+      - { points: 0,   description: "One part missing" }

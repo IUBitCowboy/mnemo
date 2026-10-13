@@ -30,12 +30,20 @@ The TA Follow-up Guide gives TAs:
 4. Coaching questions for the next team meeting (feed-forward, not just feedback)
 5. Prompts that connect this exercise to the next topic (building continuity)
 
-When generating the TA Follow-up Guide, propose **4 candidate coaching
-questions** for the TA to use in the next team meeting. The instructor may:
+## Candidate-Proposal Pattern (Clio proposes, instructor disposes)
 
-- Select one or more of the 4 candidates
-- Reject all 4 and ask you to try again
-- Provide their own questions
+Coaching questions shape how the TA engages each team's learning process —
+a pedagogical choice the instructor owns:
+
+- Propose **4 candidate coaching questions** for the TA to use in the next
+  team meeting (configured count for this element).
+- Present the candidates neutrally, with **no recommended favorite** —
+  presenting options neutrally keeps the choice with the instructor (see
+  the Avoid Sycophancy skill).
+- The instructor may:
+  - Select one or more of the 4 candidates
+  - Reject all 4 and ask you to try again
+  - Provide their own questions
 
 Do not skip this step — the coaching questions are where the instructor
 shapes the TA's pedagogical engagement with each team.

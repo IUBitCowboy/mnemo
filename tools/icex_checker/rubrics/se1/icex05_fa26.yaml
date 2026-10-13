@@ -1,0 +1,125 @@
+# Rubric for SE1 ICEX05-FA26 (build Angband inside the VM + script recording)
+#
+# Canvas assignment: 10 points. Rubric total = 10 = canvas_points.
+# SUBMISSION SHAPE: the `script` typescript file (angband-run.txt)
+# uploaded to Canvas — a full terminal recording, not a hand-picked
+# paste. Deadline rails are the handout's own: end-of-class/4PM for the
+# in-class submission, midnight completion window for FULL credit,
+# later = capped at 85%. Grade the CURRENT file's content; the window
+# policy is Canvas-side, not rubric-side.
+#
+# CHAIN: builds on ICEX04 (VM launched) and ICEX03 (silo build, splash
+# knowledge). The configure report will echo the splash/news path the
+# class modified on silo — deliberate callback in the handout.
+#
+# WEIGHTS: handout publishes NO point table; the Task list and the
+# "Criteria for Success" (submit the recording) drive the split:
+# packages 1, clone 1, build+system install 3, script recording 2,
+# run angband 2, directory listing 1.
+#
+# GROUND TRUTH (all verified, Sep 24 2026):
+#   - FULL BUILD EXECUTED on silo (Ubuntu 24.04, same family as the VM):
+#     ./autogen.sh -> ./configure (NO --with-no-install, per handout)
+#     -> make (rc=0) -> make install (rc=0). Configure report printed:
+#       Install path: /usr/local     binary path: /usr/local/games
+#       config path: /usr/local/etc/angband/
+#       lib path:    /usr/local/share/angband/
+#       var path:    (not used)      gamedata path: /usr/local/etc/angband/
+#     configure.ac:137 reroutes the default bindir to <prefix>/games —
+#     so /usr/local/games/angband IS the canonical answer to "list the
+#     directories where angband is installed" (with /usr/local/share/
+#     angband/ and /usr/local/etc/angband/ as the data dirs).
+#   - The handout's package list is sufficient: autogen pulls autoconf;
+#     automake, gcc, build-essential, ncurses-dev complete the toolchain
+#     (verified via apt on silo). sudo make install needs root — the
+#     handout says so correctly.
+#   - `script` recording verified locally: `script /path/file.txt` starts
+#     capture; `exit` ends it; the file holds the whole session.
+#   - /vagrant mapping: the laptop's SE1 directory appears as /vagrant in
+#     the VM (standard vagrant synced folder) — the recording lands in
+#     the laptop's $HOME/SE1 as the handout says.
+#
+# HANDOUT QUIRKS / TA RAILS:
+#   - The dpkg-lock recovery recipe (unattended-upgr holds the lock;
+#     halt, up, ssh, retry) is the handout's own sanctioned recovery —
+#     a recording showing the lock error and the documented recovery is
+#     HONEST work, never dock it.
+#   - Git clones have no ./configure — ./autogen.sh must run first
+#     (verified: autogen.sh rc=0 created configure). A recording showing
+#     a failed ./configure followed by autogen.sh is correct learning,
+#     not error.
+#   - The recording may contain dead ends (wrong build dir, retried
+#     apt, re-clone). Documented failures left in = honest; the rubric
+#     grades the delivered state, not a spotless transcript.
+#   - "Install onto the system" means the VM's system (default prefix
+#     /usr/local) — NOT --prefix=$HOME as ICEX03 did on silo. A student
+#     who reused ICEX03's $HOME prefix still built and installed
+#     correctly inside the VM; the directory listing proves the paths
+#     actually used. Grade the delivered install, not the prefix choice.
+#   - Frontend note: the base box may lack X11 libs; curses frontend
+#     builds fine (it did on silo). Angband in a VM runs in the terminal
+#     (curses) — a recording showing the curses splash/title is the
+#     expected "demonstrate it is working" evidence.
+#
+# assignment text says individual submission, team work allowed.
+
+assignment: ICEX05
+course: SE1
+semester: FA26
+total_points: 10
+canvas_points: 10
+semester_start: 2026-08-24
+
+criteria:
+  - name: "Build prerequisites installed in the VM"
+    points: 1
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 1,   description: "Recording shows sudo apt update + sudo apt install autogen automake gcc build-essential ncurses-dev succeeding in the VM (or the dpkg-lock recovery recipe executed per the handout)" }
+      - { points: 0.5, description: "Packages installed but partially evidenced (e.g. only some of the list visible), or a failed attempt left with no successful retry" }
+      - { points: 0,   description: "No package installation in the recording" }
+
+  - name: "Angband cloned into VM $HOME and configured"
+    points: 1
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 1,   description: "git clone of the angband repository into the VM's vagrant $HOME shown; ./autogen.sh (git clone has no configure) and ./configure WITHOUT --with-no-install executed; configure report visible with install paths" }
+      - { points: 0.5, description: "Cloned but configure flow incomplete or wrong (e.g. --with-no-install kept from the docs, which the handout explicitly forbids here), or autogen step missing and configure visibly failed" }
+      - { points: 0,   description: "No clone in the VM" }
+
+  - name: "Built and installed onto the VM system (sudo make install)"
+    points: 3
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 3,   description: "make completes and sudo make install succeeds in the recording; installed artifacts evidenced (install step output, or the binary running, or the directory listing)" }
+      - { points: 1.5, description: "make completed but install not shown/failed, or install attempted without sudo and visibly failed — build evident but system install missing" }
+      - { points: 0,   description: "Build did not complete" }
+
+  - name: "script recording: /vagrant/angband-run.txt flow"
+    points: 2
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 2,   description: "`script /vagrant/angband-run.txt` starts the recording early and `exit` closes it at the end; the submitted file reflects a continuous session (or the honest partial + midnight completion per the deadline rails)" }
+      - { points: 1,   description: "Recording exists but started late / covers only part of the flow, or file path differs from the handout without explanation" }
+      - { points: 0,   description: "No script recording — only a pasted terminal scrollback with no script file" }
+
+  - name: "Angband runs in the VM (demonstrated)"
+    points: 2
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 2,   description: "Angband launched in the VM after install — curses/splash screen or title visible in the recording; game starts (or exits cleanly after launch attempt with output shown)" }
+      - { points: 1,   description: "Launch attempted but crashed/failed with the error left visible (e.g. missing runtime lib) — documented failure state" }
+      - { points: 0,   description: "Never launched" }
+
+  - name: "Install directories listed (configure-report or filesystem)"
+    points: 1
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 1,   description: "The installed locations are listed in the recording — canonical: /usr/local/games (binary, via sudo make install), /usr/local/share/angband/, /usr/local/etc/angband/ (verified configure-report paths); a $HOME-prefix variant is equally valid if the listing matches what was actually installed" }
+      - { points: 0,   description: "No directory listing / the listed paths contradict the recording's own install" }
