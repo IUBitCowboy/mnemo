@@ -1,0 +1,119 @@
+# Rubric for ICEX12-FA26-C291 (dynamic memory: an array of pointers to Address)
+#
+# Canvas assignment: 10 points. Rubric total = 10 = canvas_points.
+# Stated purposes: THE STRUCT IS PROVIDED this meeting (typedef
+# struct address { name/street/city[32], state[3], zip[12] } Address)
+# — last meeting's designed-record lesson continues; the NEW material
+# is dynamic memory: an array of POINTERS book[MAX_ADDRESSES=5], ONE
+# scanf per record into a staging struct with the pinned format
+# "%31s %31s %31s %2s %11s" (all five arguments are char arrays: no
+# & anywhere; zip as a STRING keeps 02139's zero), the count==5
+# check BEFORE malloc (a short scan allocates nothing), malloc +
+# NULL check + struct-assignment stores the values into the heap
+# block, second loop prints each record via -> and free()s it the
+# moment its information is printed (pointer retired to NULL),
+# stderr instrumentation behind the student's DEBUG gate (starter
+# ships none), stdin from a file via <, WK08 branch continued and
+# the draft PR flipped to Ready at this meeting (reviewers attach
+# at the flip).
+#
+# Ground truth verified 2026-10-12 on the Mac (Apple clang) and on
+# silo (gcc 13.3.0, Ubuntu 24.04) — battery transcript at
+# fa26/lectures/probes/wk08d2_addresses/TRANSCRIPT.txt:
+#   addresses.txt (5 records) -> echo 5 lines + print 5 lines +
+#   "5 of 5 addresses in the book." exit 0; head -4 -> 4 + "4 of 5";
+#   head -3 -> 3; 4-field partial -> stdout "0 of 5" + <stop> 4
+#   fields and <alloc> count 0 (nothing allocated for a short scan);
+#   empty (EOF) -> "0 of 5" + <stop> end of input; 10 offered ->
+#   cap 5; sizeof(Address) = 111 on BOTH platforms (32+32+32+3+12,
+#   no padding: all-char struct, alignment 1; zip at offset 99) —
+#   the record is PROVIDED so 111 is expected, not graded;
+#   zip zero survives: "Cambridge, MA 02139";
+#   -DDEBUG=0 build SILENT (0 stderr bytes) with narration still in
+#   the source; reference build <alloc>/<free> symmetry: 5 and 5.
+#
+# Checker note: criterion 2 uses pattern_count with a SINGLE-LINE
+# regex (Address\s*\*\s*\w+\s*\[) — the array-of-pointers
+# declaration is one line; at_least:1 tolerates an extra array; TA
+# confirms malloc(sizeof(Address)), the NULL check, and the
+# struct-assignment store in the diff before awarding. Criterion 1's
+# pinned format is the mechanical needle; the TA confirms the count
+# check stands BEFORE the malloc in the diff.
+#
+# NOTE: must_contain_modified is the key _diff_content_check
+# actually reads (plain must_contain is a silent no-op: icex03-07).
+#
+# EXTRA CREDIT: none this meeting. (If a Canvas EC section is
+# added, it lands OUTSIDE this criteria sum per the standing rule.)
+
+assignment: ICEX12
+course: C291
+semester: FA26
+total_points: 10
+canvas_points: 10
+semester_start: 2026-08-24
+
+criteria:
+  - name: "ONE scanf per record into the staging record: \"%31s %31s %31s %2s %11s\", complete records only"
+    points: 2
+    checker: diff_content_check
+    params:
+      target_file: "addresses.c"
+      must_contain_modified: "%31s %31s %31s %2s %11s"
+    ratings:
+      - { points: 2, description: "One scanf call reads ONE record into the staging struct with the pinned five-width format (31/31/31/2/11 — state exact-fit at 2), all five arguments are char arrays with NO &, and the count==5 check stands BEFORE malloc: a return other than 5 leaves count unadvanced and allocates nothing (TA confirms position in the diff)" }
+      - { points: 1, description: "Pinned format present but a structural miss: the check sits AFTER the malloc (allocates on partial scans), a partial/EOF scan still advances count, or an argument misplaced (field order swaps)" }
+      - { points: 0, description: "No scanf, fewer than all five fields read, or the format paraphrased (widths wrong or dropped)" }
+
+  - name: "The book: Address * book[MAX_ADDRESSES] + malloc(sizeof(Address)) per record + values stored"
+    points: 3
+    checker: pattern_count
+    params:
+      target_file: "addresses.c"
+      pattern: "Address\\s*\\*\\s*\\w+\\s*\\["
+      expected_count: 1
+      comparison: "at_least"
+    ratings:
+      - { points: 3, description: "An array of Address POINTERS declared (book[MAX_ADDRESSES]); every complete record gets malloc(sizeof(Address)), the return is NULL-checked before use, and the whole staging record is copied into the heap block (struct assignment — one =) before the pointer goes into book[count] (TA confirms malloc + check + store in the diff)" }
+      - { points: 1.5, description: "Records stored in an Address book[MAX_ADDRESSES] array instead of pointers (the heap lesson lost), OR malloc present but its return never checked, OR the values stored field-by-field instead of one struct assignment (works — half credit loses the copy lesson)" }
+      - { points: 0, description: "No dynamic allocation at all — records live on the stack, or malloc result immediately dereferenced without check" }
+
+  - name: "Print pass through the pointer, release after each record prints"
+    points: 2
+    checker: diff_content_check
+    params:
+      target_file: "addresses.c"
+      must_contain_modified: "free("
+    ratings:
+      - { points: 2, description: "Second loop prints each record via the pointer (book[i]->name and friends, five fields, the echo's line shape) and the count line prints last; each record's free() comes AFTER its printf, and the pointer is retired (set NULL) so the array holds nothing dangling" }
+      - { points: 1, description: "Records printed and freed, but release is misplaced: all frees after the whole print loop (works — but not the after-each-print discipline), free BEFORE that record's printf, or no pointer retirement" }
+      - { points: 0, description: "No print pass from the heap records, or no free at all (every record leaks)" }
+
+  - name: "Instrumentation: #ifndef-DEBUG gate, tag-prefixed stderr narration, clean stdout"
+    points: 1
+    checker: manual_review
+    params:
+      label: "TA judges from the diff: #define DEBUG (wrapped #ifndef) defined by the student in addresses.c (starter ships none); every stderr line tagged (<read>/<alloc>/<store>/<stop>/<free> or the student's own tags) and gated; stdout carries only the echo + print pass + count line; verify with a -DDEBUG=0 run that the build is silent."
+    ratings:
+      - { points: 1, description: "DEBUG gate present (starter ships none — the definition is the student's), narration tag-prefixed behind if (DEBUG), stdout clean, and the -DDEBUG=0 build runs SILENT" }
+      - { points: 0.5, description: "Gate or tags present but narration leaks to stdout, or the quiet build still babbles" }
+      - { points: 0, description: "No instrumentation, or narration deleted instead of gated" }
+
+  - name: "Code Quality (Kurt's house style)"
+    points: 1
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 1, description: "Header comment block, prototypes above main, consistent 2-space indent, meaningful names, clean plain gcc compile" }
+      - { points: 0, description: "Style sloppiness: missing header block, no prototypes, chaotic indentation, or does not compile without flags" }
+
+  - name: "PR Workflow & Submission (WK08 flip)"
+    points: 1
+    checker: pr_url_valid
+    params:
+      github_host: "github.iu.edu"
+      min_comment_length: 10
+    ratings:
+      - { points: 1, description: "WK08 PR (the ICEX11 draft) gains the address-book commit, is flipped to READY FOR REVIEW at this meeting, reviewers (instructor + TA) assigned at the flip; run evidence (one full run's stdout) posted in the PR; Canvas holds the URL" }
+      - { points: 0, description: "No PR / PR still in draft at this meeting / merged early / new wrong branch (the pattern is ONE branch grown across meetings) / URL invalid or missing" }
+# ICEX12 rubric ends. All criteria sum: 2+3+2+1+1+1 = 10. ✓
