@@ -1,0 +1,159 @@
+# Rubric for ICEX13-FA26-C291 (bitwise: designed bit-field clock register)
+#
+# Canvas assignment: 10 points. Rubric total = 10 = canvas_points.
+# Stated purposes: THE RECORD IS DESIGNED AGAIN (ICEX11 mode — the
+# alternation continues: designed 11 -> provided 12 -> designed 13).
+# New material: bit masks + shift operators + the four moves + bit
+# fields in structs. The program's shape: read up to five CLOCK
+# TIMES, one per line, in the familiar HH:MM:SS form (12:34:56),
+# storing each as a bit-encoded record in a STRUCT OF BIT FIELDS,
+# one struct per line, in an ARRAY OF STRUCTS; after the input
+# loop, a DISPLAY LOOP prints the times FROM THE STRUCTS. The
+# student typedefs a clock record from RANGES
+# (hour 0..23, minute 0..59, second 0..59 — briefed without C types),
+# hour riding in the HIGH-order bits; reads with the pinned
+# "%u:%u:%u" (LITERAL colons: a spaces-instead-of-colons line
+# matches 1 field and stops; 09 scans as 9); the field-count check
+# (==3) AND the range check stand BETWEEN the scan and any packing
+# (a wide-enough field silently truncates: 65 offered to a 5-bit
+# hour returns 1 — proven below); every record is packed TWICE —
+# into the struct (compiler writes the masks) and into one unsigned
+# word BY HAND (shifts and |, shift amounts from the student's own
+# widths); the display loop emits, per record: a TIME line FROM THE
+# STRUCT (%02u:%02u:%02u — 02 is a minimum width, so 09 displays as
+# 09) plus a BITS line (exactly the record's used bits,
+# most-significant first) plus a DECODE line (fields pulled back
+# out by shift + mask, same clock shape), with the struct-vs-word
+# agreement narrated (<agree>); NO echo in the read loop — the
+# display loop is stdout's only narrator besides the count line;
+# stderr instrumentation behind the student's DEBUG gate (starter
+# ships none; it SHIPS the TAG_* label macros and a commented
+# example fprintf narration line); WK09 branch born this meeting;
+# DRAFT PR; run evidence in the PR; Canvas holds the draft URL only.
+#
+# Designed-mode rubric notes (ICEX11 precedent):
+#  - criterion 2's needle is pattern_count with a SINGLE-LINE regex —
+#    bit-field members are declared one per line; at_least:3 tolerates
+#    extra declarations; the TA confirms the widths carry the ranges
+#    (59 must fit both minute and second widths' max) and that the
+#    hand-packed word uses shifts + | in the diff.
+#  - the reference layout (hour:5 minute:6 second:6 = 17 bits,
+#    sizeof 4, words 0x17efb/0xc8b8/0x9a45/0x1/0xc000 for times.txt)
+#    is INSTRUCTOR-REFERENCE DATA, never a graded expectation.
+#
+# Ground truth verified 2026-10-19 on BOTH classroom platforms:
+#   - Mac (Apple clang 21.0.0 — where `gcc` IS clang): transcript
+#     fa26/lectures/probes/wk09d1_bitmasks_clock/TRANSCRIPT.txt
+#     (rerunnable: local_battery.sh, same directory)
+#   - silo (gcc 13.3.0, Ubuntu 24.04; transfer md5-verified):
+#     SILO_TRANSCRIPT.txt (battery) via silo_battery.sh (rerunnable)
+#   DATA NOTE: times.txt CARRIES ITS TRAILING NEWLINE (fixed
+#   2026-10-19). Without it, `cat times.txt times.txt` GLUES line 5
+#   to line 6 and the doubled run's slot 4 reads "12 0 23" —
+#   identically on BOTH platforms: both-agreeing output is not
+#   evidence of a correct file.
+#   Stdout IDENTICAL on both platforms (v3, HH:MM:SS format):
+#   times.txt (5 lines) -> 5 x (TIME-from-struct + BITS 17 cols
+#   + DECODE) + "5 of 5 times in the register." rc 0; head -4/-3/-2
+#   -> 4/3/2 of 5; doubled (10 clean lines offered) -> cap 5;
+#   '0:0:0' -> 17 zero bits + "1 of 5"; '24:0:0'/'12:60:30'/'0:0:61'
+#   -> "<stop> out of range" + "0 of 5"; '12 34 56' (spaces, no
+#   colons) -> "<stop> 1 fields" + "0 of 5"; '12:34' -> "<stop> 2
+#   fields" + "0 of 5"; EOF -> "<stop> EOF" + "0 of 5"; reference
+#   -Wall clean on BOTH; -DDEBUG=0 -> stderr 0 bytes on BOTH (gate
+#   ON narrates; stdout identical on/off).
+#   scanf semantics verified live: "09:41:07" scans 9/41/7; "12::34"
+#   and "12 34 56" (spaces) all stop at the first unmatched colon
+#   -> 1 field.
+#   Truncation probe: 65 assigned into the 5-bit member holds 1
+#   (65 & 31 = 1), and BOTH compilers warn on the constant probe in
+#   their own words — Apple clang [-Wbitfield-constant-conversion]
+#   "implicit truncation from 'int' to bit-field changes value from
+#   65 to 1"; silo gcc [-Woverflow] "unsigned conversion from 'int'
+#   to 'unsigned char:5' changes value from '65' to '1'".
+#   sizeof(Clock) = 4 on BOTH platforms (reference layout).
+#
+# Checker note: criterion 1's pinned format is the mechanical needle;
+# the TA confirms the count check and the range check both stand
+# BEFORE any packing in the diff. Criterion 3's needle counts '>>'
+# uses (three decode shifts minimum + the bits-loop shift).
+#
+# NOTE: must_contain_modified is the key _diff_content_check
+# actually reads (plain must_contain is a silent no-op: icex03-07).
+#
+# EXTRA CREDIT: none this meeting. (If a Canvas EC section is added,
+# it lands OUTSIDE this criteria sum per the standing rule.)
+
+assignment: ICEX13
+course: C291
+semester: FA26
+total_points: 10
+canvas_points: 10
+semester_start: 2026-08-24
+
+criteria:
+  - name: "ONE scanf per line: %u:%u:%u (HH:MM:SS, literal colons), field-count check AND range check standing before any packing"
+    points: 2
+    checker: diff_content_check
+    params:
+      target_file: "clock.c"
+      must_contain_modified: "%u:%u:%u"
+    ratings:
+      - { points: 2, description: "One scanf call reads ONE HH:MM:SS line with the pinned format (LITERAL colons — the input's own shape; all three arguments carry &), the return!=3 check ends the loop uncounted (partial line, unmatched colon, or EOF, <stop> logged), AND the range check (0..23 / 0..59 / 0..59) stands between the scan and any packing — an out-of-range value stops the run, logged, uncounted (TA confirms both checks' position in the diff)" }
+      - { points: 1, description: "Pinned format present but a structural miss: range check AFTER packing (the truncation happens before the rejection), a short scan still advances count, or a partial line silently packs" }
+      - { points: 0, description: "No scanf, fewer than all three fields read, or the format paraphrased (%d in place of %u, colons dropped or spaces used, widths inserted)" }
+
+  - name: "Designed register: three bit-field members carrying the ranges + the hand-packed word (shifts + |), both stored"
+    points: 3
+    checker: pattern_count
+    params:
+      target_file: "clock.c"
+      pattern: "(unsigned\\s+(int\\s+)?|int\\s+)\\w+\\s*:\\s*\\d+"
+      expected_count: 3
+      comparison: "at_least"
+    ratings:
+      - { points: 3, description: "The student typedefs the record: three bit-field members whose widths carry the ranges (23 fits the hour width's maximum, 59 fits BOTH the minute and second widths' maxima; hour in the high-order bits), records stored into an ARRAY of structs (one slot per clock line, counted), and every complete record is also packed BY HAND into one unsigned word with << and | (shift amounts from the student's own widths) — both representations stored and counted (TA confirms widths + shifts in the diff)" }
+      - { points: 1.5, description: "Struct packs but the hand word is missing (the mask lesson lost), OR the hand word exists but the record is not bit fields (ordinary int members), OR a width cannot carry its range (hour:4 holds at most 15 — an impossible design the range check then papers over)" }
+      - { points: 0, description: "No designed record / no packing of either representation — values flow straight from input to output unpacked" }
+
+  - name: "Display loop: the TIME line from the structs + the BITS line + the DECODE round trip (struct == decode)"
+    points: 2
+    checker: pattern_count
+    params:
+      target_file: "clock.c"
+      pattern: ">>"
+      expected_count: 3
+      comparison: "at_least"
+    ratings:
+      - { points: 2, description: "Second loop walks the array of structs and prints per record: the TIME line displayed FROM THE STRUCT (the three bit-field members reassembled into the clock shape), the BITS line (exactly the used bits, most-significant first — the select-one-bit mask walked down), and the DECODE line (three fields pulled back out of the hand word by shift down + & mask, printed in the same clock shape), with the struct-vs-word agreement narrated (<agree> or equivalent); the struct's time equals the decode for every stored slot (TA confirms the decode masks and the agreement line in the diff)" }
+      - { points: 1, description: "Display from the structs or decode present but the round trip is broken: decode printed without masks (borrowing neighbors' bits), bits line counts the whole 32-bit word, the time printed from something other than the stored structs, or the agreement is never proven" }
+      - { points: 0, description: "No display loop from the stored records, or no decode (stdout never shows the round trip)" }
+
+  - name: "Instrumentation: #ifndef-DEBUG gate, tag-prefixed stderr narration, clean stdout"
+    points: 1
+    checker: manual_review
+    params:
+      label: "TA judges from the diff: #define DEBUG (wrapped #ifndef) defined by the student in clock.c (starter ships none), with the starter's TAG_* label macros carrying every tag — the commented example fprintf line extended, not reinvented; every stderr line tagged (<read>/<pack>/<stop>/<agree> or the student's own tags) and gated; stdout carries only the display loop's lines + count line; verify with a -DDEBUG=0 run that the build is silent."
+    ratings:
+      - { points: 1, description: "DEBUG gate present (starter ships none — the definition is the student's), narration tag-prefixed behind if (DEBUG), stdout clean, and the -DDEBUG=0 build runs SILENT" }
+      - { points: 0.5, description: "Gate or tags present but narration leaks to stdout, or the quiet build still babbles" }
+      - { points: 0, description: "No instrumentation, or narration deleted instead of gated" }
+
+  - name: "Code Quality (Kurt's house style)"
+    points: 1
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 1, description: "Header comment block, consistent 2-space indent, meaningful names (nothing pre-named is renamed incoherently), clean plain gcc compile" }
+      - { points: 0, description: "Style sloppiness: missing header block, chaotic indentation, or does not compile without flags" }
+
+  - name: "PR Workflow & Submission (WK09 draft)"
+    points: 1
+    checker: pr_url_valid
+    params:
+      github_host: "github.iu.edu"
+      min_comment_length: 10
+    ratings:
+      - { points: 1, description: "WK09 branch born this meeting (checkout -b from an up-to-date main), PR opened AS A DRAFT at this meeting with the run evidence (one full ./clock.bin < times.txt stdout) in the PR description or a comment; Canvas holds only the draft PR URL" }
+      - { points: 0, description: "No PR / PR immediately Ready-for-review (the flip belongs to the NEXT ICEX's pattern) / merged early / wrong branch / URL invalid or missing" }
+# ICEX13 rubric ends. All criteria sum: 2+3+2+1+1+1 = 10. ✓

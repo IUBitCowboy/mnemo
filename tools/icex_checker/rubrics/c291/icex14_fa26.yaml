@@ -1,0 +1,193 @@
+# Rubric for ICEX14-FA26-C291 (function pointers: qsort's comparator, the honor roll)
+#
+# Canvas assignment: 10 points. Rubric total = 10 = canvas_points.
+# Stated purposes: THE RECORD IS PROVIDED this meeting (the alternation
+# continues: designed 11 -> provided 12 -> designed 13 -> provided 14 —
+# typedef struct student { int studentID; float gpa } Student; a
+# main-local roster of 6, IDs 6-digit whole values, GPAs fractions).
+# New material: FUNCTION POINTERS — qsort()'s comparator. The starter
+# ships print_roster (pinned "%d %.2f"), the count line
+# ("%d of %d students in the roster."), and TAG_SORT — NO comparator,
+# NO qsort call, NO #define DEBUG anywhere (the gate is the student's).
+# The student writes TWO comparators in qsort's own shape — both
+# parameters const void * (the library's blind pointers), the cast to
+# the record's const pointer type FIRST (its own parens), then a SIGN
+# returned: by studentID LOW to HIGH (subtraction idiom — whole
+# 6-digit IDs, gaps inside int range; the theory table asks what a
+# trillion-spaced 10-digit pair does), by GPA HIGH to LOW (the SCALE
+# idiom — RULING 2026-10-21: GPAs carry fixed two-decimal precision,
+# scale EACH by 100 and cast EACH scaled value, THEN subtract,
+# operands swapped; the cast never rides the raw difference —
+# truncating THAT turns every sub-1.0 fraction gap into "tied":
+# (int)(3.11f-3.02f) = 0, proven below, and -Wall stays SILENT about
+# it). Two qsort calls — roster, count,
+# sizeof roster[0], the comparator's NAME — each followed by
+# print_roster: three views in place (declared, by-ID, by-GPA), the
+# second sort reorders the array the first one already reordered.
+# NO input file this meeting — no scanf battery; the battery is the
+# three-view run + the silenced gate. stderr narration behind the
+# student's DEBUG gate. WK09 branch CONTINUED (the ICEX13 draft);
+# SAFE HARBOR (RULING 2026-10-21): both comparators DEFINED and
+# compiling, the branch PUSHED to the student's repo by 4:00 PM the
+# day of class — that push IS the extension request (the standing
+# one-week extension, granted; the late cap applies only to a
+# missed harbor). The PR flip to Ready, the run evidence, and the
+# Canvas link ride the extension week. Reviewers attach at the
+# flip — both commits, clock register + honor roll, one branch.
+#
+# PIPELINE (RULING 2026-10-21): the class-repo README.md is the
+# markdown GALLEY — the instructor edits and signs off on it, then
+# the publishable surfaces (fa26/canvas/icex14_canvas.html and this
+# rubric) regenerate from the signed galley. The canvas carries a
+# DRAFT marker until sign-off.
+#
+# Designed/provided-mode notes (ICEX12 precedent):
+#  - the record is PROVIDED so sizeof is expected, not graded;
+#  - the pinned print shape (%d %.2f) and the count line live INSIDE
+#    the provided print_roster in the student's own first commit —
+#    they are NOT rubric needles (trivially present in the diff);
+#    the needles target what the STUDENT writes: the casts and the
+#    two qsort calls.
+#
+# Ground truth verified 2026-10-21 on the Mac (Apple clang 21.0.0):
+#   transcript fa26/lectures/probes/wk09d2_fncptr_qsort/TRANSCRIPT_LOCAL.txt
+#   (rerunnable: battery.sh, same directory)
+#   - starter wire-check: declared block + "6 of 6 students in the
+#     roster." rc 0; plain + -Wall clean builds
+#   - reference stdout (6 records, pinned shape):
+#     declared 102431/100612/107745/104318/101203/103902; by ID
+#     100612/101203/102431/103902/104318/107745; by GPA DESC
+#     104318/100612/101203/102431/103902/107745; count last; rc 0
+#   - -DDEBUG=0: 0 stderr bytes, stdout IDENTICAL to verbose
+#   - the scale idiom (RULING 2026-10-21, probe_scale.c): all six
+#     roster GPAs scale EXACT — (int)(gpa*100) = 311/387/294/400/
+#     351/302, every raw print .000000000; the scale-sorted order is
+#     IDENTICAL to the verdict form's; the 2.00..4.00 sweep: 8 of
+#     201 two-decimal values nick a hundredth off the floor (2.09
+#     -> 208, raw 208.999984741) and TWO pairs scale EQUAL (2.08 &
+#     2.09 -> both 208; 2.33 & 2.34 -> both 233) — man 3 qsort's tie
+#     line covers them; silo sweep PENDING (plain IEEE arithmetic —
+#     expect the same numbers)
+#   - comparator call counts: the by-ID pass makes 10 comparisons,
+#     the by-GPA pass 9 — the second sort's INPUT is the first
+#     sort's output (fewer comparisons against a sorted array); the
+#     count is narration, never a pin
+#   - sizeof(int)=4, sizeof(float)=4, sizeof(Student)=8 (no padding)
+#   - the subtraction trap: (int)(2.94f-4.00f)=1 [raw 1.059999943];
+#     (int)(3.87f-3.11f)=0 [-0.759999990]; (int)(3.11f-3.02f)=0
+#     [-0.089999914]; the trap-sorted roster moves ONLY the
+#     (4.00,2.94) pair and freezes the fractions' order — visible
+#     failure, NO compiler warning (verified -Wall silence)
+#   - cast parens: (const Student *)a->gpa -> Apple clang ERROR
+#     "member reference base type 'const void' is not a structure or
+#     union" (+ -Wformat secondary); fixed ((const Student *)a)->gpa
+#     compiles and prints 2.94
+#   - comparator with a WRONG signature (Student * params): Apple
+#     clang ERROR -Wincompatible-function-pointer-types (probe_compat.c)
+#   - missing <stdlib.h>: Apple clang compiles SILENT rc=0 AND RUNS
+#     (nm shows U _qsort) — the nastiest missing include; silo's gcc
+#     verdict PENDING
+#   - nm on Apple: leading-underscore decoration (T _by_id,
+#     T _by_gpa_desc); runtime %p addresses ≠ nm's link addresses
+#     (loader placement; within-run stable across runs of the probe)
+#   SILO BATTERY PENDING (silo ssh blocked on key unlock when built):
+#   add silo gcc 13.3.0 lines to this header from SILO_TRANSCRIPT.txt
+#   before shipping this rubric — expected diffs: GNU nm symbol names,
+#   the implicit-declaration WARNING on missing stdlib.h, pair-call
+#   COUNT in glibc's qsort (stderr narration may differ in count even
+#   when stdout is identical).
+#
+# Checker note: criterion 2's needle counts qsort( on ADDED lines
+# (at_least 2 — both calls; TA confirms the four arguments, the
+# print-between, and both directions from the run evidence).
+# Criterion 1's needle counts (const Student * casts (at_least 2 —
+# one per comparator; single-line pattern; TA confirms the pinned
+# returns in the diff — subtraction by ID, the scale idiom by GPA). The display contract (criterion 3) is
+# behavior — manual_review from the run evidence.
+#
+# NOTE: must_contain_modified is the key _diff_content_check
+# actually reads (plain must_contain is a silent no-op: icex03-07).
+#
+# EXTRA CREDIT: none this meeting. (If a Canvas EC section is added,
+# it lands OUTSIDE this criteria sum per the standing rule.)
+
+assignment: ICEX14
+course: C291
+semester: FA26
+total_points: 10
+canvas_points: 10
+semester_start: 2026-08-24
+
+criteria:
+  - name: "Two comparators in qsort's own shape — const void * blind pointers cast FIRST (own parens), a SIGN returned each way"
+    points: 2
+    checker: pattern_count
+    params:
+      target_file: "honor_roll.c"
+      pattern: "\\(\\s*const\\s+Student\\s*\\*"
+      expected_count: 2
+      comparison: "at_least"
+    ratings:
+      - { points: 2, description: "Two comparator functions are defined above main, EACH with qsort's own shape (both parameters const void * — the blind pointers the library hands you), each body casting them FIRST into the record's const pointer type (the cast in its own parens) and returning a SIGN the library can act on: the by-ID one ascending (subtraction is the idiom for whole IDs), the by-GPA one HIGH to low via the pinned SCALE idiom (each GPA scaled by 100, EACH scaled value cast, THEN subtracted — the cast never rides the raw difference; operands swapped for the direction). TA confirms both signatures, both casts (-> fires after the cast), and both returns in the diff" }
+      - { points: 1, description: "Both comparators defined and working but the discipline slips in one place: the by-GPA return truncated (the Task 3 trap left shipped — sorts fractions as ties), the by-GPA comparator returning VERDICTS instead of the pinned scale idiom (correct order, the pin half-met — Task 3's sweep shows what the scale delivers), a cast performed without its parens discipline (the arrow read before the cast), the cast never performed (const Student * x = a; — legal C, lesson missed), or one parameter typed as the record instead of blind void *" }
+      - { points: 0, description: "No comparators of the student's own (qsort never gets a function of theirs), or returns that break the sign contract (booleans-only, always 0, or reversed without a stated direction)" }
+
+  - name: "The two qsort() calls — four arguments each (roster, count, element size, the comparator BY NAME), views printed between"
+    points: 3
+    checker: pattern_count
+    params:
+      target_file: "honor_roll.c"
+      pattern: "qsort\\s*\\("
+      expected_count: 2
+      comparison: "at_least"
+    ratings:
+      - { points: 3, description: "Two qsort calls reorder the roster IN PLACE — each carrying the roster, the count, sizeof roster[0], and the comparator's NAME (no & — the name IS the address); print_roster runs between and after so all three views display (declared, by-ID, by-GPA); both directions match the pins (ID low-to-high, GPA high-to-low) as the run evidence shows. TA confirms directions in the run evidence and the argument list in the diff" }
+      - { points: 1.5, description: "Two qsort calls but a mechanical miss: one direction swapped (by-GPA ascending — the operand swap forgotten), the middle print missing (the by-ID view printed after the second sort already re-ordered it, or never printed), or the comparator handed with &name or with an extra () pair (works — but the name-IS-the-address lesson lost)" }
+      - { points: 0, description: "No working qsort call (sort call commented, wrong arguments, or the record's ELEMENT size given instead of the array's — a count passed where a size belongs), or the comparator invoked directly instead of handed to the library" }
+
+  - name: "The display contract: three views through the provided print_roster + the count line last, stdout clean"
+    points: 2
+    checker: manual_review
+    params:
+      label: "TA verifies from the run evidence in the PR + the diff: three blocks in order (declared first, then by-ID low-to-high, then by-GPA high-to-low), every record line through the PROVIDED print_roster in the pinned %d %.2f shape (no re-invented renderer), the count line (%d of %d students in the roster.) printing LAST, and stdout carrying nothing else. The PR carries one full ./honor_roll.bin stdout as the evidence of record."
+    ratings:
+      - { points: 2, description: "Three views in the pinned order, all through the provided print shape, count line last, stdout otherwise silent; the run's stdout pasted in the PR" }
+      - { points: 1, description: "Views present but misordered or incomplete: only two blocks shown, a block printed after the sort that destroyed its order claim, or the count line not last" }
+      - { points: 0, description: "Sorted output never demonstrated in the PR, stdout carries narration, or the views printed from a DIFFERENT structure than the roster the sorts reordered" }
+
+  - name: "Instrumentation: #ifndef-DEBUG gate, tag-prefixed stderr narration, clean stdout"
+    points: 1
+    checker: manual_review
+    params:
+      label: "TA judges from the diff: #define DEBUG (wrapped #ifndef) defined by the student in honor_roll.c (starter ships none), with the starter's TAG_SORT label carrying every tag — the commented example fprintf line extended, not reinvented; every stderr line tagged (<sort> or the student's own labels) and gated; stdout carries only print_roster's lines + the count line; verify with a -DDEBUG=0 run that the build is silent."
+    ratings:
+      - { points: 1, description: "DEBUG gate present (starter ships none — the definition is the student's), narration tag-prefixed behind if (DEBUG), stdout clean, and the -DDEBUG=0 build runs SILENT" }
+      - { points: 0.5, description: "Gate or tags present but narration leaks to stdout, or the quiet build still babbles" }
+      - { points: 0, description: "No instrumentation, or narration deleted instead of gated" }
+
+  - name: "Code Quality (Kurt's house style)"
+    points: 1
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 1, description: "Header comment block, helpers defined above main, consistent 2-space indent, meaningful names, clean plain gcc compile" }
+      - { points: 0, description: "Style sloppiness: missing header block, chaotic indentation, or does not compile without flags" }
+
+  - name: "PR Workflow & Submission (the 4 PM safe harbor + the WK09 flip)"
+    points: 1
+    checker: pr_url_valid
+    params:
+      github_host: "github.iu.edu"
+      min_comment_length: 10
+    ratings:
+      - { points: 1, description: "WK09 PR (the ICEX13 draft) gains the honor-roll commit with BOTH comparators defined and compiling, PUSHED to the student's repo by 4:00 PM the day of class — the safe harbor, which IS the extension request (the standing one-week extension, granted); flipped to READY FOR REVIEW with the run evidence (one full ./honor_roll.bin stdout) posted in the PR within the week; reviewers (instructor + TA) assigned at the flip; Canvas holds the URL" }
+      - { points: 0, description: "No PR / the safe-harbor push never landed (the extension was never requested — the standing late policy applies; note it in the report) / still draft at week's end / merged early / a NEW branch born instead of returning to WK09 / URL invalid or missing" }
+
+  - name: "debug_log.md carries Task 3's six proofs (evidence row — 0 pts, feeds criteria 2 and 3)"
+    points: 0
+    checker: manual_review
+    params:
+      label: "EVIDENCE ROW, 0 points: debug_log.md (the file the clock register's entries already hold) gains today's section with the six proofs — (1) the subtraction trap's pair math + the trap-sorted block, (2) the scale sweep on both platforms (the six exact landings, the 8 of 201 nicked hundredths, the two merged pairs), (3) both compilers' words on the broken cast, (4) the sizeof line both platforms, (5) nm on the student's own binary + the %p contrast, (6) the missing-include verdict both platforms. MISSING proofs downgrade criteria 2 and 3 a tier before they are docked again for the underlying fault alone — the proofs are the record that the discipline was UNDERSTOOD, not just performed."
+    ratings:
+      - { points: 0, description: "Proofs present in debug_log.md (any of the six carries their own run/paste) — no points change; feeds criteria 2 and 3's tier choice" }
+# ICEX14 rubric ends. Criteria sum: 2+3+2+1+1+1 = 10 (the evidence row rides at 0). ✓
