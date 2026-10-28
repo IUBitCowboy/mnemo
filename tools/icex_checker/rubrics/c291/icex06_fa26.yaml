@@ -41,7 +41,7 @@ criteria:
     checker: diff_content_check
     params:
       target_file: "ICEX06.c"
-      must_contain: "short"
+      must_contain_modified: "short"
     ratings:
       - { points: 1,   description: "Two 4-cell short arrays: one initialized 1-4, the other zero-initialized via null set ({0}); a separate variable tracks the index" }
       - { points: 0,   description: "Wrong type/size, wrong values, or zero-array written as explicit {0,0,0,0} instead of the null set" }
@@ -51,7 +51,7 @@ criteria:
     checker: diff_content_check
     params:
       target_file: "ICEX06.c"
-      must_contain: "for"
+      must_contain_modified: "for"
     ratings:
       - { points: 2,   description: "for loop prints a 4-row table listing cell number and each array's value at that cell (a = 1..4, b = 0 0 0 0)" }
       - { points: 1,   description: "Table printed but incomplete (missing cell number or one array) or wrong loop construction used" }
@@ -62,7 +62,7 @@ criteria:
     checker: diff_content_check
     params:
       target_file: "ICEX06.c"
-      must_contain: "while"
+      must_contain_modified: "while"
     ratings:
       - { points: 2,   description: "while loop writes double each initialized cell into the corresponding cell of the other array — final b = 2, 4, 6, 8 (verified values)" }
       - { points: 1,   description: "Loop present but doubling or cell correspondence wrong (e.g. copies without doubling, off-by-one, overwrites array a)" }
@@ -73,7 +73,7 @@ criteria:
     checker: diff_content_check
     params:
       target_file: "ICEX06.c"
-      must_contain: "do"
+      must_contain_modified: "do"
     ratings:
       - { points: 2,   description: "do/while loop reprints the 4-row table with updated values (a = 1..4, b = 2 4 6 8)" }
       - { points: 1,   description: "Reprint present but wrong loop construction (plain while/for) or values stale/wrong" }

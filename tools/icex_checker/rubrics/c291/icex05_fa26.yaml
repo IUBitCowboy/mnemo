@@ -46,7 +46,7 @@ criteria:
     checker: diff_content_check
     params:
       target_file: "ledger.c"
-      must_contain: "%c"
+      must_contain_modified: "%c"
     ratings:
       - { points: 3,   description: "Fix applied to read #4 only; program records verdict 'A' (code 65) for the exact given input (100 / 98.6 / delivery of ale / A); badge, temperature, reason lines unaffected" }
       - { points: 1.5, description: "Fix attempted but verdict still wrong, or the fix altered/broke the other three reads (e.g. swallowed reason text), or more than the one-character change was needed and side effects remain" }
@@ -57,7 +57,7 @@ criteria:
     checker: diff_content_check
     params:
       target_file: "ledger.c"
-      must_contain: "INPUT ERROR"
+      must_contain_modified: "INPUT ERROR"
     ratings:
       - { points: 2,   description: "Non-numeric badge (e.g. abc) prints exactly 'INPUT ERROR: badge not a number', returns 1, exits immediately (no temperature/reason/verdict reads); uses scanf's return value" }
       - { points: 1,   description: "Validation present but message text differs, does not return 1 / exit, or later reads still execute after the error" }

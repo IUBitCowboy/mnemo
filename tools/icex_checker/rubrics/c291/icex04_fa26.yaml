@@ -34,7 +34,7 @@ criteria:
     checker: diff_content_check
     params:
       target_file: "ICEX04.c"
-      must_contain: "unsigned char"
+      must_contain_modified: "unsigned char"
     ratings:
       - { points: 2,   description: "Program description block present AND pre-code prediction written out (expected first 4 rows + final decimal value, in comment block or accompanying file)" }
       - { points: 1,   description: "Description block present but prediction missing (or prediction without description block)" }
@@ -45,7 +45,7 @@ criteria:
     checker: diff_content_check
     params:
       target_file: "ICEX04.c"
-      must_contain: "%X"
+      must_contain_modified: "%X"
     ratings:
       - { points: 3,   description: "Header row (Power of 2 / Hexadecimal / Decimal); each row shows 2^i label, hex and decimal values separated by six spaces, printed with %X and %d" }
       - { points: 1.5, description: "Table present but format deviates: wrong separator, missing header, 2^i form missing, or hex/decimal swapped or misformatted" }
@@ -56,7 +56,7 @@ criteria:
     checker: diff_content_check
     params:
       target_file: "ICEX04.c"
-      must_contain: "unsigned char"
+      must_contain_modified: "unsigned char"
     ratings:
       - { points: 1,   description: "Result value declared as unsigned char AND a separate variable tracks the power index" }
       - { points: 0,   description: "Wrong value type (e.g. int/short) or no index variable" }
@@ -66,7 +66,7 @@ criteria:
     checker: diff_content_check
     params:
       target_file: "ICEX04.c"
-      must_contain: "while"
+      must_contain_modified: "while"
     ratings:
       - { points: 3,   description: "while (or do/while) loop terminates by detecting the unsigned char overflow (e.g. value wraps to 0, or next doubling would exceed 255) — NOT by counting powers; final printed decimal = 128 (2^7, hex 80)" }
       - { points: 1.5, description: "Loop prints powers of 2 but terminates by power-index count instead of overflow detection (spec MUST violated); or prints past overflow / stops early" }

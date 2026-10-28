@@ -33,7 +33,7 @@ criteria:
     checker: diff_content_check
     params:
       target_file: "icex07.c"
-      must_contain: "getchar"
+      must_contain_modified: "getchar"
     ratings:
       - { points: 3,   description: "Loop reads characters from stdin and stops at whichever comes first: EOF or 255 characters (verified: 400-char input must still read exactly 255)" }
       - { points: 1.5, description: "Loop reads stdin but only one stop condition implemented (e.g. runs past the 255 cap, or stops early), or reads the whole input as one string/buffer instead of per character" }
@@ -44,7 +44,7 @@ criteria:
     checker: diff_content_check
     params:
       target_file: "icex07.c"
-      must_contain: "letter"
+      must_contain_modified: "letter"
     ratings:
       - { points: 3,   description: "Every character is labeled into the four categories correctly (verified sample: 16 letters, 7 whitespace incl. the trailing newline); ctype functions or equivalent manual logic" }
       - { points: 1.5, description: "Classification attempted but incomplete or partially wrong (e.g. whitespace category missing, space and newline conflated with 'other', digits mislabeled)" }
@@ -55,7 +55,7 @@ criteria:
     checker: diff_content_check
     params:
       target_file: "icex07.c"
-      must_contain: "Total"
+      must_contain_modified: "Total"
     ratings:
       - { points: 1,   description: "Total count printed once after the loop and matches the input actually used (23 for the sample line with newline)" }
       - { points: 0,   description: "Total missing or wrong (e.g. counts bytes of the buffer, not characters read)" }

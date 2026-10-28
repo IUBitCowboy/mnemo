@@ -22,7 +22,7 @@ criteria:
     checker: diff_content_check
     params:
       target_file: "ICEX03.c"
-      must_contain: "Program name"
+      must_contain_modified: "Program name"
     ratings:
       - { points: 2,   description: "Full comment block (name/programmer/description) AND expected-output file present" }
       - { points: 1,   description: "Comment block OR output_example.txt missing or incomplete" }
@@ -33,7 +33,7 @@ criteria:
     checker: diff_content_check
     params:
       target_file: "ICEX03.c"
-      must_contain: "do"
+      must_contain_modified: "do"
     ratings:
       - { points: 3,   description: "Correct do/while loop printing z..a, inner for loop formats 5 ASCII values per line" }
       - { points: 1.5, description: "Loop present but logic or 5-per-line format wrong; wrong loop type" }
@@ -44,7 +44,7 @@ criteria:
     checker: diff_content_check
     params:
       target_file: "ICEX03.c"
-      must_contain: "v"
+      must_contain_modified: "v"
     ratings:
       - { points: 1,   description: "(v) printed immediately after every vowel" }
       - { points: 0,   description: "Missing, misplaced, or wrong letters" }
@@ -54,7 +54,7 @@ criteria:
     checker: diff_content_check
     params:
       target_file: "ICEX03.c"
-      must_contain: "switch"
+      must_contain_modified: "switch"
     ratings:
       - { points: 3,   description: "while loop covers Z..a; complete switch classifies arithmetic / relational / other; fall-thru used as demonstrated in class" }
       - { points: 1.5, description: "Loop or switch present but classification incomplete or fall-thru not used correctly" }
