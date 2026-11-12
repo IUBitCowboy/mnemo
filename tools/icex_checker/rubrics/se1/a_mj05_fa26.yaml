@@ -1,0 +1,100 @@
+# Rubric for SE1 A_MJ05-FA26 (The Ethics Opener: Who Owns a Joke?)
+#
+# Canvas assignment: 30 points. Rubric total = 30 = canvas_points.
+# SUBMISSION SHAPE (FA26_MOJ_W12_ELEMENTS_TIMING_GLM.md, A_MJ05 ruled
+# 2026-11-07): Part (a) — each member logs positions ALONE in their own
+# devlog repo (fa26-devlog-<username>), NO deadline, ASSESSED BY ORDER:
+# the entry's commit must precede the team document's Canvas submission
+# (an entry after it caps that member's EngLog 1 point — the penalty
+# rides the EngLog line, NOT this rubric). Part (b) — ONE team document
+# at docs/a_mj05_ethics_opener.md, submitted as ONE direct GitHub blob
+# URL (one per team), on main.
+#
+# RULING FLAG: the 30-pt mapping below (5/15/7/3) is Mnemo's proposal
+# tabled in the delivered master; the sheet's rubric-mapping flag
+# ("Rubric mapping awaits Kurt's") — instructor confirm before TA
+# grading/push. Rows mirror the master table verbatim.
+#
+# WEIGHTS: 5 (Part a by order) + 15 (Answers + generated requirements)
+# + 7 (The trace) + 3 (Divergence honesty) = 30.
+#
+# EVIDENCE (0-pt rows, house pattern — the tool gathers GitHub-side
+# evidence, the TA awards points):
+#   - blob_link_valid: the Part (b) document exists at the rubric's
+#     fixed path/ref in the team repo.
+#   - devlog_before_canvas: per-membership commit evidence vs the team
+#     doc's Canvas submission timestamp.
+#
+# FERPA DATA SOURCES (NOT IN GIT — instructor share/OneDrive):
+#   roster.csv   — Team,TA,IU Username (standing FA26 roster)
+#   times_a_mj05.csv — Team,SubmittedAt (UTC ISO 8601) with the team
+#     document's Canvas submission timestamps, as read by the TA from
+#     Canvas. NO Canvas API access for AI (FERPA) — the TA supplies
+#     the timestamp. File name is a placeholder path; TAs set it.
+#
+# TA guidance: Part (a) is order-assessed, not content-assessed here —
+# "the rule buys thinking-before-meeting" (design rationale, master).
+# Divergence between Part (a) positions is DATA: a suspiciously
+# unanimous Part (a) with no note grades down the honesty row. Every
+# generated requirement carries its trace to a real artifact; a trace
+# to something that does not exist is a false statement of work.
+
+assignment: A_MJ05
+course: SE1
+semester: FA26
+type: team
+total_points: 30
+semester_start: 2026-08-24
+canvas_points: 30
+ownership_check: team
+roster_file: roster.csv   # OneDrive share, next to submissions
+
+criteria:
+  # ── Part (b): team document blob (0 pts — evidence only) ──
+
+  - name: "Team document in the repo at the ruled path"
+    points: 0
+    checker: blob_link_valid
+    params:
+      expected_path: "docs/a_mj05_ethics_opener.md"
+      expected_ref: "main"
+      expected_repo_pattern: "fa26_se1_team"
+
+  # ── Part (a): order-rule evidence (0 pts — TA awards the 5-pt row) ──
+
+  - name: "Devlog entries vs Canvas submission (order evidence)"
+    points: 0
+    checker: devlog_before_canvas
+    params:
+      timestamps_file: "times_a_mj05.csv"   # OneDrive share, TA-provided
+      devlog_repo_pattern: "fa26-devlog-{username}"
+      # target_file intentionally unset pending instructor confirmation
+      # of the Part (a) entry-file name; when set, only that path's
+      # commits count as order evidence.
+      # target_file: "docs/a_mj05_part_a.md"
+
+  # ── Canvas rubric criteria (TA awards points) ──
+
+  - name: "Part (a) by order"
+    points: 5
+    checker: manual_review
+    params:
+      label: "5 pts: every present member's entry committed to their own devlog BEFORE the team document's Canvas submission; positions read as first reactions, not team-agreed answers. An entry that lands after the submission caps that member's EngLog 1 point (the cap rides the EngLog line, not this score)."
+
+  - name: "Answers + generated requirements"
+    points: 15
+    checker: manual_review
+    params:
+      label: "Each section states a position with real reasoning, then generates requirements — actor, behavior, rationale each. Requirements that only restate the question ('jokes should be good') score accordingly."
+
+  - name: "The trace"
+    points: 7
+    checker: manual_review
+    params:
+      label: "Each requirement traced to a named, real artifact — a route, validator, column + migration, test, event type, or template in the repo. A trace to something that does not exist is a false statement of work."
+
+  - name: "Divergence honesty"
+    points: 3
+    checker: manual_review
+    params:
+      label: "The section reports where Part (a) actually disagreed, including anything left unresolved. Unanimous Part (a) across five questions with no note is suspicious and graded accordingly."

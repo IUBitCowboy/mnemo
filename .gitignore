@@ -115,5 +115,8 @@ yarn-error.log*
 *.swp
 *.swo
 
+# icex_checker local outputs (batch report dumps)
+tools/icex_checker/reports/
+
 # End of .gitignore.DS_Store
 BRIEFING_FA26.md

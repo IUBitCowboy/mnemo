@@ -42,17 +42,28 @@ Two external packages (everything else is Python standard library):
 | `requests` | HTTP client for GitHub Enterprise API |
 | `PyYAML` | Rubric file parser |
 
-Install them with:
+### Setup
+
+Create the venv once, inside this directory (the root repo `.gitignore`
+keeps `.venv/` out of git):
 
 ```bash
-pip install requests PyYAML
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
 ```
 
-Or if the repo's `requirements.txt` is available:
+Then run the tool and tests through the venv only — a bare `python3`
+on most machines has neither `PyYAML` nor `requests` and fails with
+`ModuleNotFoundError: No module named 'yaml'`:
 
 ```bash
-pip install -r requirements.txt
+.venv/bin/python icex_checker.py <submission.html> ...
+.venv/bin/python -m pytest tests/ -q        # tests need requirements-dev.txt
 ```
+
+`requirements.txt` carries the runtime two (`PyYAML`, `requests`);
+`requirements-dev.txt` adds `pytest` for the test suite. Both ship
+with the repo.
 
 ### GitHub Enterprise API Token
 
@@ -187,6 +198,8 @@ python3 icex_checker.py --batch <directory> [options]
 |----------|---------|-------------|
 | `<submission.html>` | (required) | Path to Canvas submission HTML file (positional, unless `--batch`) |
 | `--rubric FILE` | auto-detect | Path to rubric YAML file |
+| `--roster PATH` | rubric's `roster_file` | Team roster CSV (`Team,TA,IU Username[,Canvas Name]`) — a FERPA sidecar living on the instructor's OneDrive share beside the submissions. The flag wins over the rubric declaration; e.g. `--roster ../FA26_P465_Team_Roster.csv`. Missing file → EF-12 warning, run continues evidence-only |
+| `--teams LIST` | (none) | Grade only the listed teams — comma-separated ids in any form (`7`, `1,7,10`, `SE_TEAM07`). Requires the roster to resolve membership; batch mode processes only those teams' submitters (others print as `skipped`), and the summary ends with a **TEAM RESULTS** block per team: the PR score plus per-student wall scores with the `*` late markers (8.5). `summary.json` gains a `teams` section with the same rollup |
 | `--token TOKEN` | (env/gh) | GitHub Enterprise API token |
 | `--github-host HOST` | `github.iu.edu` | GitHub Enterprise host |
 | `--save-json FILE` | (none) | Save full assessment as JSON to this path |

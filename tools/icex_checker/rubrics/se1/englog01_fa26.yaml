@@ -1,0 +1,56 @@
+# Rubric for SE1 EngLog01-FA26 (Week 8, the founding week)
+#
+# Canvas assignment: 10 points. Rubric total = 10 = canvas_points.
+# SUBMISSION SHAPE: the blob URL of the entry file in the student's
+# PRIVATE devlog repo (fa26-devlog-<username>) pasted into the
+# "Week 8 | EngLog01" Canvas box. The entry file: wk08.md — starts
+# with the entry-type line (Type 1–4) and the date.
+#
+# GRADING RULING (Kurt, 2026-11-11): EngLog is graded on whether the
+# student ENGAGED with the material from the options that week and
+# provided EVIDENCE to back up their statements. The tool verifies
+# the blob resolves in the student's own devlog repo and surfaces the
+# entry; the engagement-plus-evidence judgment is the TA's.
+#
+# STANDING RULES (EngLog page lineage):
+#   - One entry per student for the week — W8's single entry SPANS the
+#     pair (MJ01 + MJ02): "the ONE specific moment that stuck", with
+#     the concrete artifact proving it.
+#   - Four entry types (choose one) — the pick is stated on the
+#     entry-type line.
+#   - NO late submissions: the contemporaneous value IS the point ("a
+#     log written two weeks later is a reconstruction, not a log").
+#     One grace miss per semester exists; use it deliberately.
+#   - Planted-problem note: the diagnosis (what was the problem, how
+#     the team identified it, how it was resolved) is the natural
+#     subject for a Type 1 entry — evidence is the artifact named.
+#
+# FERPA: the devlog repos are private per-student repos; the roster
+# maps usernames (OneDrive share, never in git).
+
+assignment: EngLog01
+course: SE1
+semester: FA26
+type: individual
+total_points: 10
+semester_start: 2026-08-24
+canvas_points: 10
+ownership_check: self
+
+criteria:
+  # ── Evidence (0 pts) ──
+
+  - name: "Entry file resolves in the devlog repo"
+    points: 0
+    checker: blob_link_valid
+    params:
+      expected_path: "wk08.md"
+      expected_repo_pattern: "fa26-devlog-"
+
+  # ── Canvas rubric criterion (TA awards points) ──
+
+  - name: "Engagement with the week's material, evidenced"
+    points: 10
+    checker: manual_review
+    params:
+      label: "10 pts: picks one of the four entry types (stated on the entry-type line, with the date); engages ONE specific moment from the week's material; every claim backed by concrete evidence — an artifact named, linked, or quoted from the team's own repo/PR. 7 pts: genuine engagement but evidence thin (assertions without the artifact). 5 pts: a summary of what the team did with no personal moment (reconstruction, not a log). 0 pts: missing/empty entry, or the blob does not resolve to the student's own devlog repo."

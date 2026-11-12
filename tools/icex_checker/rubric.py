@@ -218,8 +218,9 @@ def find_rubric(assignment_id, search_dir, course=None):
     # assignment token in the stem. With no course known, sweep the
     # course subdirectories too; a unique match auto-detects, and an
     # ambiguous match (same needle in two courses) returns None — the
-    # tool never guesses, the TA passes --rubric.
-    needle = assignment_id.lower()
+    # tool never guesses, the TA passes --rubric. Spaces in Canvas
+    # titles ('Team PR') normalize to the underscore file convention.
+    needle = assignment_id.lower().replace(" ", "_")
     search_dirs = list(search_roots)
     if not course:
         for sub in sorted((base / "rubrics").glob("*/")) if (base / "rubrics").is_dir() else []:

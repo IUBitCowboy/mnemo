@@ -15,9 +15,12 @@ adds the confirmation to the report's TA action items — the pass is not
 downgraded to needs-review because it would lose the points signal.
 """
 
+import csv
 import datetime
 import difflib
+import pathlib
 import re
+from typing import Optional
 
 from errors import (
     AuthFailureError,
@@ -51,6 +54,7 @@ class CheckerContext:
         self.pr_url = pr_url  # "https://host/owner/repo/pull/N"
         self.username = None  # IU username from Canvas filename (V1-3)
         self.roster = None    # Roster object or None (V1-1)
+        self.roster_path: Optional[str] = None  # --roster path; sidecars near it
         self.ownership_check = None  # rubric-level default (V1-1)
 
 
@@ -357,8 +361,23 @@ def _valid_student_repo(ctx, criterion):
     ]
     name = repo_info.name or ""
     if expected_pattern:
+        matched_regex = None
+        try:
+            matched_regex = re.fullmatch(expected_pattern, name, re.IGNORECASE)
+        except re.error:
+            matched_regex = None  # not a valid regex: treat as literal
         if name.lower() == expected_pattern.lower():
             pass  # exact match (case-insensitive)
+        elif matched_regex is not None:
+            # Regex patterns (e.g. 'fa26-team-\\d+-moj') full-match first;
+            # literal templates are unaffected — fullmatch of a literal
+            # on itself is the exact case already handled above.
+            evidence.append("repo name fullmatches pattern: %s" % expected_pattern)
+            return Finding(
+                criterion, "pass", criterion.points, evidence,
+                "Repo name '%s' matches the expected pattern '%s'." % (
+                    name, expected_pattern),
+            )
         elif _strip_seps(name) == _strip_seps(expected_pattern) or (
             expected_pattern.lower() in name.lower()
         ):
@@ -808,6 +827,846 @@ def _team_best_attribution(ctx, criterion):
     )
 
 
+def parse_github_url(url):
+    """Parse a GitHub submission URL: PR or blob (MoJ).
+
+    Returns a dict {kind, host, owner, repo, number, ref, path} where
+    kind is 'pull' or 'blob', or None when the URL matches neither
+    form. For blob URLs whose branch ref contains slashes, the split
+    is ambiguous; callers that know the expected path should verify
+    with _blob_ref_path_for() instead of relying on the naive split.
+    """
+    if not url:
+        return None
+    m = re.match(
+        r"https?://(?P<host>[^/\s\"'<>]+)/(?P<owner>[A-Za-z0-9_.-]+)/"
+        r"(?P<repo>[A-Za-z0-9_.-]+)/pull/(?P<number>\d+)",
+        url,
+    )
+    if m:
+        return {
+            "kind": "pull",
+            "host": m.group("host"),
+            "owner": m.group("owner"),
+            "repo": m.group("repo"),
+            "number": int(m.group("number")),
+            "ref": None,
+            "path": None,
+        }
+    m = re.match(
+        r"https?://(?P<host>[^/\s\"'<>]+)/(?P<owner>[A-Za-z0-9_.-]+)/"
+        r"(?P<repo>[A-Za-z0-9_.-]+)/blob/(?P<tail>[^\s\"'<>]+)",
+        url,
+    )
+    if m:
+        tail = m.group("tail")
+        if "/" in tail:
+            ref, path = tail.split("/", 1)
+        else:
+            ref, path = tail, ""
+        return {
+            "kind": "blob",
+            "host": m.group("host"),
+            "owner": m.group("owner"),
+            "repo": m.group("repo"),
+            "number": None,
+            "ref": ref,
+            "path": path,
+        }
+    return None
+
+
+def _blob_path_matches(parsed_path, expected_path):
+    """True when the parsed blob path ends with the expected repo path.
+
+    Handles slash-bearing branch refs, which make the ref/path split
+    ambiguous in parse_github_url: the criterion knows the expected
+    repo path, so the suffix decides.
+    """
+    if not expected_path:
+        return True, parsed_path
+    if parsed_path == expected_path:
+        return True, parsed_path
+    if parsed_path.endswith("/" + expected_path):
+        return True, expected_path
+    if "/" in parsed_path:
+        # Re-split: maybe the first '/' ended a slash-bearing ref that
+        # does not contain the expected path at all.
+        return parsed_path.endswith(expected_path), parsed_path
+    return False, parsed_path
+
+
+def _parse_utc(value):
+    """Parse an ISO 8601 timestamp; naive values are assumed UTC.
+
+    Accepts the trailing-Z Git/Canvas spelling. Returns an aware
+    datetime or None.
+    """
+    if not value:
+        return None
+    text = str(value).strip()
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    try:
+        dt = datetime.datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=datetime.timezone.utc)
+    return dt
+
+
+def _resolve_sidecar_path(raw, ctx):
+    """Resolve an instructor-share sidecar CSV (walls, timestamps).
+
+    Tries the path as given (usually the run directory), then — for a
+    relative path — the directory holding the roster file, since the
+    roster and the sidecars live together on the OneDrive share.
+    Returns the original string if nothing better exists (the caller's
+    missing-file handling reports it normally).
+    """
+    if not raw:
+        return raw
+    p = pathlib.Path(raw)
+    if p.is_absolute() or p.is_file():
+        return raw
+    if getattr(ctx, "roster_path", None):
+        cand = pathlib.Path(ctx.roster_path).parent / raw
+        if cand.is_file():
+            return str(cand)
+    return raw
+
+
+def _team_aliases(raw):
+    """Alias keys for a team id, for sidecar-CSV matching.
+
+    Rosters in the wild carry varying prefixes ('SE_TEAM01', 'team01').
+    Returns the full normalized form plus the trailing teamN token, so
+    a wall/timestamps CSV written either way resolves.
+    """
+    text = str(raw).strip().lower()
+    full = re.sub(r"^0+(\d)", r"\1", text)
+    aliases = [full]
+    m = re.search(r"team(\d+)$", full)
+    if m:
+        aliases.append("team" + m.group(1))
+    return aliases
+
+
+def _load_team_submission_times(path):
+    """Load the team->Canvas-submission-timestamps sidecar CSV (MoJ).
+
+    FERPA posture matches roster.csv: the file lives on the instructor
+    share, never in git. Expected columns: Team,SubmittedAt (UTC ISO
+    8601, e.g. 2026-11-14T21:05:00Z). Returns {normalized_team:
+    aware_datetime or raw-string}; failures return {} — the sidecar is
+    a convenience, never a hard requirement.
+    """
+    try:
+        with open(path, newline="", encoding="utf-8-sig") as fh:
+            rows = list(csv.DictReader(fh))
+    except OSError:
+        return {}
+    times = {}
+    for row in rows:
+        raw = (row.get("Team") or row.get("team") or "").strip()
+        stamp = (row.get("SubmittedAt") or row.get("submittedat") or "").strip()
+        if not raw or not stamp:
+            continue
+        for alias in _team_aliases(raw):
+            times.setdefault(alias, stamp.strip())
+    return times
+
+
+def _blob_link_valid(ctx, criterion):
+    """Verify a direct-GitHub blob URL resolves (MoJ).
+
+    Params:
+        expected_path: repo path the blob must point at (matched as a
+            full or suffix path, so slash-bearing refs parse OK).
+            Optional — no path check when omitted.
+        expected_ref: branch/SHA the blob must name (e.g. "main").
+            Optional.
+        expected_repo_pattern: substring the repo name must contain
+            (e.g. "fa26_se1_team"). Optional.
+
+    Assessment:
+        pass: URL is a blob, matches all given expectations, and the
+            file exists at the ref (contents API).
+        fail: URL is not a blob form, an expectation is violated, or
+            the contents endpoint reports the path missing.
+        needs-review: no URL in the submission, or API auth/rate-limit
+            blocked the check.
+    """
+    params = criterion.params
+    parsed = parse_github_url(ctx.pr_url)
+    if parsed is None:
+        return Finding(
+            criterion, "needs-review", None,
+            ["no recognizable GitHub URL in the submission"],
+            "The submission carries no PR/blob URL — TA should review it directly.",
+        )
+    if parsed["kind"] != "blob":
+        return Finding(
+            criterion, "fail", 0,
+            ["submission URL is a pull URL, not a blob URL"],
+            "Rubric expects a direct GitHub blob link (e.g. the team "
+            "document at its repo path); got %s." % ctx.pr_url,
+        )
+    evidence = ["url: %s" % ctx.pr_url]
+    owner, repo = parsed["owner"], parsed["repo"]
+    ok, effective_path = _blob_path_matches(parsed["path"], params.get("expected_path"))
+    if not ok:
+        evidence.append("path mismatch: %s" % parsed["path"])
+        return Finding(
+            criterion, "fail", 0, evidence,
+            "Blob points at '%s'; rubric expects '%s'."
+            % (parsed["path"], params.get("expected_path")),
+        )
+    expected_ref = params.get("expected_ref")
+    if expected_ref and parsed["ref"] != expected_ref:
+        evidence.append("ref mismatch: %s (expected %s)" % (parsed["ref"], expected_ref))
+        return Finding(
+            criterion, "fail", 0, evidence,
+            "Blob ref '%s' does not match the expected ref '%s'."
+            % (parsed["ref"], expected_ref),
+        )
+    pattern = params.get("expected_repo_pattern")
+    if pattern and pattern not in repo:
+        evidence.append("repo name does not match pattern: %s" % repo)
+        return Finding(
+            criterion, "fail", 0, evidence,
+            "Repo '%s' does not match expected pattern '%s'." % (repo, pattern),
+        )
+    try:
+        kind, content = ctx.client.get_file_contents(
+            owner, repo, effective_path, ref=parsed["ref"]
+        )
+    except (AuthFailureError, RateLimitError):
+        return Finding(
+            criterion, "needs-review", None, evidence,
+            "API auth/rate-limit issue blocked the contents query.",
+        )
+    evidence.append("contents kind: %s" % kind)
+    if kind == "file":
+        size = len(content or "")
+        evidence.append("size: %d bytes" % size)
+        return Finding(
+            criterion, "pass", criterion.points, evidence,
+            "Blob resolves: file '%s' present at ref '%s' (%s bytes)."
+            % (effective_path, parsed["ref"], size),
+        )
+    if kind == "dir":
+        return Finding(
+            criterion, "fail", 0, evidence,
+            "Blob path names a directory, not a file — TA should review.",
+        )
+    return Finding(
+        criterion, "fail", 0, evidence,
+        "File '%s' not found at ref '%s' (HTTP 404/403)." % (effective_path, parsed["ref"]),
+    )
+
+
+def _pr_from_given_branch(ctx, criterion):
+    """Report the state of a PR from a given source branch (MoJ).
+
+    For instructor-distributed GIVEN screens: the Team PR carries a
+    0-pt evidence row naming the source branch the PR must come from
+    (e.g. 'given/wk12-desk-edit'). Verifies it per team repo.
+
+    Params:
+        source_branch: regex the PR head ref must match (required).
+        state: 'merged' (default), 'open', or 'any'.
+
+    Assessment:
+        pass: a PR with a matching head ref is in the required state.
+        fail: matching PR(s) exist but not in the required state, or no
+            matching PR exists.
+        needs-review: API auth/rate-limit blocked the listing.
+    """
+    params = criterion.params
+    source = params.get("source_branch") or ""
+    wanted = params.get("state", "merged")
+    parsed = parse_github_url(ctx.pr_url)
+    if parsed is None:
+        return Finding(
+            criterion, "needs-review", None,
+            ["no recognizable GitHub URL in the submission"],
+            "Cannot identify the team repo — TA should review directly.",
+        )
+    owner, repo = parsed["owner"], parsed["repo"]
+    evidence = ["repo: %s/%s" % (owner, repo)]
+    try:
+        pulls = ctx.client.list_pulls(owner, repo)
+    except (AuthFailureError, RateLimitError):
+        return Finding(
+            criterion, "needs-review", None, evidence,
+            "API auth/rate-limit issue blocked the pull listing.",
+        )
+    pat = re.compile(source)
+    matching = [p for p in pulls if pat.fullmatch(p.get("head_ref") or "")]
+    for p in matching:
+        evidence.append(
+            "PR #%s by %s: head '%s', state %s%s"
+            % (
+                p.get("number"),
+                p.get("author") or "?",
+                p.get("head_ref"),
+                p.get("state"),
+                (" (merged %s)" % p["merged_at"]) if p.get("merged_at") else "",
+            )
+        )
+    if not matching:
+        evidence.append("no PR with head ref matching '%s'" % source)
+        return Finding(
+            criterion, "fail", 0, evidence,
+            "No pull request from source branch '%s' in %s/%s — the TA "
+            "should check whether the team merged the GIVEN screen."
+            % (source, owner, repo),
+        )
+    if wanted in ("any",):
+        return Finding(
+            criterion, "pass", criterion.points, evidence,
+            "PR from source branch '%s' exists (state %s)."
+            % (source, matching[0].get("state")),
+        )
+    in_state = [p for p in matching if p.get("state") == wanted]
+    if in_state:
+        return Finding(
+            criterion, "pass", criterion.points, evidence,
+            "%d PR(s) from branch '%s' in required state '%s'."
+            % (len(in_state), source, wanted),
+        )
+    return Finding(
+        criterion, "fail", 0, evidence,
+        "PR(s) from branch '%s' exist but none is %s — TA should confirm."
+        % (source, "merged" if wanted == "merged" else "open"),
+    )
+
+
+def _devlog_before_canvas(ctx, criterion):
+    """Order-rule evidence: devlog commits vs the Canvas submission (MoJ).
+
+    A_MJ05 Part (a): each member's position entry is committed to their
+    own devlog repo BEFORE the team document is submitted to Canvas;
+    the grader compares timestamps (assessed by order, no deadline).
+    This checker gathers the GitHub-side evidence; the TA awards the
+    5-pt criterion and applies the EngLog cap.
+
+    Params:
+        timestamps_file: sidecar CSV (Team,SubmittedAt — UTC ISO) with
+            the team document's Canvas submission timestamps. Same
+            FERPA posture as roster.csv: instructor share, never git.
+            Optional; without it the checker reports needs-review.
+        devlog_repo_pattern: repo-name template; {username} is
+            substituted (default 'fa26-devlog-{username}').
+        target_file: optional repo path — when set, only commits for
+            that path are considered; when omitted, all default-branch
+            commits are evidence (flagged as such).
+
+    Assessment:
+        pass: every roster member shows in-window commit evidence and
+            no commit lands at/after the Canvas submission.
+        fail: at least one member's latest relevant commit is at/after
+            the Canvas submission timestamp.
+        needs-review: missing roster/sidecar, inaccessible devlog
+            repos, no commits for a member, or API errors — the TA
+            decides on the affected members.
+    """
+    params = criterion.params
+    parsed = parse_github_url(ctx.pr_url)
+    if parsed is None:
+        return Finding(
+            criterion, "needs-review", None, [],
+            "Cannot identify the team from the submission URL.",
+        )
+    if ctx.roster is None or not ctx.username:
+        return Finding(
+            criterion, "needs-review", None, [],
+            "No roster available — member devlogs cannot be resolved; "
+            "TA verifies the order manually.",
+        )
+    team = ctx.roster.find_team(ctx.username)
+    members = ctx.roster.members(team) if team else None
+    if not members:
+        return Finding(
+            criterion, "needs-review", None, [],
+            "Submitter '%s' has no roster team — TA verifies order manually."
+            % ctx.username,
+        )
+    stamp_path = _resolve_sidecar_path(params.get("timestamps_file"), ctx)
+    submitted_raw = None
+    if stamp_path:
+        times = _load_team_submission_times(stamp_path)
+        for alias in _team_aliases(team):
+            if alias in times:
+                submitted_raw = times[alias]
+                break
+    submitted = _parse_utc(submitted_raw)
+    if submitted is None:
+        return Finding(
+            criterion, "needs-review", None, [],
+            "No Canvas submission timestamp for team '%s' in '%s' — "
+            "add a Team,SubmittedAt row (UTC ISO) and rerun."
+            % (team, stamp_path or "(timestamps file unset)"),
+        )
+    evidence = [
+        "team: %s; Canvas submission: %s" % (team, submitted_raw),
+    ]
+    if not params.get("target_file"):
+        evidence.append("no path filter: all default-branch commits count")
+    pattern = params.get("devlog_repo_pattern") or "fa26-devlog-{username}"
+    any_after = False
+    review_reasons = []
+    in_window_members = 0
+    for member in members:
+        repo_name = pattern.format(username=member)
+        try:
+            commits = ctx.client.get_commits_for_path(
+                member, repo_name, path=params.get("target_file")
+            )
+        except PRNotAccessibleError:
+            review_reasons.append("%s: devlog repo not accessible" % member)
+            continue
+        except (AuthFailureError, RateLimitError):
+            return Finding(
+                criterion, "needs-review", None, evidence,
+                "API auth/rate-limit issue blocked the devlog commits query.",
+            )
+        dates = [(c.get("sha") or "?", _parse_utc(c.get("date"))) for c in commits]
+        dated = [(sha, dt) for sha, dt in dates if dt is not None]
+        if not dated:
+            review_reasons.append(
+                "%s: no commits%s" % (
+                    member,
+                    (" for %s" % params["target_file"]) if params.get("target_file") else "",
+                )
+            )
+            continue
+        after_shas = [sha for sha, dt in dated if dt >= submitted]
+        before = [(sha, dt) for sha, dt in dated if dt < submitted]
+        if after_shas:
+            any_after = True
+            evidence.append(
+                "%s: %d/%d commit(s) at/after submission (%s)"
+                % (member, len(after_shas), len(dated), ", ".join(after_shas[:3]))
+            )
+            continue
+        if before:
+            latest_sha, latest_dt = max(before, key=lambda pair: pair[1])
+            in_window_members += 1
+            evidence.append(
+                "%s: latest in-window commit %s at %s"
+                % (member, latest_sha, latest_dt.isoformat())
+            )
+    if any_after:
+        return Finding(
+            criterion, "fail", 0, evidence,
+            "At least one member's devlog commit is at/after the Canvas "
+            "submission timestamp — that member's EngLog is capped 1 "
+            "point; the TA applies the cap.",
+        )
+    if review_reasons:
+        return Finding(
+            criterion,
+            "needs-review",
+            None,
+            evidence,
+            "%d member(s) need manual confirmation: %s" % (
+                len(review_reasons), "; ".join(review_reasons),
+            ),
+        )
+    return Finding(
+        criterion, "pass", criterion.points, evidence,
+        "All %d in-window member(s) show devlog commits before the "
+        "Canvas submission." % in_window_members,
+    )
+
+
+
+
+
+def _pr_body_contains(ctx, criterion):
+    """Mechanical completeness of the Team PR body (MoJ amass-then-subtract).
+
+    Params:
+        items: list of dicts describing required body fragments:
+            {"label": str,
+             "section": r"ICEX_MJ01"}         — a `### <section>` heading must
+                                                 exist and contain a ticked box
+                                                 (`- [x]`); the section slice runs
+                                                 to the next `###` heading.
+            {"label", "require": regex}       — regex must match the body.
+            {"label", "section", "require"}   — regex must match inside the slice.
+            {"label", "forbid": regex}        — regex must NOT appear anywhere
+                                                 (template-placeholder check).
+            Regexes match IGNORECASE. `label` drives evidence and the missing
+            report.
+
+    Assessment (Kurt's 2026-11-11 projection ruling):
+        pass + ta_confirm: every item present → the full criterion points are
+            recommended as the projection; the TA verifies and SUBTRACTS for
+            detail issues rather than adding.
+        fail (0) + items missing: anything missing is reported as LOST POINTS
+            with the missing list; components that are present are assumed
+            correct.
+        needs-review: PR URL unusable or API errors.
+    """
+    items = criterion.params.get("items") or []
+    parsed = parse_github_url(ctx.pr_url)
+    if parsed is None or parsed["kind"] != "pull":
+        return Finding(
+            criterion, "needs-review", None, [],
+            "Run this rubric against the Team PR's Canvas submission (a pull "
+            "URL) — the body completeness rides the PR.",
+        )
+    owner, repo, number = parsed["owner"], parsed["repo"], parsed["number"]
+    evidence = ["PR: #%s" % number]
+    try:
+        pr = ctx.client.get_pr(owner, repo, number)
+    except PRNotAccessibleError:
+        return Finding(
+            criterion, "needs-review", None, evidence,
+            "PR endpoint not accessible — TA reviews the body directly.",
+        )
+    except (AuthFailureError, RateLimitError):
+        return Finding(
+            criterion, "needs-review", None, evidence,
+            "API auth/rate-limit issue blocked the PR fetch.",
+        )
+    body = pr.body or ""
+    if not body.strip():
+        return Finding(
+            criterion, "fail", 0, evidence + ["PR body is EMPTY"],
+            "The PR body carries nothing — every component is a lost point. "
+            "TA reviews the PR directly.",
+            ta_confirm=True,
+        )
+
+    def _section_slice(name):
+        m = re.search(
+            r"(?ms)^#{2,3}\s*%s\b.*?(?=^#{1,6}\s|\Z)" % re.escape(name), body
+        )
+        return m.group(0) if m else None
+
+    missing = []
+    for item in items:
+        label = item.get("label") or "(unlabeled item)"
+        section = item.get("section")
+        conds = []  # (ok, where) — all must hold; forbid negates its match
+        slice_ = _section_slice(section) if section else None
+        if section:
+            if slice_ is None:
+                conds.append((False, "section %s (heading absent)" % section))
+            elif item.get("require"):
+                ok = bool(re.search(item["require"], slice_, re.IGNORECASE))
+                conds.append((ok, "section %s" % section))
+            else:
+                ticks = re.findall(r"-\s*\[x\]", slice_, re.IGNORECASE)
+                conds.append((bool(ticks), "section %s (ticked: %d)" % (
+                    section, len(ticks)) if ticks else
+                    "section %s (no ticked boxes)" % section))
+        if item.get("require") and not section:
+            ok = bool(re.search(item["require"], body, re.IGNORECASE))
+            conds.append((ok, "body"))
+        if item.get("forbid"):
+            hit = bool(re.search(item["forbid"], body, re.IGNORECASE))
+            conds.append((not hit, "template placeholder %s" % (
+                "STILL PRESENT" if hit else "replaced")))
+        present = bool(conds) and all(ok for ok, _w in conds)
+        if present:
+            evidence.append(
+                "present: %s — %s" % (label, "; ".join(w for _o, w in conds)))
+        else:
+            missing.append(label)
+            evidence.append("MISSING: %s (%s)" % (
+                label, "; ".join(w for _o, w in conds)))
+
+    if missing:
+        return Finding(
+            criterion, "fail", 0, evidence,
+            "Missing components reported as lost points: %s. Components "
+            "present are assumed correct — the TA verifies and subtracts."
+            % "; ".join(missing),
+            ta_confirm=True,
+        )
+    return Finding(
+        criterion, "pass", criterion.points, evidence,
+        "All required PR-body components present — full points projected. "
+        "TA verifies the details and subtracts for issues.",
+        ta_confirm=True,
+    )
+
+
+def _pr_commits_by_wall(ctx, criterion):
+    """Wall-timing evidence: per-member PR commits vs the wall (W8 MoJ).
+
+    W8-15 ICEX walls (MJ01+): the in-class deliverable is on-time when
+    each member's commits land on the branch by the session's wall
+    (2 PM US/Eastern on the class day, from the shared
+    moj_walls_fa26.csv); the wall scores are entered per member on
+    the no-submission ICEX Canvas lines (late → 8.5). The week's Team
+    PR carries every branch commit, so THIS
+    checker reads the PR's commit list and reconciles it against the
+    roster and the CONTRIBUTIONS.md process record. The TA awards all
+    points; this row only gathers evidence and flags.
+
+    Params:
+        wall_file: sidecar CSV (Team,<WallColumn>… — UTC ISO 8601) with
+            each team's wall timestamps; one CSV column per wall that
+            week (W8 carries WallMJ01 and WallMJ02). Same FERPA posture
+            as roster.csv: instructor share, never in git. Optional;
+            without it the timing evidence reports needs-review.
+        wall_columns: the CSV timestamp columns, in order (default
+            ['WallAt']). Banding: commits are grouped by which walls
+            they precede; only commits after the LAST wall are
+            unambiguously late for any ICEX.
+        contributions_file: repo path (suffix-matched in the PR diff)
+            of the checkpoint writeup process record. Default
+            'CONTRIBUTIONS.md'; pass an empty value to skip.
+
+    Assessment:
+        pass: every roster member has PR commits and no commit lands
+            after the last wall, with the contributions file in the
+            diff.
+        pass + ta_confirm: evidence gathered, but at least one commit
+            is after the last wall (late for both ICEXs' walls — the
+            8.5 rule applies where the TA maps the artifact).
+        needs-review: PR URL unusable, roster/wall sidecar missing, a
+            member has no commits (absent vs not-pushing — the TA
+            knows who attended), or API errors.
+    """
+    params = criterion.params
+    parsed = parse_github_url(ctx.pr_url)
+    if parsed is None or parsed["kind"] != "pull":
+        return Finding(
+            criterion, "needs-review", None, [],
+            "Run this rubric against the Team PR's Canvas submission "
+            "(a pull URL) — the wall evidence rides the PR commits.",
+        )
+    owner, repo, number = parsed["owner"], parsed["repo"], parsed["number"]
+    evidence = ["PR: %s/%s#%s" % (owner, repo, number)]
+    try:
+        commits = ctx.client.get_pr_commits(owner, repo, number)
+    except PRNotAccessibleError:
+        return Finding(
+            criterion, "needs-review", None, evidence,
+            "PR commits endpoint not accessible — TA reviews the PR directly.",
+        )
+    except (AuthFailureError, RateLimitError):
+        return Finding(
+            criterion, "needs-review", None, evidence,
+            "API auth/rate-limit issue blocked the PR commits query.",
+        )
+    if not commits:
+        return Finding(
+            criterion, "needs-review", None, evidence,
+            "PR has no commits on the first page — TA reviews the PR directly.",
+        )
+
+    members = None
+    team = None
+    if ctx.roster is not None and ctx.username:
+        team = ctx.roster.find_team(ctx.username)
+        members = ctx.roster.members(team) if team else None
+    if not members:
+        evidence.append("no roster: commits listed per login (author mapping is the TA's)")
+        members = sorted(set(c.get("login") or "?" for c in commits))
+
+    wall_path = _resolve_sidecar_path(params.get("wall_file"), ctx)
+    wall_columns = params.get("wall_columns") or ["WallAt"]
+    walls = []  # [(column, aware_datetime, raw)]
+    if wall_path:
+        try:
+            with open(wall_path, newline="", encoding="utf-8-sig") as fh:
+                rows = list(csv.DictReader(fh))
+        except OSError:
+            rows = []
+        aliases = _team_aliases(team or "")
+        row = None
+        for r in rows:
+            cell = (r.get("Team") or r.get("team") or "").strip()
+            if cell and set(_team_aliases(cell)) & set(aliases):
+                row = r
+                break
+        for col in wall_columns:
+            raw = (row or {}).get(col) or (row or {}).get(col.lower()) or ""
+            dt = _parse_utc(raw)
+            walls.append((col, dt, raw or None))
+    else:
+        walls = [(col, None, None) for col in wall_columns]
+    usable = [(col, dt, raw) for col, dt, raw in walls if dt is not None]
+    if not usable:
+        return Finding(
+            criterion, "needs-review", None, evidence,
+            "No wall timestamps for team '%s' in '%s' (columns %s) — "
+            "add Team,<WallColumn> rows (ISO-8601 with the US/Eastern "
+            "offset, e.g. 2 PM = T14:00:00-04:00) and rerun."
+            % (team or "(?)", wall_path or "(wall file unset)",
+               ", ".join(wall_columns)),
+        )
+    for col, _dt, raw in usable:
+        evidence.append("%s: %s" % (col, raw))
+
+    # Completion per wall column: the PR body must carry the ICEX's
+    # `### <section>` heading with at least one ticked DoD box (Kurt's
+    # projection model: a missing section is a LOST wall line).
+    completion = {}  # col -> True / False / None (no pattern or fetch failed)
+    section_patterns = params.get("section_patterns") or {}
+    if section_patterns:
+        try:
+            _pr = ctx.client.get_pr(owner, repo, number)
+            _body = _pr.body or ""
+        except (PRNotAccessibleError, AuthFailureError, RateLimitError):
+            _body = None
+            evidence.append("PR body unavailable for completion check")
+        for col, _dt, _raw in usable:
+            name = section_patterns.get(col)
+            if not name or _body is None:
+                completion[col] = None
+                continue
+            m = re.search(
+                r"(?ms)^#{2,3}\s*%s\b.*?(?=^#{1,6}\s|\Z)" % re.escape(name),
+                _body,
+            )
+            complete = bool(m) and bool(re.search(
+                r"-\s*\[x\]", m.group(0), re.IGNORECASE))
+            completion[col] = complete
+            evidence.append(
+                "completion %s: %s (section %s%s)" % (
+                    col, "complete" if complete else "MISSING — projected 0",
+                    name, ", ticked" if complete else "")
+            )
+
+    any_late = False
+    review_reasons = []
+    last_wall_dt = max(wdt for _c, wdt, _r in usable)
+    for member in members:
+        mine = [c for c in commits if (c.get("login") or "?") == member]
+        if not mine:
+            review_reasons.append(
+                "%s: no commits authored in the PR (absent, or pushed "
+                "under another login — TA decides)" % member
+            )
+            # No wall commits = no evidence: the amass model projects 0
+            # on every wall line until the TA grades attendance manually.
+            evidence.append(
+                "project %s: %s" % (
+                    member,
+                    ", ".join(
+                        "%s=0" % col.replace("Wall", "")
+                        for col, _wdt, _rw in usable
+                    ),
+                )
+            )
+            continue
+        dated = [(c.get("sha") or "?", _parse_utc(c.get("date")), c) for c in mine]
+        dated = [(sha, dt, c) for sha, dt, c in dated if dt is not None]
+        if not dated:
+            review_reasons.append("%s: commits without usable dates" % member)
+            continue
+        bands = []
+        after_last = []
+        for sha, dt, c in dated:
+            wall_for_band = None
+            for col, wdt, _raw in usable:
+                if dt <= wdt:
+                    wall_for_band = col
+                    break
+            if wall_for_band:
+                bands.append((wall_for_band, sha))
+            else:
+                after_last.append((sha, dt))
+        band_summary = []
+        for col, _dt, _raw in usable:
+            n = sum(1 for b, _sha in bands if b == col)
+            if n:
+                band_summary.append("%d by %s" % (n, col))
+        if after_last:
+            any_late = True
+            evidence.append(
+                "%s: %d commit(s) AFTER the last wall %s (%s) — 8.5 "
+                "applies where the TA maps the artifact"
+                % (member, len(after_last),
+                   max(_col for _col, _dt, _raw in usable),
+                   ", ".join(sha for sha, _dt in after_last[:3]))
+            )
+        if band_summary:
+            evidence.append("%s: %s" % (member, "; ".join(band_summary) +
+                (" (+%d after last wall)" % len(after_last) if after_last else "")))
+        else:
+            evidence.append("%s: all %d commit(s) after the last wall" % (member, len(dated)))
+            any_late = True
+        # Projection per Kurt's amass-then-subtract model (2026-11-11):
+        # completion present and all commits by the wall → 10; any commit
+        # of the member landing after that column's wall → 8.5 (the late
+        # flag the TA applies); completion missing → 0 lost, for everyone.
+        mem_dts = [dt for _sha, dt, _c in dated]
+        proj = []
+        for col, wdt, _raw in usable:
+            if completion.get(col) is False:
+                val = 0
+            elif any(d > last_wall_dt for d in mem_dts):
+                # Unattributable post-wall commits are the late tail —
+                # 8.5 on each wall line until the TA maps the artifact
+                # (the late shas are listed above).
+                val = "8.5"
+                any_late = True
+            else:
+                val = "10"
+            proj.append("%s=%s" % (col.replace("Wall", ""), val))
+        evidence.append("project %s: %s" % (member, ", ".join(proj)))
+
+    own = [e for e in evidence if e.startswith(
+        "project %s:" % (ctx.username or "\0none\0"))]
+    if own:
+        evidence.append("submitter's projected wall score — %s" % own[0])
+
+    if params.get("contributions_file", "CONTRIBUTIONS.md"):
+        target = params.get("contributions_file") or "CONTRIBUTIONS.md"
+        try:
+            diff = ctx.client.get_pr_diff(owner, repo, number)
+        except PRNotAccessibleError:
+            diff = None
+        except (AuthFailureError, RateLimitError):
+            diff = None
+        if diff is None:
+            evidence.append(
+                "CONTRIBUTIONS check skipped: diff not fetched — "
+                "TA verifies the writeup manually."
+            )
+        else:
+            files = _files_in_diff(diff)
+            hit = [f for f in files if f.endswith(target) or f == target]
+            if hit:
+                evidence.append("CONTRIBUTIONS file present in PR diff: %s" % hit[0])
+            else:
+                evidence.append(
+                    "CONTRIBUTIONS file '%s' NOT in the PR diff — "
+                    "completeness gate may fail; TA decides." % target
+                )
+
+    if review_reasons:
+        return Finding(
+            criterion, "needs-review", None, evidence,
+            "%d member(s) need manual confirmation: %s" % (
+                len(review_reasons), "; ".join(review_reasons)),
+        )
+    if any_late:
+        return Finding(
+            criterion, "pass", criterion.points, evidence,
+            "Evidence gathered — at least one member committed after "
+            "the wall; enter 8.5 for those members on the wall line. "
+            "The TA awards all points.",
+            ta_confirm=True,
+        )
+    return Finding(
+        criterion, "pass", criterion.points, evidence,
+        "Evidence gathered: every member's commits land by the wall; "
+        "the TA awards points.",
+    )
+
+
 CHECKERS = {
     "repo_history": _repo_history,
     "pr_exists_with_comment": _pr_exists_with_comment,
@@ -818,6 +1677,11 @@ CHECKERS = {
     "pattern_count": _pattern_count,
     "commit_author_check": _commit_author_check,
     "team_best_attribution": _team_best_attribution,
+    "blob_link_valid": _blob_link_valid,
+    "pr_from_given_branch": _pr_from_given_branch,
+    "devlog_before_canvas": _devlog_before_canvas,
+    "pr_commits_by_wall": _pr_commits_by_wall,
+    "pr_body_contains": _pr_body_contains,
 }
 
 

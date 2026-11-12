@@ -110,3 +110,41 @@ class TestLookups:
         r = roster.load_roster(str(p))
 
         assert r.team_from_repo("fa26_se1_team1") == "team1"
+
+    def test_v13_canvas_name_column(self, tmp_path):
+        """Optional Canvas Name column: filenames resolve; netid canonical."""
+        p = tmp_path / "roster_v13.csv"
+        p.write_text(
+            "Team,TA,IU Username,Canvas Name\r\n"
+            "SE_TEAM01,Shreyas Karanam,ctbowman,bowmancole\r\n"
+            "SE_TEAM01,Shreyas Karanam,cfampo,fampocarl\r\n"
+            "SE_TEAM02,Shreyas Karanam,sdondeti,dondetisusruth\r\n",
+            encoding="utf-8",
+        )
+        r = roster.load_roster(str(p))
+        assert r is not None
+        # Filename prefix -> team + canonical netid
+        assert r.find_team("bowmancole") == "SE_TEAM01"
+        assert r.canonical_username("bowmancole") == "ctbowman"
+        assert r.members("SE_TEAM01") == ["ctbowman", "cfampo"]
+        # Netid lookups keep working as before
+        assert r.find_team("cfampo") == "SE_TEAM01"
+        assert r.canonical_username("cfampo") == "cfampo"
+        # Unknown name passes through unchanged (EF-12 path unchanged)
+        assert r.find_team("ghostuser") is None
+        assert r.canonical_username("ghostuser") == "ghostuser"
+
+    def test_v10_and_v11_csvs_unchanged(self, tmp_path):
+        """No Canvas Name column: behavior identical to shipped."""
+        p11 = tmp_path / "roster_v11.csv"
+        p11.write_text("Team,TA,IU Username\r\nSE_TEAM01,TA1,ctbowman\r\n", encoding="utf-8")
+        r = roster.load_roster(str(p11))
+        assert r is not None
+        assert r.find_team("ctbowman") == "SE_TEAM01"
+        assert r.canonical_username("ctbowman") == "ctbowman"
+        assert r.canonical_username("unknown") == "unknown"
+        p10 = tmp_path / "roster_v10.csv"
+        p10.write_text("team,iu_username\r\nSE_TEAM01,ctbowman\r\n", encoding="utf-8")
+        r10 = roster.load_roster(str(p10))
+        assert r10 is not None
+        assert r10.canonical_username("ctbowman") == "ctbowman"

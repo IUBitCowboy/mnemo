@@ -1,0 +1,7 @@
+# Dev/test dependencies — grading TAs do NOT need this file
+# (requirements.txt alone is enough to run the checker).
+#
+#   .venv/bin/pip install -r requirements-dev.txt
+#
+-r requirements.txt
+pytest

@@ -217,6 +217,37 @@ class GitHubClient:
                 logins.append(author["login"])
         return logins
 
+    def get_pr_commits(self, owner, repo, number):
+        """GET /repos/{owner}/{repo}/pulls/{number}/commits (W8 wall evidence).
+
+        First page (per_page=100). Returns a list of {sha, login, date,
+        message} dicts: sha truncated to 8 chars, login the top-level
+        author login ("?" when the API provides none), date the commit
+        author date string, message the subject line (first line,
+        truncated at 80 chars).
+        """
+        data = self._request(
+            "GET",
+            "/repos/%s/%s/pulls/%d/commits" % (owner, repo, number),
+            params={"per_page": 100},
+        )
+        if not isinstance(data, list):
+            return []
+        commits = []
+        for commit in data:
+            author = (commit.get("commit") or {}).get("author") or {}
+            gh_author = commit.get("author") or {}
+            message = (commit.get("commit") or {}).get("message") or ""
+            commits.append(
+                {
+                    "sha": (commit.get("sha") or "")[:8],
+                    "login": gh_author.get("login") or "?",
+                    "date": author.get("date"),
+                    "message": message.split("\n", 1)[0][:80],
+                }
+            )
+        return commits
+
     def list_pulls(self, owner, repo):
         """GET /repos/{owner}/{repo}/pulls?state=all (V1-6).
 
@@ -241,9 +272,72 @@ class GitHubClient:
                     "title": pr.get("title") or "",
                     "state": "merged" if merged_at else (pr.get("state") or ""),
                     "merged_at": merged_at,
+                    "head_ref": (pr.get("head") or {}).get("ref") or "",
                 }
             )
         return pulls
+
+    def get_file_contents(self, owner, repo, path, ref=None):
+        """GET /repos/{owner}/{repo}/contents/{path}[?ref=] (MoJ).
+
+        For blob-URL submissions (AGR memos, EngLog entries, team
+        documents like docs/a_mj05_ethics_opener.md).
+
+        Returns ('file', decoded_text) when the path is a file,
+        ('dir', None) when it is a directory listing, ('missing', None)
+        on 404/403. Auth and rate-limit failures raise.
+        """
+        params = {}
+        if ref:
+            params["ref"] = ref
+        try:
+            data = self._request(
+                "GET",
+                "/repos/%s/%s/contents/%s" % (owner, repo, path),
+                params=params,
+            )
+        except PRNotAccessibleError:
+            return "missing", None
+        if isinstance(data, list):
+            return "dir", None
+        if isinstance(data, dict) and data.get("type") == "file":
+            import base64
+
+            raw = data.get("content") or ""
+            try:
+                return "file", base64.b64decode(raw).decode("utf-8", errors="replace")
+            except Exception:
+                return "file", None
+        return "missing", None
+
+    def get_commits_for_path(self, owner, repo, path=None):
+        """GET /repos/{owner}/{repo}/commits[?path=]&per_page=100 (MoJ).
+
+        First page only. Returns a list of {sha, date, author} dicts,
+        where date is the commit author date string and author is the
+        top-level login when the API provides one (else "?").
+        """
+        params = {"per_page": 100}
+        if path:
+            params["path"] = path
+        data = self._request(
+            "GET",
+            "/repos/%s/%s/commits" % (owner, repo),
+            params=params,
+        )
+        if not isinstance(data, list):
+            return []
+        commits = []
+        for commit in data:
+            author = (commit.get("commit") or {}).get("author") or {}
+            commits.append(
+                {
+                    "sha": (commit.get("sha") or "")[:8],
+                    "date": author.get("date"),
+                    "author": (commit.get("author") or {}).get("login") or "?",
+                }
+            )
+        return commits
 
     def get_pr_diff(self, owner, repo, number):
         """GET the PR diff with the diff media type (FR-4).

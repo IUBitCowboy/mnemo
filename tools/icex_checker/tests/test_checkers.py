@@ -125,6 +125,13 @@ class _FakeClient:
         self.diff_text = HELLO_DIFF_OK
         self.diff_error = None
         self.pr_commit_logins = ["jdoe"]
+        self.file_kind = "missing"
+        self.file_text = None
+        self.file_error = None
+        self.path_commits = {}
+        self.path_commit_error = None
+        self.pr_commit_rows = []
+        self.pr_commit_error = None
         self.pulls = []
         self.calls = []
 
@@ -155,6 +162,24 @@ class _FakeClient:
     def list_pulls(self, owner, repo):
         self.calls.append(("pulls", owner, repo))
         return list(self.pulls)
+
+    def get_file_contents(self, owner, repo, path, ref=None):
+        self.calls.append(("contents", owner, repo, path, ref))
+        if self.file_error:
+            raise self.file_error
+        return (self.file_kind, self.file_text)
+
+    def get_commits_for_path(self, owner, repo, path=None):
+        self.calls.append(("path_commits", owner, repo, path))
+        if self.path_commit_error:
+            raise self.path_commit_error
+        return list(self.path_commits.get(owner, []))
+
+    def get_pr_commits(self, owner, repo, number):
+        self.calls.append(("pr_commits_full", owner, repo, number))
+        if self.pr_commit_error:
+            raise self.pr_commit_error
+        return list(self.pr_commit_rows)
 
     def get_pr_diff(self, owner, repo, number):
         self.calls.append(("diff", owner, repo, number))
@@ -509,6 +534,11 @@ def test_registry_has_expected_checkers():
         "pattern_count",
         "commit_author_check",
         "team_best_attribution",
+        "blob_link_valid",
+        "pr_from_given_branch",
+        "devlog_before_canvas",
+        "pr_commits_by_wall",
+        "pr_body_contains",
     }
 
 

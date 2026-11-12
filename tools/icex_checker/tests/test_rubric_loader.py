@@ -227,3 +227,35 @@ class TestV11FieldsTolerated:
         )
         r = rubric.load_rubric(p)
         assert r.assignment == "PASN01"
+
+
+class TestRubricFleetSweep:
+    """Gate: every shipped rubric in rubrics/*/*.yaml parses under the
+    real loader, its criterion points sum to its declared total, and no
+    criterion names an unknown checker type. Runs across both course
+    fleets (SE1 + C291) so a malformed or mis-typed rubric cannot ship
+    to ta-tools unnoticed."""
+
+    def test_fleet_parses_and_sums(self):
+        from checkers import CHECKERS
+
+        rubrics_dir = pathlib.Path(__file__).resolve().parent.parent / "rubrics"
+        files = sorted(rubrics_dir.glob("*/*.yaml"))
+        assert files, "rubric fleet not found"
+
+        problems = []
+        for path in files:
+            r = rubric.load_rubric(str(path))
+            s = sum(c.points for c in r.criteria)
+            if s != r.total_points:
+                problems.append(
+                    "%s: criteria sum %s != total_points %s"
+                    % (path.name, s, r.total_points)
+                )
+            for c in r.criteria:
+                if c.checker not in CHECKERS:
+                    problems.append(
+                        "%s: criterion '%s' names unknown checker '%s'"
+                        % (path.name, c.name, c.checker)
+                    )
+        assert not problems, "\n".join(problems)

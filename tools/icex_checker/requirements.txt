@@ -1,0 +1,9 @@
+# ICEX Submission Checker — runtime dependencies.
+# TAs: from the repo root, create the venv once, then run the tool
+# through it (see README "Setup"):
+#
+#   python3 -m venv .venv
+#   .venv/bin/pip install -r requirements.txt
+#
+PyYAML
+requests

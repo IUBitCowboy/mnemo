@@ -79,6 +79,11 @@ def _install_fake(monkeypatch, token="fake-token", token_error=None, pr_error=No
                 raise commits_error
             return [c["commit"]["author"]["date"] for c in COMMITS_OK]
 
+        def get_pr_commit_logins(self, o, r, n):
+            if commits_error:
+                raise commits_error
+            return ["jdoe", "akumar"]
+
         def get_pr_diff(self, o, r, n):
             if diff_error:
                 raise diff_error
@@ -414,3 +419,177 @@ class TestBatch:
         assert (out_dir / "a.txt").is_file()
         text = (out_dir / "a.txt").read_text(encoding="utf-8")
         assert "ICEX CHECKER REPORT" in text or "TA ACTION ITEMS" in text
+
+
+class TestRosterFlag:
+    """--roster overrides the rubric-declared roster_file (FERPA sidecar)."""
+
+    @staticmethod
+    def _roster_csv(tmp_path):
+        p = tmp_path / "FA26_P465_Team_Roster.csv"
+        p.write_text(
+            "Team,TA,IU Username\r\nSE_TEAM01,Someone,jdoe\r\n",
+            encoding="utf-8",
+        )
+        return p
+
+    @staticmethod
+    def _attribution_rubric(tmp_path, roster_decl=None):
+        yaml = (
+            "assignment: ICEX_T\n"
+            "course: C291\n"
+            "semester: FA26\n"
+            "semester_start: 2026-08-24\n"
+            "type: individual\n"
+            "total_points: 2\n"
+            "criteria:\n"
+            "  - name: authorship\n"
+            "    points: 2\n"
+            "    checker: commit_author_check\n"
+        )
+        if roster_decl:
+            yaml += "roster_file: %s\n" % roster_decl
+        p = tmp_path / "attr_rubric.yaml"
+        p.write_text(yaml, encoding="utf-8")
+        return p
+
+    def test_flag_loads_roster_and_attributes(self, monkeypatch, capsys, tmp_path):
+        _install_fake(monkeypatch)
+        rubric_p = self._attribution_rubric(tmp_path)
+        roster_p = self._roster_csv(tmp_path)
+        html_p = _html(tmp_path, "jdoe_77_link.html")
+        code = cli.main([
+            str(html_p), "--rubric", str(rubric_p),
+            "--roster", str(roster_p), "--verbose",
+        ])
+        out = capsys.readouterr()
+        assert code == 0
+        assert "submitter (from filename, in roster): jdoe" in out.out
+        assert "warning" not in out.err
+        assert "No roster available" not in out.out
+
+    def test_flag_overrides_rubric_declaration(self, monkeypatch, capsys, tmp_path):
+        """Rubric declares roster.csv (absent); --roster wins and no EF-12."""
+        _install_fake(monkeypatch)
+        monkeypatch.chdir(tmp_path)  # declared roster.csv resolves here
+        rubric_p = self._attribution_rubric(tmp_path, roster_decl="roster.csv")
+        roster_p = self._roster_csv(tmp_path)
+        html_p = _html(tmp_path, "jdoe_77_link.html")
+        code = cli.main([
+            str(html_p), "--rubric", str(rubric_p),
+            "--roster", str(roster_p), "--verbose",
+        ])
+        out = capsys.readouterr()
+        assert code == 0
+        assert "warning" not in out.err  # flag replaced the missing declared file
+        assert "submitter (from filename, in roster): jdoe" in out.out
+
+    def test_missing_flag_path_warns_and_degrades(self, monkeypatch, capsys, tmp_path):
+        """--roster pointing nowhere: EF-12 warning, run continues."""
+        _install_fake(monkeypatch)
+        rubric_p = self._attribution_rubric(tmp_path)
+        html_p = _html(tmp_path, "jdoe_77_link.html")
+        code = cli.main([
+            str(html_p), "--rubric", str(rubric_p),
+            "--roster", str(tmp_path / "nobody.csv"),
+        ])
+        err = capsys.readouterr().err
+        assert code == 0
+        assert "warning: roster file" in err
+        assert "nobody.csv" in err
+
+
+TEAM_ROSTER_CSV = (
+    "Team,TA,IU Username,Canvas Name\r\n"
+    "SE_TEAM07,Shreyas Karanam,ybingley,bingleyyashoneel\r\n"
+    "SE_TEAM07,Shreyas Karanam,cjlomax,lomaxcalvin\r\n"
+    "SE_TEAM12,Yash Jain,sdondeti,dondetisusruth\r\n"
+)
+
+
+class TestTeamsFlag:
+    """--teams: filter batch by roster team + a team-scores rollup."""
+
+    @staticmethod
+    def _setup(monkeypatch, tmp_path):
+        _install_fake(monkeypatch)
+        roster_p = tmp_path / "team_roster.csv"
+        roster_p.write_text(TEAM_ROSTER_CSV, encoding="utf-8")
+        rubric_p = tmp_path / "attr_rubric.yaml"
+        rubric_p.write_text(
+            "assignment: ICEX_T\n"
+            "course: C291\n"
+            "semester: FA26\n"
+            "semester_start: 2026-08-24\n"
+            "type: individual\n"
+            "total_points: 2\n"
+            "roster_file: %s\n"
+            "criteria:\n"
+            "  - name: authorship\n"
+            "    points: 2\n"
+            "    checker: commit_author_check\n" % roster_p,
+            encoding="utf-8",
+        )
+        return rubric_p, roster_p
+
+    def test_batch_filters_to_requested_teams_and_rolls_up(
+            self, monkeypatch, capsys, tmp_path):
+        rubric_p, roster_p = self._setup(monkeypatch, tmp_path)
+        _html(tmp_path, "bingleyyashoneel_1_link.html")   # SE_TEAM07
+        _html(tmp_path, "lomaxcalvin_2_link.html")        # SE_TEAM07
+        _html(tmp_path, "dondetisusruth_3_link.html")     # SE_TEAM12
+        out_dir = tmp_path / "rep"
+        code = cli.main([
+            "--batch", str(tmp_path), "--rubric", str(rubric_p),
+            "--roster", str(roster_p),
+            "--teams", "7", "--output-dir", str(out_dir),
+        ])
+        captured = capsys.readouterr()
+        assert code == 0
+        out = captured.out
+        # Only the two team-7 files processed; team-12 skipped.
+        assert "bingleyyashoneel_1_link.html" in out
+        assert "lomaxcalvin_2_link.html" in out
+        assert "skipped   (submitter sdondeti, team SE_TEAM12 not requested)" in out
+        # Team rollup: one PR line + students.
+        assert "TEAM RESULTS (SE_TEAM07)" in out
+        assert "SE_TEAM07" in out
+        # The shared fake yields commit logins ['jdoe','akumar'], which are
+        # not team-07 netids — the PR projects 0/2 and both walls lose.
+        assert "0/2 pts (projected" in out
+        assert "bingleyyashoneel" in out or "ybingley" in out
+        # summary.json carries the teams section.
+        s = json.loads((out_dir / "summary.json").read_text(encoding="utf-8"))
+        assert len(s["submissions"]) == 2
+        assert s["teams"][0]["team"] == "SE_TEAM07"
+        assert s["teams"][0]["late_members"] == []
+        assert "pr_url" in s["submissions"][0]
+
+    def test_teams_without_roster_is_fatal(self, monkeypatch, capsys, tmp_path):
+        _install_fake(monkeypatch)
+        rubric_p = tmp_path / "attr_rubric.yaml"
+        rubric_p.write_text(
+            "assignment: ICEX_T\ncourse: C291\nsemester: FA26\n"
+            "semester_start: 2026-08-24\ntype: individual\ntotal_points: 2\n"
+            "criteria:\n  - name: authorship\n    points: 2\n"
+            "    checker: commit_author_check\n", encoding="utf-8")
+        _html(tmp_path, "bingleyyashoneel_1_link.html")
+        code = cli.main([
+            "--batch", str(tmp_path), "--rubric", str(rubric_p),
+            "--teams", "7",
+        ])
+        err = capsys.readouterr().err
+        assert code == 1
+        assert "--teams needs team membership" in err
+
+    def test_single_run_other_team_skips(self, monkeypatch, capsys, tmp_path):
+        rubric_p, roster_p = self._setup(monkeypatch, tmp_path)
+        html_p = _html(tmp_path, "dondetisusruth_3_link.html")  # SE_TEAM12
+        code = cli.main([
+            str(html_p), "--rubric", str(rubric_p),
+            "--roster", str(roster_p), "--teams", "7",
+        ])
+        err = capsys.readouterr().err
+        assert code == 0
+        assert "skipped: submitter" in err
+        assert "SE_TEAM12" in err

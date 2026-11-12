@@ -61,6 +61,21 @@ _PR_URL_RE = re.compile(
     r"https?://(?P<host>[^/\"'\s<]+)/(?P<owner>[A-Za-z0-9_.-]+)/(?P<repo>[A-Za-z0-9_.-]+)/pull/(?P<number>\d+)"
 )
 
+# MoJ (FA26 greenfield): team documents, EngLog entries, and grad memos
+# are submitted as direct GitHub blob URLs, not PR URLs. The submission
+# parser accepts both forms; checkers dispatch on the parsed kind.
+_BLOB_URL_RE = re.compile(
+    r"https?://(?P<host>[^/\"'\s<]+)/(?P<owner>[A-Za-z0-9_.-]+)/(?P<repo>[A-Za-z0-9_.-]+)/blob/(?P<tail>[^\"'\s<>]+)"
+)
+
+# Canvas titles in the MoJ weeks: 'Week 12 | A_MJ05 - Ethics Opener'
+# (pipe form, no colon after the assignment, space after Week). The
+# assignment token may itself carry spaces ('Team PR') — the split is
+# the first ' - '.
+_MOJ_TITLE_RE = re.compile(
+    r"Week\s*(?P<week>\d\d?)\s*\|\s*(?P<assignment>[A-Za-z][A-Za-z0-9_.()\- ]*?)\s*-\s*(?P<name>.+)"
+)
+
 _TITLE_RE = re.compile(
     r"Week(?P<week>\d\d?)\s*-\s*(?P<assignment>ICEX\d+)\s*:\s*(?P<name>.+)"
 )
@@ -139,14 +154,20 @@ def parse_submission(path):
 
 
 def _parse_title(text, sub):
-    """Parse 'WeekNN - ICEXNN: Student Name' from the <title> tag (FR-6)."""
+    """Parse the assignment identity from the <title> tag (FR-6).
+
+    Two title shapes: the C291 'WeekNN - ICEXNN: Student Name' form and
+    the MoJ 'Week NN | ASSIGNMENT - Name' form (FA26 greenfield).
+    """
     m = re.search(r"<title[^>]*>(.*?)</title>", text, re.IGNORECASE | re.DOTALL)
     if not m:
         return
     title = m.group(1).strip()
     t = _TITLE_RE.match(title)
     if not t:
-        return
+        t = _MOJ_TITLE_RE.match(title)
+        if not t:
+            return
     sub.week = t.group("week")
     sub.assignment_id = t.group("assignment")
     sub.student_name = t.group("name").strip()
@@ -167,20 +188,35 @@ def _parse_filename(path, sub):
     sub.is_late = m.group("late") is not None
 
 
+def _is_submission_url(url):
+    """True for a pull or blob URL (MoJ accepts both submission forms)."""
+    return _PR_URL_RE.match(url) is not None or _BLOB_URL_RE.match(url) is not None
+
+
 def _is_pr_url(url):
-    return _PR_URL_RE.match(url) is not None
+    return _is_submission_url(url)
 
 
 def validate_pr_url(url, github_host):
-    """Validate a PR URL (FR-2).
+    """Validate a PR or blob URL (FR-2; MoJ widens to blob form).
 
-    Returns (ok, reason). ok is True for a valid HTTPS github host PR URL;
-    otherwise False with a human-readable reason.
+    Returns (ok, reason). ok is True for a valid HTTPS github host PR
+    URL (or blob URL); otherwise False with a human-readable reason.
     """
     if not url:
         return False, "PR URL is empty"
     m = _PR_URL_RE.match(url)
     if not m:
+        b = _BLOB_URL_RE.match(url)
+        if b:
+            if b.group("host") != github_host:
+                return False, "PR URL points to %s, expected %s" % (
+                    b.group("host"),
+                    github_host,
+                )
+            if not url.startswith("https://"):
+                return False, "PR URL must use HTTPS scheme"
+            return True, None
         return False, "malformed URL or not a PR URL"
     if m.group("host") != github_host:
         return False, "PR URL points to %s, expected %s" % (
@@ -208,6 +244,20 @@ def build_parser():
         help="Path to Canvas submission HTML file (required unless --batch)",
     )
     parser.add_argument("--rubric", help="Path to rubric YAML file (auto-detected if omitted)")
+    parser.add_argument(
+        "--roster",
+        help="Path to the team roster CSV (Team,TA,IU Username). Overrides the "
+             "rubric-declared roster_file. The roster is a FERPA sidecar that "
+             "lives on the instructor's OneDrive share, next to the submissions.",
+    )
+    parser.add_argument(
+        "--teams",
+        help="Comma-separated team numbers/ids to grade ('7' or '1,7,10' or "
+             "'SE_TEAM07'). Requires --roster (or the rubric's roster_file) "
+             "to resolve membership. Batch mode processes only those teams' "
+             "submitters and the summary groups each team: the PR score plus "
+             "per-student wall scores with the late adjustments.",
+    )
     parser.add_argument("--token", help="GitHub Enterprise API token")
     parser.add_argument(
         "--github-host",
@@ -272,6 +322,8 @@ def main(argv=None):
     code, result = _process_one(args, args.submission)
     if code != 0:
         print(result, file=sys.stderr)
+    elif result is None:
+        return 0  # team-filter skip — already reported on stderr
     return code
 
 
@@ -291,6 +343,11 @@ def _process_one(args, submission_path):
         return 1, "submission file does not appear to be HTML: %s" % submission_path
     except NoPRUrlError:
         return 1, "no PR URL found in submission file: %s" % submission_path
+    except OSError as e:
+        return 1, (
+            "submission file unreadable (%s): %s — retry in a moment; cloud "
+            "hygiene may still be downloading it." % (type(e).__name__, e)
+        )
 
     ok, reason = validate_pr_url(sub.pr_url, args.github_host)
     if not ok:
@@ -318,16 +375,42 @@ def _process_one(args, submission_path):
             )
 
     roster_obj = None
-    if rubric.roster_file:
-        roster_obj = load_roster_file(rubric.roster_file)
+    roster_path = args.roster or rubric.roster_file
+    if roster_path:
+        roster_obj = load_roster_file(roster_path)
         if roster_obj is None:
             print(
                 "warning: roster file %s missing or unreadable — roster-"
-                "dependent checks will run evidence-only (EF-12)" % rubric.roster_file,
+                "dependent checks will run evidence-only (EF-12)" % roster_path,
                 file=sys.stderr,
             )
 
     client = GitHubClient(token=token, host=args.github_host)
+    # Attribution canonicalization: Canvas filenames carry the student's
+    # display-name prefix (bowmancole); the roster carries IU netids
+    # (ctbowman) which match github.iu.edu commit logins. Resolve the
+    # filename token to the netid when a Canvas Name column exists.
+    roster_username = sub.username
+    if roster_obj is not None and sub.username:
+        roster_username = roster_obj.canonical_username(sub.username)
+        if roster_username != sub.username:
+            print(
+                "info: submission filename '%s' mapped to roster username "
+                "'%s'" % (sub.username, roster_username),
+                file=sys.stderr,
+            )
+        if getattr(args, "teams", None):
+            requested, _unresolved = _resolve_requested_teams(args, roster_obj)
+            submitter_team = roster_obj.find_team(roster_username)
+            if requested and submitter_team not in requested:
+                print(
+                    "skipped: submitter %s is on team %s, not among the "
+                    "requested teams (%s)"
+                    % (roster_username, submitter_team or "(unknown)",
+                       ", ".join(requested)),
+                    file=sys.stderr,
+                )
+                return 0, None
     owner, repo, number = _split_pr_url(sub.pr_url)
 
     # Pre-flight: the repo must be reachable (EF-6 fatal path). A missing
@@ -379,8 +462,10 @@ def _process_one(args, submission_path):
         student_name=sub.student_name,
         pr_url=sub.pr_url,
     )
-    ctx.username = sub.username
+    ctx.username = roster_username
     ctx.roster = roster_obj
+    if roster_obj is not None and roster_path:
+        ctx.roster_path = roster_path  # sidecars (walls, times) live near it
     if rubric.ownership_check:
         # Default rubric-level ownership mode (V1-1) unless a criterion
         # overrides via its own params.
@@ -430,9 +515,7 @@ def _resolve_rubric(args, sub):
         return args.rubric
     if sub.assignment_id:
         repo = None
-        owner_repo_match = re.match(r"https?://[^/]+/[^/]+/([^/]+)/pull/", sub.pr_url or "")
-        if owner_repo_match:
-            repo = owner_repo_match.group(1)
+        _owner, repo, _num = _split_pr_url(sub.pr_url)
         course = infer_course_from_repo(repo) if repo else None
         found = find_rubric(sub.assignment_id, str(TOOL_DIR), course=course)
         if found:
@@ -444,11 +527,16 @@ def _resolve_rubric(args, sub):
 
 
 def _split_pr_url(url):
+    """Extract owner/repo/number from a pull URL; blob URLs give
+    (owner, repo, None) — used only for course inference (MoJ)."""
     m = re.match(
         r"https?://[^/]+/(?P<owner>[^/]+)/(?P<repo>[^/]+)/pull/(?P<number>\d+)", url
     )
     if not m:
-        return None, None, None
+        m = _BLOB_URL_RE.match(url or "")
+        if not m:
+            return None, None, None
+        return m.group("owner"), m.group("repo"), None
     return m.group("owner"), m.group("repo"), int(m.group("number"))
 
 
@@ -469,6 +557,111 @@ def _write_submission_report(out_dir, stem, assessment, args):
         )
 
 
+def _resolve_requested_teams(args, roster_obj):
+    """--teams tokens -> roster team keys (None = no filter)."""
+    if not getattr(args, "teams", None):
+        return None, None
+    tokens = [t.strip() for t in str(args.teams).split(",") if t.strip()]
+    if roster_obj is None:
+        return None, tokens
+    requested = []
+    unresolved = []
+    for tok in tokens:
+        raw = roster_obj.resolve_team(tok)
+        if raw and raw not in requested:
+            requested.append(raw)
+        elif not raw:
+            unresolved.append(tok)
+    return requested, unresolved
+
+
+def _wall_projections_from(assessment):
+    """Per-member wall scores from a run's pr_commits_by_wall finding.
+
+    Returns ({member: {"MJ01": "10", ...}}, {member: late}) or (None, {}).
+    """
+    proj = {}
+    late = set()
+    for f in getattr(assessment, "findings", []) or []:
+        if getattr(f, "checker", None) != "pr_commits_by_wall":
+            continue
+        for e in getattr(f, "evidence", []) or []:
+            m = re.match(r"^project ([^:]+): (.+)$", e)
+            if m:
+                member = m.group(1).strip()
+                vals = {}
+                for pair in m.group(2).split(","):
+                    k, _sep, v = pair.strip().partition("=")
+                    if _sep:
+                        vals[k.strip()] = v.strip()
+                if vals:
+                    proj[member] = vals
+                continue
+            m = re.match(r"^([^:]+): \d+ commit\(s\) AFTER", e)
+            if m:
+                late.add(m.group(1).strip())
+    return (proj or None), late
+
+
+def _team_rollup(results):
+    """Group processed batch results by team for the team results print.
+
+    Each entry: {"team": ..., "prs": [{"url", "recommended", "total"}...],
+    "students": {member: {"MJ01": ..., "MJ02": ...}}, "late": set}
+    """
+    groups = {}
+    for r in results:
+        if r.get("status") != "processed" or not r.get("team"):
+            continue
+        g = groups.setdefault(r["team"], {"prs": {}, "students": {}, "late": set()})
+        url = r.get("pr_url") or "(no PR URL)"
+        entry = g["prs"].setdefault(url, {"recommended": r["recommended_points"],
+                                          "total": r["total_points"]})
+        proj, late = _wall_projections_from(r.get("_assessment"))
+        if proj:
+            g["students"].update(proj)
+        g["late"] |= late
+    return groups
+
+
+def _print_team_results(requested, groups):
+    """The TA-facing team block: PR score + per-student wall scores."""
+    if not groups:
+        return
+    hdr = ", ".join(requested) if requested else "all roster teams"
+    print()
+    print("TEAM RESULTS (%s)" % hdr)
+    print("-" * 72)
+    for team in sorted(groups):
+        g = groups[team]
+        print("%s" % team)
+        for url, entry in sorted(g["prs"].items()):
+            print("  PR %-55s -> %s/%s pts (projected, TA subtracts)" % (
+                url, entry["recommended"], entry["total"]))
+        if g["students"]:
+            cols = sorted({k for v in g["students"].values() for k in v})
+            for member in sorted(g["students"]):
+                marks = " " if member not in g["late"] else "*"
+                cells = " ".join(
+                    "%s=%s%s" % (col, g["students"][member].get(col, "?"), marks)
+                    for col in cols)
+                print("    %-16s %s" % (member, cells))
+            print("    (* = commits after the wall — 8.5 late adjustment;"
+                  " sha list in the per-file report)")
+        print()
+
+
+def _rubric_roster_path(args, sample_file):
+    """The rubric-declared roster path for --teams when --roster is absent."""
+    try:
+        sub = parse_submission(sample_file)
+        rubric_path = _resolve_rubric(args, sub)
+        rubric = load_rubric(rubric_path)
+        return (rubric.roster_file or None) if rubric else None
+    except Exception:
+        return None
+
+
 def _run_batch(args):
     """Batch mode (FR-10, EF-10, EF-11)."""
     batch_dir = pathlib.Path(args.batch)
@@ -481,9 +674,57 @@ def _run_batch(args):
     if out_dir:
         out_dir.mkdir(parents=True, exist_ok=True)
 
+    # --teams: resolve the requested roster teams, then filter each
+    # submission by its submitter's team before processing.
+    roster_obj = None
+    if getattr(args, "teams", None):
+        roster_path = args.roster or _rubric_roster_path(args, str(files[0]))
+        if not roster_path:
+            print(
+                "--teams needs team membership: pass --roster (or make the "
+                "rubric's roster_file resolvable for this run).",
+                file=sys.stderr,
+            )
+            return 1
+        roster_obj = load_roster_file(roster_path)
+        if roster_obj is None:
+            print(
+                "roster file %s unreadable — --teams cannot resolve teams."
+                % roster_path,
+                file=sys.stderr,
+            )
+            return 1
+    requested, unresolved = _resolve_requested_teams(args, roster_obj)
+    if unresolved:
+        print(
+            "warning: --teams token(s) not found in the roster: %s"
+            % ", ".join(unresolved),
+            file=sys.stderr,
+        )
+
     results = []
+    skipped = []
     failures = 0
     for f in files:
+        team_key = None
+        submitter = None
+        pr_url = None
+        if roster_obj is not None:
+            # Team membership rides the filename's canvas-name prefix —
+            # no file read (which would force OneDrive hydration of all
+            # 48 submissions just to find the requested teams' files).
+            submitter = f.stem.split("_")[0]
+            canon = (
+                roster_obj.canonical_username(submitter) if submitter else None
+            )
+            team_key = roster_obj.find_team(canon) if canon else None
+            if requested is not None and team_key not in (requested or []):
+                skipped.append({
+                    "file": f.name,
+                    "team": team_key or "(unknown team)",
+                    "submitter": canon if submitter else "(unparsed)",
+                })
+                continue
         print("=" * 72)
         print("SUBMISSION: %s" % f.name)
         print("=" * 72)
@@ -496,6 +737,9 @@ def _run_batch(args):
                     "status": "processed",
                     "recommended_points": summary["recommended_points"],
                     "total_points": summary["total_points"],
+                    "team": team_key,
+                    "pr_url": getattr(result, "pr_url", None) or pr_url,
+                    "_assessment": result,
                 }
             )
             if out_dir:
@@ -524,6 +768,11 @@ def _run_batch(args):
     print()
     print("SUMMARY")
     print("-" * 72)
+    for s in skipped:
+        print(
+            "%-30s skipped   (submitter %s, team %s not requested)"
+            % (s["file"], s["submitter"], s["team"])
+        )
     for r in results:
         if r["status"] == "processed":
             print(
@@ -533,9 +782,36 @@ def _run_batch(args):
         else:
             print("%-30s FAILED    %s" % (r["file"], r.get("error", "")))
 
+    groups = _team_rollup(results)
+    _print_team_results(requested, groups)
+
     if out_dir:
+        summary_payload = {
+            "submissions": [
+                dict(
+                    {k: v for k, v in r.items()
+                     if not k.startswith("_") and k != "pr_url"},
+                    pr_url=r.get("pr_url"),
+                )
+                for r in results
+            ]
+        }
+        if groups:
+            summary_payload["teams"] = [
+                {
+                    "team": team,
+                    "prs": [
+                        {"url": url, "recommended_points": entry["recommended"],
+                         "total_points": entry["total"]}
+                        for url, entry in sorted(g["prs"].items())
+                    ],
+                    "students": g["students"],
+                    "late_members": sorted(g["late"]),
+                }
+                for team, g in sorted(groups.items())
+            ]
         (out_dir / "summary.json").write_text(
-            json.dumps({"submissions": results}, indent=2), encoding="utf-8"
+            json.dumps(summary_payload, indent=2), encoding="utf-8"
         )
 
     return 2 if failures else 0

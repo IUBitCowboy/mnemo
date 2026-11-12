@@ -1,0 +1,121 @@
+# Rubric for SE1 Team PR — Week 11 (The Front Desk + The Minutes of the Ministry, MJ07+MJ08)
+#
+# Canvas assignment: 30 points. Rubric total = 30 = canvas_points.
+# Canvas lines this week (5): MJ07 wall (10), MJ08 wall (10), the pair
+# PR (this rubric), EngLog01 (10), A_MJ00 — the ICEX wall lines carry
+# NO Canvas submission; the wall scores project into the wall
+# criterion's per-member `project` evidence (late commits → 8.5).
+#
+# PROJECTION MODEL (Kurt, 2026-11-11, amass-then-subtract):
+#   The checker AMASSES the full score wherever the grading design's
+#   required components are present, and reports anything MISSING as
+#   lost points (0) for the TA to confirm. Components present are
+#   assumed correct; the TA subtracts for detail issues rather than
+#   adding points. Every projecting pass row carries ta_confirm.
+#
+# GRADEBOOK RULES (Kurt, 2026-11-11, on the 2026-10-12 v2 ruling):
+#   - The 10 pts per ICEX ride the PR's pasted DoD (ticked honestly) +
+#     a complete CONTRIBUTIONS.md; completion is mechanical here: the
+#     `### ICEX_MJxx` section must exist with ≥1 `- [x]` tick.
+#   - Member commits past the wall (2PM of the class day) are late:
+#     that member's WALL LINE (the MJxx Canvas entry) projects 8.5 —
+#     the wall criterion computes it per member per column.
+#   - Caps (lateness only): a late wall caps the PR −5% per missed
+#     wall; the PR itself −5% if the Ready URL lands late (cap ladder
+#     95/90/85). A capped PR still earns its rubric score below the
+#     cap: good work is a B; good work on time is an A.
+#
+# SUBMISSION SHAPE: the Ready PR URL, one per team (Friday). The
+# branch commits are the wall evidence — every member's in-class work
+# rides the draft→Ready PR.
+#
+# FERPA DATA SOURCES (NOT IN GIT — instructor share/OneDrive):
+#   FA26_P465_Team_Roster_v2.csv — Team,TA,IU Username,Canvas Name.
+#     Team ids are matched alias-tolerantly: SE_TEAM01 == team01.
+#   moj_walls_fa26.csv — Team,WallMJ07…WallMJ16 (ISO-8601 with the
+#     US/Eastern offset; 2PM of each class day, Mon/Wed Oct 12 through
+#     Dec 9, Thanksgiving week skipped). The week's Team PR rubric
+#     picks its two wall columns via wall_columns. Sidecars resolve
+#     relative to the roster file's directory as well as the CWD.
+#
+# TA guidance: the wall criterion's per-member `project` lines are the
+# MJxx Canvas entry values (10 / 8.5 late / 0 missing-completion).
+
+assignment: Team PR
+course: SE1
+semester: FA26
+type: team
+total_points: 30
+semester_start: 2026-08-24
+canvas_points: 30
+ownership_check: team
+roster_file: FA26_P465_Team_Roster_v2.csv
+
+criteria:
+  # ── Evidence (0 pts — per-member wall projections for the MJxx
+  #    no-submission Canvas lines) ──
+
+  - name: "Wall-timing + CONTRIBUTIONS evidence (per member)"
+    points: 0
+    checker: pr_commits_by_wall
+    params:
+      wall_file: "moj_walls_fa26.csv"    # OneDrive share, all MoJ walls
+      wall_columns: ["WallMJ07", "WallMJ08"]
+      section_patterns:                  # completion per wall column
+        WallMJ07: "ICEX_MJ07"
+        WallMJ08: "ICEX_MJ08"
+      contributions_file: "CONTRIBUTIONS.md"
+
+  - name: "PR URL resolvable"
+    points: 0
+    checker: pr_url_valid
+    params:
+      ownership_check: team
+
+  - name: "Valid team repo"
+    points: 0
+    checker: valid_student_repo
+    params:
+      expected_repo_pattern: "fa26-team-\\d+-moj"
+      github_host: github.iu.edu
+
+  # ── Projected point rows (checker amasses; TA subtracts) ──
+
+  - name: "ICEX_MJ07 completed (DoD pasted + ticked)"
+    points: 10
+    checker: pr_body_contains
+    params:
+      items:
+        - label: "MJ07 DoD section pasted with ticked boxes"
+          section: "ICEX_MJ07"
+
+  - name: "ICEX_MJ08 completed (DoD pasted + ticked)"
+    points: 10
+    checker: pr_body_contains
+    params:
+      items:
+        - label: "MJ08 DoD section pasted with ticked boxes"
+          section: "ICEX_MJ08"
+
+  - name: "PR write-up assembled"
+    points: 5
+    checker: pr_body_contains
+    params:
+      items:
+        - label: "Reviewer Focus written (not the template placeholder)"
+          require: "##\\s*Reviewer Focus"
+          forbid: "\\[2-3 sentences:"
+        - label: "Reach task line filled"
+          require: "Reach task"
+          forbid: "\\[Code / Design per ICEX\\]"
+        - label: "Team / Branch / Week footer filled"
+          require: "\\*\\*Team:.*Team\\s*0?\\d"
+
+  - name: "SR — standup record"
+    points: 5
+    checker: pr_body_contains
+    params:
+      items:
+        - label: "Standup Record table present with a filled row"
+          section: "Standup Record"
+          require: "\\|\\s*\\d+\\s*\\|[^|]*[^\\s|]"
