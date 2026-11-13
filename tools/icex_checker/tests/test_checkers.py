@@ -539,6 +539,7 @@ def test_registry_has_expected_checkers():
         "devlog_before_canvas",
         "pr_commits_by_wall",
         "pr_body_contains",
+        "doc_contains",
         "reflection_entry",
     }
 

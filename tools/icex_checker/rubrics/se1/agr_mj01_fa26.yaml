@@ -1,0 +1,87 @@
+# Rubric for SE1 AGR_MJ01_FA26 — Engineering Decision: The Database at
+# Scale (P565 only; replaces the dead MJ04 EXT as the graduate layer).
+#
+# Canvas: "Week 9 | AGR_MJ01 - Database Decision at Scale (P565)",
+# 20 pts, individual (same-team P565 students each write their own).
+# Submission = blob URL of docs/ddr/ddr1-<username>.md in the TEAM
+# repo, committed to main. Due Monday 11:59 PM (the Canvas export's
+# LATE flag drives the TA's late penalty by the standing policy).
+#
+# DESIGN (amass-then-subtract, Kurt's 2026-11-12 model): the page's
+# four rubric rows (5 pts each) project on MECHANICAL completeness
+# (the six sections' headers + the row's content tokens); the TA
+# subtracts for precision and substance — the page grades "on
+# precision, not length", so the 600-900-word DoD band rides as a
+# note, not a gate. Section ORDER is the TA's check (headers are
+# verified for presence here).
+#
+# Mechanical tokens (row 1): the Vision's three numbers (600,000
+# registered joke-tellers / 2,000,000 jokes / browsing under 200 ms)
+# must appear and drive the analysis. Row 4: the FOSS principle named
+# ("FOSS until proven not to work") and the Cycle-3 deferral explicit.
+
+assignment: AGR_MJ01
+course: SE1
+semester: FA26
+type: individual
+total_points: 20
+semester_start: 2026-08-24
+canvas_points: 20
+ownership_check: self
+
+criteria:
+  # ── Evidence (0 pts) ──
+
+  - name: "Decision record at ddr1-<username>.md on main"
+    points: 0
+    checker: blob_link_valid
+    params:
+      expected_path: "docs/ddr/ddr1-{username}.md"
+      expected_repo_pattern: "fa26-team-"
+
+  # ── Projected point rows (5 each) ──
+
+  - name: "Context + decision grounding"
+    points: 5
+    checker: doc_contains
+    params:
+      expected_path: "docs/ddr/ddr1-{username}.md"
+      expected_repo_pattern: "fa26-team-"
+      require_headers: ["context", "decision as made"]
+      must_contain: ["600[,.]?000", "2[,.]?000[,.]?000",
+                     "200 ?ms|200 ?milliseconds|under 200"]
+      min_words: 600
+      max_words: 900
+
+  - name: "Options considered"
+    points: 5
+    checker: doc_contains
+    params:
+      expected_path: "docs/ddr/ddr1-{username}.md"
+      expected_repo_pattern: "fa26-team-"
+      require_headers: ["options considered"]
+
+  - name: "Analysis at Vision scale"
+    points: 5
+    checker: doc_contains
+    params:
+      expected_path: "docs/ddr/ddr1-{username}.md"
+      expected_repo_pattern: "fa26-team-"
+      require_headers: ["analysis"]
+
+  - name: "FOSS judgment + consequences"
+    points: 5
+    checker: doc_contains
+    params:
+      expected_path: "docs/ddr/ddr1-{username}.md"
+      expected_repo_pattern: "fa26-team-"
+      require_headers: ["foss", "consequences"]
+      must_contain: ["foss", "cycle 3"]
+
+  # ── Manual adjustment (TA subtracts from the projection) ──
+
+  - name: "Precision and substance adjustment"
+    points: 0
+    checker: manual_review
+    params:
+      label: "TA subtracts per row: file-level specifics / divergences surfaced (row 1); options at decision precision vs pasted (row 2); holds/breaks/forcing-signals using the Vision numbers (row 3); FOSS in the student's own words + sovereignty + plain tradeoffs (row 4). Also verify here: six sections IN ORDER, doc individually authored (two same-team P565 students share nothing), claims true of the actual repo. Late penalty per policy."

@@ -1020,13 +1020,26 @@ def _blob_link_valid(ctx, criterion):
         )
     evidence = ["url: %s" % ctx.pr_url]
     owner, repo = parsed["owner"], parsed["repo"]
-    ok, effective_path = _blob_path_matches(parsed["path"], params.get("expected_path"))
+    expected_path = params.get("expected_path")
+    if expected_path and "{username}" in expected_path:
+        username = getattr(ctx, "username", None)
+        if not username:
+            return Finding(
+                criterion, "needs-review", None, evidence,
+                "The rubric path template wants '{username}' but this "
+                "submission has no resolved username (one-off import?) "
+                "— TA verifies the path manually.",
+            )
+        expected_path = expected_path.replace("{username}", username)
+        evidence.append("expected path (from username %s): %s"
+                        % (username, expected_path))
+    ok, effective_path = _blob_path_matches(parsed["path"], expected_path)
     if not ok:
         evidence.append("path mismatch: %s" % parsed["path"])
         return Finding(
             criterion, "fail", 0, evidence,
             "Blob points at '%s'; rubric expects '%s'."
-            % (parsed["path"], params.get("expected_path")),
+            % (parsed["path"], expected_path or params.get("expected_path")),
         )
     expected_ref = params.get("expected_ref")
     if expected_ref and parsed["ref"] != expected_ref:
@@ -1539,6 +1552,168 @@ def _reflection_entry(ctx, criterion):
     )
 
 
+def _doc_contains(ctx, criterion):
+    """Mechanical completeness for blob-URL documents (AGR_MJ series).
+
+    Fetches the submitted blob file and verifies the document-shape
+    requirements the grading design states mechanically: required
+    section headers, required content tokens, and (as an evidence NOTE
+    unless the row scores it) the word band. Presence projects the
+    row's points; a missing requirement projects 0 for the TA to
+    confirm — amass-then-subtract, so the TA still judges precision
+    and substance, which stay manual by design ("graded on precision,
+    not length").
+
+    Params:
+        expected_path / expected_repo_pattern — same meaning as
+            blob_link_valid ('{username}' supported); re-checked here
+            so the content row stands alone.
+        require_headers — regex list; every pattern must match some
+            heading line in the document ('^##?\\s' anchored).
+        must_contain — regex list; every token must appear anywhere
+            in the document text.
+        min_words / max_words — soft band: emitted as a note when
+            violated (the MJ01 page grades precision, not length;
+            MJ02's format row scores the band, so that rubric sets
+            band_enforced: true to project 0 on a band miss).
+        band_enforced — see above (default False).
+    """
+    params = criterion.params
+    expected_path = params.get("expected_path")
+    expected_repo_pattern = params.get("expected_repo_pattern")
+    require_headers = params.get("require_headers") or []
+    must_contain = params.get("must_contain") or []
+    min_words = params.get("min_words")
+    max_words = params.get("max_words")
+    band_enforced = bool(params.get("band_enforced"))
+
+    parsed = parse_github_url(ctx.pr_url)
+    if parsed is None or parsed["kind"] != "blob":
+        return Finding(
+            criterion, "needs-review", None, [],
+            "Submission is not a blob URL — the document rides a file "
+            "in the team or devlog repo.",
+        )
+    owner, repo, path = parsed["owner"], parsed["repo"], parsed["path"]
+    evidence = ["repo: %s/%s" % (owner, repo), "path: %s" % path]
+
+    if expected_repo_pattern:
+        pat = (expected_repo_pattern == "fa26-devlog-"
+               and r"fa26-devlog-.+" or expected_repo_pattern)
+        if not re.search(pat, repo, re.IGNORECASE):
+            evidence.append("MISSING: repo does not match %s" % expected_repo_pattern)
+            return Finding(
+                criterion, "fail", 0, evidence,
+                "The document lives in '%s', not the repo shape the "
+                "grading design requires (%s). 0 pts (TA verifies)."
+                % (repo, expected_repo_pattern), ta_confirm=True,
+            )
+    if expected_path:
+        want = expected_path
+        if "{username}" in want:
+            username = getattr(ctx, "username", None)
+            if not username:
+                return Finding(
+                    criterion, "needs-review", None, evidence,
+                    "Path template '{username}' unresolved (one-off "
+                    "import?) — TA verifies the path manually.",
+                )
+            want = want.replace("{username}", username)
+            evidence.append("expected path (from username %s): %s"
+                            % (username, want))
+        ok, _ = _blob_path_matches(path, want)
+        if not ok:
+            evidence.append("MISSING: path mismatch — got %s, want %s" % (path, want))
+            return Finding(
+                criterion, "fail", 0, evidence,
+                "Document path is '%s'; the grading design requires "
+                "'%s' — 0 pts (TA verifies the filename and the "
+                "student's identity in it)." % (path, want),
+                ta_confirm=True,
+            )
+
+    try:
+        kind, text = ctx.client.get_file_contents(owner, repo, path)
+    except PRNotAccessibleError:
+        return Finding(
+            criterion, "needs-review", None, evidence,
+            "Document block not accessible — TA reads the file directly.",
+        )
+    except (AuthFailureError, RateLimitError):
+        return Finding(
+            criterion, "needs-review", None, evidence,
+            "Document fetch failed (auth/rate) — TA reviews.",
+        )
+    if kind == "missing":
+        evidence.append("MISSING: no file at this blob path")
+        return Finding(
+            criterion, "fail", 0, evidence,
+            "No file at the submitted blob path (404/moved) — 0 pts "
+            "projected. TA verifies and re-runs if renamed.",
+            ta_confirm=True,
+        )
+    if kind == "dir":
+        return Finding(
+            criterion, "fail", 0, evidence,
+            "The submission points at a DIRECTORY, not the document "
+            "file — 0 pts (TA confirms).", ta_confirm=True,
+        )
+    if not text or not text.strip():
+        evidence.append("document file EMPTY")
+        return Finding(
+            criterion, "fail", 0, evidence,
+            "The document file is EMPTY — nothing to grade. 0 pts "
+            "(TA confirms).", ta_confirm=True,
+        )
+
+    missing = []
+    headers = [ln for ln in text.splitlines()
+               if re.match(r"^#{1,4}\s+\S", ln.strip())]
+    for pat in require_headers:
+        if not any(re.search(pat, h, re.IGNORECASE) for h in headers):
+            missing.append("header '%s'" % pat)
+    for pat in must_contain:
+        if not re.search(pat, text, re.IGNORECASE):
+            missing.append("content '%s'" % pat)
+    if missing:
+        evidence += ["MISSING: %s" % m for m in missing]
+        return Finding(
+            criterion, "fail", 0, evidence,
+            "Required section/content missing from the document: %s — "
+            "0 pts projected (TA verifies; the missing piece is what "
+            "the page's grading design requires for this row)."
+            % "; ".join(missing[:6]), ta_confirm=True,
+        )
+
+    n_words = len(_word_count(text))
+    evidence.append("total word count: %d" % n_words)
+    band_note = ""
+    if min_words and n_words < min_words:
+        band_note = " (%d words is UNDER the %d-word band" % (n_words, min_words)
+    elif max_words and n_words > max_words:
+        band_note = " (%d words runs OVER the %d-word band" % (n_words, max_words)
+    if band_note:
+        band_note += " — TA judges)"
+        evidence.append(band_note)
+        if band_enforced:
+            return Finding(
+                criterion, "fail", 0, evidence,
+                "Word band missed: %s. 0 pts projected (TA verifies — "
+                "near-misses are this row's judgment call)." % band_note,
+                ta_confirm=True,
+            )
+    return Finding(
+        criterion, "pass", criterion.points,
+        evidence + ["required sections/content present"],
+        "All mechanical requirements present — %d pts projected. TA "
+        "subtracts for precision/substance issues%s. %s"
+        % (criterion.points,
+           band_note or (" (%d words)" % n_words if min_words or max_words else ""),
+           "Sections must also appear in page order (TA check)."),
+        ta_confirm=True,
+    )
+
+
 def _pr_body_contains(ctx, criterion):
     """Mechanical completeness of the Team PR body (MoJ amass-then-subtract).
 
@@ -1935,6 +2110,7 @@ CHECKERS = {
     "devlog_before_canvas": _devlog_before_canvas,
     "pr_commits_by_wall": _pr_commits_by_wall,
     "pr_body_contains": _pr_body_contains,
+    "doc_contains": _doc_contains,
     "reflection_entry": _reflection_entry,
 }
 

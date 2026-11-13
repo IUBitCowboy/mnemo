@@ -724,6 +724,107 @@ class TestPrBodyContains:
         assert f2.assessment == "fail"
 
 
+class TestDocContains:
+    """AGR_MJ document-shape checks: headers, tokens, word band."""
+
+    DOC = (
+        "# AGR_MJ01 decision record\n\n## 1. Context\nThe Vision has "
+        "600,000 joke-tellers and 2,000,000 jokes; browsing stays under "
+        "200 milliseconds. Team A_MJ01 chose embedded SQLite after "
+        "weighing the research.\n\n## 2. The Decision as Made\nWe kept "
+        "the team engine and the ORM as built.\n\n## 3. Options "
+        "Considered\nSQL over NoSQL; embedded over server.\n\n## 4. "
+        "Analysis at Vision Scale\nThe file is the bottleneck at "
+        "scale.\n\n## 5. The FOSS Judgment\nThe FOSS principle stands "
+        "until proven not to work; Cycle 3 re-decides.\n\n## 6. "
+        "Consequences\nMigration path and observable signals defined."
+    )
+    THREAT_MEMO = (
+        "MEMORANDUM\nTo:   Instructor\nFrom: Student, CSCI-P565\n"
+        "Date: 2026-11-10\nRe:   Threat-Model Assessment\n\n"
+        "## 1. Context\nCycle 2 state summary.\n\n## 2. Assets\nThree "
+        "assets with value and motivation.\n\n## 3. Threats\nFive "
+        "threats listed; one addresses model poisoning in the AI "
+        "pipeline.\n\n## 4. Countermeasures\nCountermeasures mapped, "
+        "including one against prompt injection.\n\n## 5. AI Injection\n"
+        "Expanded scope covered.\n\n## 6. AI Use Disclosure\nI used "
+        "Claude to summarize STRIDE; the analysis is my own."
+    )
+
+    def _finding(self, doc=DOC, kind="file", **params):
+        import test_checkers as tck
+        c = tck._FakeClient()
+        c.file_kind = kind
+        c.file_text = doc
+        cr = _criterion("doc_contains", params, points=5)
+        ctx = _ctx(c, pr_url="https://github.iu.edu/org/fa26-team-03-moj"
+                              "/blob/main/docs/ddr/ddr1-mfbah.md")
+        ctx.username = "mfbah"
+        return _finding(cr, ctx)
+
+    def test_everything_present_projects_full(self):
+        f = self._finding(
+            expected_path="docs/ddr/ddr1-{username}.md",
+            require_headers=["context", "options considered", "consequences"],
+            must_contain=["600[,.]?000", "foss"])
+        assert f.assessment == "pass" and f.points_recommended == 5
+        assert "total word count" in " ".join(f.evidence)
+
+    def test_missing_header_fails_with_name(self):
+        f = self._finding(require_headers=["budget plan"])
+        assert f.assessment == "fail" and f.points_recommended == 0
+        assert "header 'budget plan'" in f.notes
+
+    def test_missing_token_fails_with_name(self):
+        f = self._finding(must_contain=["bitcoin"])
+        assert f.assessment == "fail"
+        assert "content 'bitcoin'" in f.notes
+
+    def test_username_template_resolves(self):
+        f = self._finding(expected_path="docs/ddr/ddr1-{username}.md")
+        assert f.assessment == "pass"
+        assert any("from username mfbah" in e for e in f.evidence)
+
+    def test_username_template_mismatch_fails(self):
+        f = self._finding(expected_path="docs/ddr/ddr9-{username}.md")
+        assert f.assessment == "fail"
+        assert "ddr9-mfbah" in f.notes
+
+    def test_wrong_repo_fails(self):
+        f = self._finding(expected_repo_pattern="fa26-devlog-")
+        assert f.assessment == "fail"
+
+    def test_band_violation_note_only_default(self):
+        f = self._finding(min_words=2000, max_words=1)
+        assert f.assessment == "pass"
+        assert "UNDER the 2000-word band" in f.notes
+
+    def test_band_violation_enforced_fails(self):
+        f = self._finding(min_words=2000, band_enforced=True)
+        assert f.assessment == "fail"
+        assert "near-misses" in f.notes
+
+    def test_band_within_passes_quietly(self):
+        f = self._finding(min_words=1, max_words=900)
+        assert f.assessment == "pass"
+        assert "UNDER" not in f.notes and "OVER" not in f.notes
+
+    def test_missing_file_fails(self):
+        f = self._finding(kind="missing")
+        assert f.assessment == "fail"
+        assert "No file at the submitted blob path" in f.notes
+
+    def test_threat_memo_ai_tokens_found(self):
+        memo = self._finding(
+            doc=self.THREAT_MEMO,
+            expected_repo_pattern="fa26-team-",
+            require_headers=["threats", "countermeasures"],
+            must_contain=[
+                r"prompt injection|model poisoning|data exfiltration|ai-related|\bai\b",
+                "memorandum"])
+        assert memo.assessment == "pass"
+
+
 class TestReflectionEntry:
     """Devlog reflection bar: word count + local-assertion judge."""
 

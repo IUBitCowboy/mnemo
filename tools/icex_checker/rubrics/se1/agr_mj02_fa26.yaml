@@ -1,0 +1,98 @@
+# Rubric for SE1 AGR_MJ02_FA26 — Threat-Model Assessment (P565 only).
+#
+# Canvas: "Week 11 | AGR_MJ02 - Threat-Model Assessment", 30 pts,
+# individual instructor-graded. Submission = direct GitHub URL to
+# memos/agr_mj02_threat_model.md in the student's EngLog ("devlog")
+# repo. One submission per student. Due Monday 11:59 PM (Cycle 2
+# close night).
+#
+# DESIGN (amass-then-subtract): the page's rubric table projects
+# mechanically —
+#   Assets 8 / Threats 8 / Countermeasures 6: section presence
+#   projects the points; the TA subtracts for generic assets, profile
+#   completeness, and the "3-5 item" counts. The AI threat/counter
+#   requirements are mechanical tokens (an AI-related threat and a
+#   countermeasure addressing an AI injection risk).
+#   Professional Format 4: MEMORANDUM header block + word band
+#   500-800 (band_enforced — the page's row scores it; near-misses
+#   are the TA's call) + file location (re-checked here).
+#   AI Use Disclosure 4: section presence projects; specificity
+#   (tool named + purpose + student's own contribution) is TA.
+# (The page's rubric table is the of-record design, 2026-10-31
+# human_reviewed.)
+
+assignment: AGR_MJ02
+course: SE1
+semester: FA26
+type: individual
+total_points: 30
+semester_start: 2026-08-24
+canvas_points: 30
+ownership_check: self
+
+criteria:
+  # ── Evidence (0 pts) ──
+
+  - name: "Memo file at memos/agr_mj02_threat_model.md in the devlog repo"
+    points: 0
+    checker: blob_link_valid
+    params:
+      expected_path: "memos/agr_mj02_threat_model.md"
+      expected_repo_pattern: "fa26-devlog-"
+
+  # ── Projected point rows (page rubric table) ──
+
+  - name: "Assets (3-5, named, valued, attacker motivation)"
+    points: 8
+    checker: doc_contains
+    params:
+      expected_path: "memos/agr_mj02_threat_model.md"
+      expected_repo_pattern: "fa26-devlog-"
+      require_headers: ["assets"]
+      min_words: 500
+      max_words: 800
+
+  - name: "Threats (3-5; at least one AI-related)"
+    points: 8
+    checker: doc_contains
+    params:
+      expected_path: "memos/agr_mj02_threat_model.md"
+      expected_repo_pattern: "fa26-devlog-"
+      require_headers: ["threats"]
+      must_contain: ["prompt injection|model poisoning|data exfiltration|ai-related|\\bai\\b"]
+
+  - name: "Countermeasures (per threat; one AI-injection counter)"
+    points: 6
+    checker: doc_contains
+    params:
+      expected_path: "memos/agr_mj02_threat_model.md"
+      expected_repo_pattern: "fa26-devlog-"
+      require_headers: ["countermeasures"]
+      must_contain: ["injection|poisoning|exfiltration"]
+
+  - name: "Professional format (MEMORANDUM header, 500-800 words)"
+    points: 4
+    checker: doc_contains
+    params:
+      expected_path: "memos/agr_mj02_threat_model.md"
+      expected_repo_pattern: "fa26-devlog-"
+      must_contain: ["memorandum"]
+      min_words: 500
+      max_words: 800
+      band_enforced: true
+
+  - name: "AI use disclosure (specific, not vague)"
+    points: 4
+    checker: doc_contains
+    params:
+      expected_path: "memos/agr_mj02_threat_model.md"
+      expected_repo_pattern: "fa26-devlog-"
+      require_headers: ["ai use disclosure"]
+
+  # ── Manual adjustment (TA subtracts from the projection) ──
+
+  - name: "Substance adjustment"
+    points: 0
+    checker: manual_review
+    params:
+      label: "TA subtracts per row: generic-software assets / missing name-value-motivation triple (row Assets); threat profile completeness (attacker profile, vector, current mitigation) and the 3-5 count (row Threats); per-threat coverage and count (row Countermeasures); header completeness (To/From/Date/Re) and near-miss bands (row Format); vague disclosure ('I used AI to help') zeroes the row per the page (row Disclosure). Memo body is 500-800 words TOTAL across sections."
