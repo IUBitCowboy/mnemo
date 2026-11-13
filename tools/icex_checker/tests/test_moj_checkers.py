@@ -20,6 +20,8 @@ from icex_checker import (
 import rubric
 import checkers
 from roster import Roster
+from errors import (AuthFailureError, PRNotAccessibleError, RateLimitError,
+                    SubmissionNotFoundError)
 
 from test_checkers import _FakeClient, _ctx, _ctx_v11, _criterion, _finding
 
@@ -724,6 +726,203 @@ class TestPrBodyContains:
         assert f2.assessment == "fail"
 
 
+class TestReleaseChecks:
+    """A_MJ02/04 release rows + client ops (tag, body, CI, timing)."""
+
+    RELEASE_BODY = (
+        "## What We Did\nMerged [PR #1](https://github.iu.edu/o/r/pull/1) "
+        "and [PR #2](https://github.iu.edu/o/r/pull/2) for the flask front "
+        "door.\n\n## What We Learned\nSQLAlchemy ORM mapping clicked.\n\n"
+        "## What We Do Different\nNext cycle: PRs smaller; CI first.\n\n"
+        "## Team & Process Retrospective\nCompared MoJ with MFE.\n\n"
+        "## Architecture\n![architecture](docs/arch.png)\n\n"
+        "## requirements.txt Map\nflask routes, sqlalchemy models."
+    )
+
+    def _ctx_release(self, release, state="success", kind="release"):
+        import test_checkers as tck
+        c = tck._FakeClient()
+        c.release = release
+        c.status_state = state
+        cr = _criterion("release_contains", {}, points=8)
+        ctx = _ctx(c, pr_url="https://github.iu.edu/o/fa26-team-01-moj"
+                              "/releases/tag/moj-c1-v1.0")
+        return cr, ctx, c
+
+    def test_release_url_parses_to_release_kind(self):
+        parsed = checkers.parse_github_url(
+            "https://github.iu.edu/o/r/releases/tag/moj-c1-v1.0")
+        assert parsed["kind"] == "release" and parsed["ref"] == "moj-c1-v1.0"
+
+    def test_full_body_projects(self):
+        cr, ctx, c = self._ctx_release(
+            {"body": self.RELEASE_BODY,
+             "published_at": "2026-10-24T20:00:00Z"})
+        f = _finding(cr, ctx)
+        assert f.assessment == "pass" and f.points_recommended == 8
+        assert any("PR links found: 2" in e for e in f.evidence)
+        assert not any("late:" in e for e in f.evidence)
+
+    def test_late_release_carries_cap_signal(self):
+        import test_checkers as tck
+        c = tck._FakeClient()
+        c.release = {"body": self.RELEASE_BODY,
+                     "published_at": "2026-10-29T02:00:00Z"}
+        cr = _criterion("release_contains",
+                        {"due": "2026-10-26T23:59:00-04:00"}, points=8)
+        ctx = _ctx(c, pr_url="https://github.iu.edu/o/fa26-team-01-moj"
+                             "/releases/tag/moj-c1-v1.0")
+        f = _finding(cr, ctx)
+        assert f.assessment == "pass"
+        assert any("LATE" in e and "5%/day" in e for e in f.evidence)
+        assert "1.9 days" in f.notes and "−10 pts" in f.notes
+
+    def test_body_without_pr_links_fails(self):
+        body = "## What We Did\nstuff.\n\n## What We Learned\nx\n\n## What We Do Different\ny"
+        f = self._rerun(body, min_pr_links=2)
+        assert f.assessment == "fail"
+        assert "PR links" in f.notes
+
+    def _rerun(self, body, **extra):
+        import test_checkers as tck
+        c = tck._FakeClient()
+        c.release = {"body": body, "published_at": "2026-10-24T20:00:00Z"}
+        cr = _criterion("release_contains", extra, points=8)
+        return _finding(cr, _ctx(
+            c, pr_url="https://github.iu.edu/o/fa26-team-01-moj"
+                      "/releases/tag/moj-c1-v1.0"))
+
+    def test_missing_header_fails(self):
+        f = self._rerun(self.RELEASE_BODY, require_headers=["budget"])
+        assert f.assessment == "fail"
+        assert "header 'budget'" in f.notes
+
+    def test_draft_release_fails(self):
+        f = self._rerun("", expected_repo_pattern="fa26-team-")
+        assert f.assessment == "fail"
+        # empty body -> MISSING body content? "" -> get_release fine but
+        # body empty -> fail with EMPTY
+        assert "no description" in f.notes
+
+    def test_missing_release_404(self):
+        import test_checkers as tck
+        c = tck._FakeClient()
+        c.release_error = SubmissionNotFoundError("no release")
+        cr = _criterion("release_contains", {}, points=8)
+        f = _finding(cr, _ctx(
+            c, pr_url="https://github.iu.edu/o/fa26-team-01-moj"
+                      "/releases/tag/moj-c1-v1.0"))
+        assert f.assessment == "fail"
+        assert "No release with tag" in f.notes
+
+    def test_ci_green_full_points(self):
+        import test_checkers as tck
+        c = tck._FakeClient()
+        c.status_state = "success"
+        cr = _criterion("release_ci_green", {}, points=5)
+        f = _finding(cr, _ctx(
+            c, pr_url="https://github.iu.edu/o/fa26-team-01-moj"
+                      "/releases/tag/moj-c1-v1.0"))
+        assert f.assessment == "pass" and f.points_recommended == 5
+
+    def test_ci_red_zero_no_appeal(self):
+        import test_checkers as tck
+        c = tck._FakeClient()
+        c.status_state = "failure"
+        cr = _criterion("release_ci_green", {}, points=5)
+        f = _finding(cr, _ctx(
+            c, pr_url="https://github.iu.edu/o/fa26-team-01-moj"
+                      "/releases/tag/moj-c1-v1.0"))
+        assert f.assessment == "fail" and f.points_recommended == 0
+        assert "no appeal" in f.notes
+
+    def test_ci_pending_needs_review(self):
+        import test_checkers as tck
+        c = tck._FakeClient()
+        c.status_state = "pending"
+        cr = _criterion("release_ci_green", {}, points=5)
+        f = _finding(cr, _ctx(
+            c, pr_url="https://github.iu.edu/o/fa26-team-01-moj"
+                      "/releases/tag/moj-c1-v1.0"))
+        assert f.assessment == "needs-review"
+
+
+class TestDocInPr:
+    """A_MJ01-B: doc on the PR head branch + member positions."""
+
+    DECISION_DOC = (
+        "## Section 1 — Decision Summary\nSQLite embedded, two reasons.\n\n"
+        "## Section 2 — Strongest Counterargument\nNoSQL flexibility named.\n\n"
+        "## Section 3 — Ethical Challenge\nTables and week named.\n\n"
+        "## Section 4 — Synthesis Reflection\nSurfaced by discussion.\n\n"
+        "## Section 5 — Individual Positions\n- @ybingley affirms (vision req)\n"
+        "- @cfampo affirms (vision req)"
+    )
+
+    def _ctx_pr(self, doc=DECISION_DOC, **param_extra):
+        import test_checkers as tck
+        c = tck._FakeClient()
+        c.file_kind, c.file_text = "file", doc
+        c.pr_data = {"title": "Decision: SQL vs NoSQL Database Engine",
+                     "head_ref": "decision/sql-nosql", "body": "pr body"}
+        roster = tck._roster_with_team("SE_TEAM01", ["ctbowman", "mfbah"])
+        params = {
+            "expected_branch": "decision/sql-nosql",
+            "expected_title": "decision: ?sql vs nosql",
+            "expected_path": "decisions/sql_nosql.md",
+        }
+        params.update(param_extra)
+        cr = _criterion("doc_in_pr", params, points=4)
+        ctx = _ctx(c, pr_url="https://github.iu.edu/o/fa26-team-01-moj/pull/3")
+        ctx.roster = roster
+        ctx.username = "ctbowman"
+        return cr, ctx, c
+
+    def test_everything_present_projects_full(self):
+        cr, ctx, c = self._ctx_pr(
+            self.DECISION_DOC.replace("@cfampo", "@ctbowman")
+            + "\n- @hasiddiq affirms")
+        f = _finding(cr, ctx)
+        assert f.assessment == "pass", f.notes
+        assert f.points_recommended == 4
+        assert any("head ref" in e for e in f.evidence)
+
+    def test_wrong_branch_fails(self):
+        cr, ctx, c = self._ctx_pr()
+        c.file_text = self.DECISION_DOC
+        ctx_roster = ctx
+        c.pr_data["head_ref"] = "main"
+        f = _finding(cr, ctx_roster)
+        assert f.assessment == "fail" and "decision/sql-nosql" in f.notes
+
+    def test_wrong_title_fails(self):
+        cr, ctx, c = self._ctx_pr()
+        c.pr_data["title"] = "Update readme"
+        f = _finding(cr, ctx)
+        assert f.assessment == "fail" and "title" in f.notes.lower()
+
+    def test_doc_on_head_not_main(self):
+        # the fetch must use the head ref, not main - _FakeClient records ref
+        cr, ctx, c = self._ctx_pr()
+        _finding(cr, ctx)
+        assert getattr(c, "last_file_ref", None) == "decision/sql-nosql"
+
+    def test_missing_member_entries_fail_with_names(self):
+        cr, ctx, c = self._ctx_pr(
+            self.DECISION_DOC.replace("@cfampo", "@ctbowman")
+            + "\n- @hasiddiq affirms",
+            require_all_usernames=True)
+        f = _finding(cr, ctx)
+        assert f.assessment == "fail"
+        assert "mfbah" in f.notes
+
+    def test_missing_header_fails(self):
+        cr, ctx, c = self._ctx_pr("# only a title\n\nbody text",
+                                  require_headers=["decision summary"])
+        f = _finding(cr, ctx)
+        assert f.assessment == "fail" and "header" in f.notes
+
+
 class TestDocContains:
     """AGR_MJ document-shape checks: headers, tokens, word band."""
 
@@ -1152,3 +1351,137 @@ class TestMoJParserIntegration:
             "https://github.iu.edu/org/repo/pull/7"
         )
         assert (owner, repo, number) == ("org", "repo", 7)
+
+
+class _PathRefClient:
+    """Fake client whose file results vary by (path, ref) — for the
+    path-tolerance behaviors."""
+
+    def __init__(self, files, pulls=(), diff_text=""):
+        self._files = files          # {(path, ref): (kind, text)}
+        self.pr_data = {"title": "t", "head_ref": "feat/br", "body": "b"}
+        self.pulls = list(pulls)
+        self.diff_text = diff_text
+        self.calls = []
+
+    def get_file_contents(self, owner, repo, path, ref=None):
+        self.calls.append(("contents", owner, repo, path, ref))
+        return self._files.get((path, ref), ("missing", None))
+
+    def get_repo(self, owner, repo):
+        self.calls.append(("repo", owner, repo))
+        return type("R", (), {"full_name": "%s/%s" % (owner, repo),
+                              "created_at": "2026-08-20T09:00:00Z"})()
+
+    def get_pr(self, owner, repo, number):
+        self.calls.append(("pr", owner, repo, number))
+        return type("PR", (), self.pr_data)()
+
+    def get_pr_diff(self, owner, repo, number):
+        return self.diff_text
+
+
+def _doc_ctx(client, url, params, roster_members=("ctbowman", "mfbah"),
+             username="ctbowman"):
+    import test_checkers as tck
+    roster = tck._roster_with_team("SE_TEAM01", list(roster_members))
+    cr = _criterion("doc_contains", params, points=5)
+    ctx = _ctx(client, pr_url=url)
+    ctx.roster = roster
+    ctx.username = username
+    return cr, ctx
+
+
+DOC_BODY = (
+    "# Logging requirements\n\n## Individual summaries\nMembers. Names "
+    "600,000.\n\n## Unified specification\nTen events, each with log "
+    "level.\n\n## Conflicts and resolutions\nWe argued; SQLite won.\n\n"
+    "## Synthesis reflection\nSTRIDE: one threat named.\n\n## Process\n"
+    "@ctbowman @mfbah listed."
+)
+PULL_URL = "https://github.iu.edu/o/fa26-team-01-moj/pull/3"
+
+
+class TestDocPathTolerance:
+    """A_MJ03 FA26 conventions: drifted doc names and slice-branch refs
+    resolve by tolerance params, with path-deviation evidence."""
+
+    URL_MAIN = ("https://github.iu.edu/o/fa26-team-01-moj/"
+                "blob/main/docs/requirements/logging_requirements.md")
+    URL_RENAMED = ("https://github.iu.edu/o/fa26-team-01-moj/"
+                   "blob/main/docs/logging-spec.md")
+    URL_SLASHREF = ("https://github.iu.edu/o/fa26-team-01-moj/"
+                    "blob/assignment/amj03-log/docs/logging/a_mj03_team01.md")
+
+    def test_basename_tolerance_passes(self):
+        c = _PathRefClient({("docs/requirements/logging_requirements.md",
+                             "main"): ("file", DOC_BODY)})
+        cr, ctx = _doc_ctx(c, self.URL_MAIN, {
+            "expected_path": "docs/logging_requirements.md",
+            "allow_name_regex": "logging"})
+        f = _finding(cr, ctx)
+        assert f.assessment == "pass", f.notes
+        assert any("path deviation" in e for e in f.evidence)
+
+    def test_name_regex_tolerance_passes(self):
+        c = _PathRefClient({("docs/logging-spec.md", "main"):
+                            ("file", DOC_BODY)})
+        cr, ctx = _doc_ctx(c, self.URL_RENAMED, {
+            "expected_path": "docs/logging_requirements.md",
+            "allow_name_regex": "logging|mj.?03"})
+        f = _finding(cr, ctx)
+        assert f.assessment == "pass", f.notes
+        assert any("path deviation" in e for e in f.evidence)
+
+    def test_no_tolerance_fails_on_rename(self):
+        c = _PathRefClient({("docs/logging-spec.md", "main"):
+                            ("file", DOC_BODY)})
+        cr, ctx = _doc_ctx(c, self.URL_RENAMED, {
+            "expected_path": "docs/logging_requirements.md"})
+        f = _finding(cr, ctx)
+        assert f.assessment == "fail" \
+            and any("path mismatch" in e for e in f.evidence)
+
+    def test_multi_segment_ref_sweep(self):
+        c = _PathRefClient({("docs/logging/a_mj03_team01.md",
+                             "assignment/amj03-log"): ("file", DOC_BODY)})
+        cr, ctx = _doc_ctx(c, self.URL_SLASHREF, {
+            "expected_path": "docs/logging_requirements.md",
+            "allow_name_regex": "logging|mj.?03"})
+        f = _finding(cr, ctx)
+        assert f.assessment == "pass", f.notes
+        assert any("multi-segment ref" in e for e in f.evidence)
+
+    def test_pr_doc_head_deleted_reads_main(self):
+        files = {("docs/logging_requirements.md", "decision/log"):
+                 ("missing", None),
+                 ("docs/logging_requirements.md", None): ("file", DOC_BODY)}
+        c = _PathRefClient(files)
+        c.pr_data["head_ref"] = "decision/log"
+        c.roster = None
+        cr, ctx = _doc_ctx(c, PULL_URL, {
+            "expected_path": "docs/logging_requirements.md",
+            "require_all_usernames": True})
+        ctx.roster = __import__("test_checkers")._roster_with_team(
+            "SE_TEAM01", ["ctbowman", "mfbah"])
+        f = _finding(cr, ctx)
+        assert f.assessment == "pass", f.notes
+        assert any("MERGED file on main" in e for e in f.evidence)
+
+    def test_pr_doc_found_via_diff_scan(self):
+        # head deleted, main lacks the doc, PR diff carries it at a
+        # drifted path → resolve from the PR's changed files.
+        files = {("docs/logging_requirements.md", None): ("missing", None),
+                 ("decisions/logging-requirements.md", None):
+                     ("file", DOC_BODY)}
+        c = _PathRefClient(
+            files,
+            diff_text="diff --git a/decisions/logging-requirements.md")
+        c.pr_data["head_ref"] = "decision/log"
+        cr, ctx = _doc_ctx(c, PULL_URL, {
+            "expected_path": "docs/logging_requirements.md",
+            "allow_name_regex": "logging|mj.?03",
+            "require_all_usernames": True})
+        f = _finding(cr, ctx)
+        assert f.assessment == "pass", f.notes
+        assert any("PR's changed files" in e for e in f.evidence)

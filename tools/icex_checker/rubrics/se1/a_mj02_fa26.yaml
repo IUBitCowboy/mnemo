@@ -1,0 +1,67 @@
+# Rubric for SE1 A_MJ02 FA26 — Cycle 1 Close (the Release IS the
+# deliverable). 30 pts, TEAM, one submission per team.
+#
+# Canvas: "Week 9 | A_MJ02 - Cycle 1 Close", due Monday 11:59 PM
+# (2026-10-26T23:59:00-04:00). Submission = ONE GitHub Release URL
+# (tag moj-c1-v1.0, description = five-part close report). Lateness
+# caps −5%/day (the note computes the standing cap; TA applies).
+#
+# DESIGN (amass-then-subtract): CI-green is a hard mechanical row
+# (the page: a red commit forfeits all 5, no appeal). Body rows
+# project on section presence + PR-link evidence; the TA subtracts
+# for the page's bars (capability summaries per merged PR, specific
+# not-generic learnings, ≥2 actionable adjustments, deliberate
+# MoJ-vs-MFE comparison, diagram boxes true of the repo, capability
+# map not library marketing).
+
+assignment: A_MJ02
+course: SE1
+semester: FA26
+type: team
+total_points: 30
+semester_start: 2026-08-24
+canvas_points: 30
+ownership_check: team
+
+criteria:
+  - name: "CI green on the tagged commit"
+    points: 5
+    checker: release_ci_green
+    params: {}
+
+  - name: "Sprint report — did / learned / different (merged PRs linked)"
+    points: 8
+    checker: release_contains
+    params:
+      expected_repo_pattern: "fa26-team-"
+      require_headers: ["did|what we did", "learned", "different"]
+      min_pr_links: 2
+      due: "2026-10-26T23:59:00-04:00"
+
+  - name: "Team & process retrospective (MoJ-vs-MFE named)"
+    points: 5
+    checker: release_contains
+    params:
+      expected_repo_pattern: "fa26-team-"
+      require_headers: ["retrospective"]
+      must_contain: ["mfe|ministry front end"]
+
+  - name: "Architecture diagram (app / blueprints / ORM / database / CI)"
+    points: 6
+    checker: release_contains
+    params:
+      expected_repo_pattern: "fa26-team-"
+      must_contain: ["diagram|architecture|!\\[|<img|```"]
+
+  - name: "requirements.txt capability map (every entry, role named)"
+    points: 6
+    checker: release_contains
+    params:
+      expected_repo_pattern: "fa26-team-"
+      must_contain: ["requirements.txt|flask|sqlalchemy"]
+
+  - name: "Substance adjustment (+ late cap signal)"
+    points: 0
+    checker: manual_review
+    params:
+      label: "TA subtracts per the page: a PR link listed without its capability summary (−3 bucket), generic learnings (−3), fewer than 2 actionable adjustments (−2), waved-at MoJ-vs-MFE comparison, diagram boxes not in the repo (false statement of work), requirements entries missing (all 6 lost). The release row notes carry the late-cap computation (−5%/day from the release's published timestamp vs the close) — apply to the projected total."

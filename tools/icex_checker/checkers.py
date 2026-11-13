@@ -878,6 +878,21 @@ def parse_github_url(url):
             "ref": ref,
             "path": path,
         }
+    m = re.match(
+        r"https?://(?P<host>[^/\s\"'<>]+)/(?P<owner>[A-Za-z0-9_.-]+)/"
+        r"(?P<repo>[A-Za-z0-9_.-]+)/releases/tag/(?P<tag>[^\s\"'<>/?#]+)",
+        url,
+    )
+    if m:
+        return {
+            "kind": "release",
+            "host": m.group("host"),
+            "owner": m.group("owner"),
+            "repo": m.group("repo"),
+            "number": None,
+            "ref": m.group("tag"),
+            "path": None,
+        }
     return None
 
 
@@ -1034,6 +1049,21 @@ def _blob_link_valid(ctx, criterion):
         evidence.append("expected path (from username %s): %s"
                         % (username, expected_path))
     ok, effective_path = _blob_path_matches(parsed["path"], expected_path)
+    if not ok and params.get("allow_basename_match") \
+            and _same_basename(parsed["path"], expected_path):
+        evidence.append("path deviation: submitted at '%s' (expected "
+                        "'%s'); basename matches (TA verifies the "
+                        "convention)" % (parsed["path"], expected_path))
+        ok = True
+    if not ok and params.get("allow_name_regex"):
+        base = parsed["path"].rsplit("/", 1)[-1]
+        if re.search(params["allow_name_regex"], base, re.IGNORECASE):
+            evidence.append("path deviation: submitted at '%s' (expected "
+                            "'%s'); filename matches '%s' (TA verifies "
+                            "the convention)" % (
+                                parsed["path"], expected_path,
+                                params["allow_name_regex"]))
+            ok = True
     if not ok:
         evidence.append("path mismatch: %s" % parsed["path"])
         return Finding(
@@ -1588,11 +1618,15 @@ def _doc_contains(ctx, criterion):
     band_enforced = bool(params.get("band_enforced"))
 
     parsed = parse_github_url(ctx.pr_url)
+    if parsed is not None and parsed["kind"] == "pull":
+        # Team docs land via a PR on some teams (A_MJ03): run the same
+        # content checks on the file AT the PR's head branch.
+        return _doc_in_pr(ctx, criterion)
     if parsed is None or parsed["kind"] != "blob":
         return Finding(
             criterion, "needs-review", None, [],
-            "Submission is not a blob URL — the document rides a file "
-            "in the team or devlog repo.",
+            "Submission is not a blob or PR URL — the document rides a "
+            "file in the team or devlog repo.",
         )
     owner, repo, path = parsed["owner"], parsed["repo"], parsed["path"]
     evidence = ["repo: %s/%s" % (owner, repo), "path: %s" % path]
@@ -1622,6 +1656,21 @@ def _doc_contains(ctx, criterion):
             evidence.append("expected path (from username %s): %s"
                             % (username, want))
         ok, _ = _blob_path_matches(path, want)
+        if not ok and params.get("allow_basename_match") and _same_basename(path, want):
+            evidence.append("path deviation: submitted at '%s' (expected "
+                            "'%s'); basename matches — reading the submitted "
+                            "doc (TA verifies the convention)" % (path, want))
+            want = path
+            ok = True
+        if not ok and params.get("allow_name_regex"):
+            base = path.rsplit("/", 1)[-1]
+            if re.search(params["allow_name_regex"], base, re.IGNORECASE):
+                evidence.append("path deviation: submitted at '%s' (expected "
+                                "'%s'); filename matches '%s' — reading the "
+                                "submitted doc (TA verifies the convention)"
+                                % (path, want, params["allow_name_regex"]))
+                want = path
+                ok = True
         if not ok:
             evidence.append("MISSING: path mismatch — got %s, want %s" % (path, want))
             return Finding(
@@ -1644,6 +1693,33 @@ def _doc_contains(ctx, criterion):
             criterion, "needs-review", None, evidence,
             "Document fetch failed (auth/rate) — TA reviews.",
         )
+    if kind != "file":
+        # The naive ref/path split 404'd — sweep candidate splits of the
+        # URL tail: ref = the first k segments, path = the rest; then
+        # the whole tail as a path on the default branch. Multi-segment
+        # branch names (blob/assignment/amj03-x/docs/…) are common in
+        # the A-line lanes.
+        parts = ((parsed["ref"] + "/" + parsed["path"]) if parsed["ref"]
+                 else parsed["path"]).split("/")
+        for k in range(1, min(len(parts), 5)):
+            fref, fpath = "/".join(parts[:k]), "/".join(parts[k:])
+            try:
+                kind, text = ctx.client.get_file_contents(
+                    owner, repo, fpath, ref=fref)
+            except PRNotAccessibleError:
+                continue
+            if kind == "file" and (text or "").strip():
+                path = fpath
+                evidence.append("multi-segment ref: fetched '%s' at ref "
+                                "'%s'" % (fpath, fref))
+                break
+        else:
+            kind, text = ctx.client.get_file_contents(
+                owner, repo, "/".join(parts), ref=None)
+            if kind == "file" and (text or "").strip():
+                path = "/".join(parts)
+                evidence.append("multi-segment ref: fetched '%s' on the "
+                                "default branch" % path)
     if kind == "missing":
         evidence.append("MISSING: no file at this blob path")
         return Finding(
@@ -1687,6 +1763,407 @@ def _doc_contains(ctx, criterion):
 
     n_words = len(_word_count(text))
     evidence.append("total word count: %d" % n_words)
+    band_note = ""
+    if min_words and n_words < min_words:
+        band_note = " (%d words is UNDER the %d-word band" % (n_words, min_words)
+    elif max_words and n_words > max_words:
+        band_note = " (%d words runs OVER the %d-word band" % (n_words, max_words)
+    if band_note:
+        band_note += " — TA judges)"
+        evidence.append(band_note)
+        if band_enforced:
+            return Finding(
+                criterion, "fail", 0, evidence,
+                "Word band missed: %s. 0 pts projected (TA verifies — "
+                "near-misses are this row's judgment call)." % band_note,
+                ta_confirm=True,
+            )
+    return Finding(
+        criterion, "pass", criterion.points,
+        evidence + ["required sections/content present"],
+        "All mechanical requirements present — %d pts projected. TA "
+        "subtracts for precision/substance issues%s. %s"
+        % (criterion.points,
+           band_note or (" (%d words)" % n_words if min_words or max_words else ""),
+           "Sections must also appear in page order (TA check)."),
+        ta_confirm=True,
+    )
+
+
+def _release_contains(ctx, criterion):
+    """Cycle-close release checks (A_MJ02/A_MJ04): release URL is the
+    deliverable — tag existence, body sections/tokens, PR-link
+    evidence, and the late-cap signal from the published timestamp.
+
+    Params:
+        expected_repo_pattern — substring the repo name must contain.
+        require_headers / must_contain — as in doc_contains, matched
+            against the release BODY (the body IS the deliverable).
+        min_pr_links — minimum merged-PR links (…/pull/N) required.
+        min_words / max_words / band_enforced — as in doc_contains.
+        due — ISO close datetime; the published timestamp then yields
+            a LATE note with the standing −5%/day cap number (TA
+            applies the cap; the tool verifies the timestamp).
+    """
+    params = criterion.params
+    parsed = parse_github_url(ctx.pr_url)
+    if parsed is None or parsed["kind"] != "release":
+        return Finding(
+            criterion, "needs-review", None, [],
+            "Submission is not a GitHub Release URL — the cycle close "
+            "rides /releases/tag/<tag>.",
+        )
+    owner, repo, tag = parsed["owner"], parsed["repo"], parsed["ref"]
+    evidence = ["repo: %s/%s" % (owner, repo), "tag: %s" % tag]
+    pattern = params.get("expected_repo_pattern")
+    if pattern and pattern not in repo:
+        evidence.append("MISSING: repo does not match %s" % pattern)
+        return Finding(
+            criterion, "fail", 0, evidence,
+            "The release lives on '%s', not the team repo shape the "
+            "grading design requires (%s). 0 pts (TA verifies)."
+            % (repo, pattern), ta_confirm=True,
+        )
+    try:
+        rel = ctx.client.get_release(owner, repo, tag)
+    except SubmissionNotFoundError:
+        return Finding(
+            criterion, "fail", 0, evidence,
+            "No release with tag '%s' on %s/%s — 0 pts (the tag may "
+            "exist without a published release; the close requires the "
+            "RELEASE, not just the tag). TA verifies." % (tag, owner, repo),
+            ta_confirm=True,
+        )
+    except (AuthFailureError, RateLimitError):
+        return Finding(
+            criterion, "needs-review", None, evidence,
+            "Release fetch failed (auth/rate) — TA reviews.",
+        )
+    body = rel.get("body") or ""
+    published = rel.get("published_at") or ""
+    evidence.append("published: %s" % (published or "NOT PUBLISHED (draft?)"))
+    if not body.strip():
+        evidence.append("release body EMPTY")
+        return Finding(
+            criterion, "fail", 0, evidence,
+            "The release has no description — the body IS the "
+            "deliverable. 0 pts (TA confirms).", ta_confirm=True,
+        )
+
+    missing = []
+    headers = [ln for ln in body.splitlines()
+               if re.match(r"^#{1,4}\s+\S", ln.strip())]
+    for pat in params.get("require_headers") or []:
+        if not any(re.search(pat, h, re.IGNORECASE) for h in headers):
+            missing.append("header '%s'" % pat)
+    for pat in params.get("must_contain") or []:
+        if not re.search(pat, body, re.IGNORECASE):
+            missing.append("content '%s'" % pat)
+    n_links = len(re.findall(r"/pull/\d+", body))
+    min_links = params.get("min_pr_links")
+    if min_links and n_links < int(min_links):
+        missing.append("%d PR links (needs >= %s)" % (n_links, min_links))
+    if missing:
+        evidence += ["MISSING: %s" % m for m in missing]
+        evidence.append("PR links found: %d" % n_links)
+        return Finding(
+            criterion, "fail", 0, evidence,
+            "Required release-body content missing: %s — 0 pts "
+            "projected (TA verifies)." % "; ".join(missing[:6]),
+            ta_confirm=True,
+        )
+
+    n_words = len(_word_count(body))
+    evidence.append("body word count: %d" % n_words)
+    evidence.append("PR links found: %d" % n_links)
+    due = params.get("due")
+    late_note = ""
+    if due:
+        try:
+            dt_due = datetime.datetime.fromisoformat(due)
+            if published:
+                dt_pub = datetime.datetime.fromisoformat(
+                    published.replace("Z", "+00:00"))
+                late_hours = (dt_pub - dt_due).total_seconds() / 3600.0
+                if late_hours > 0:
+                    days_ceil = int(-(-late_hours // 24))
+                    late_note = (
+                        " LATE: released %.1f days after the close — "
+                        "standing cap: 5%%/day, floor −%d pts (TA "
+                        "applies)." % (late_hours / 24.0, days_ceil * 5))
+                    evidence.append("late: %s" % late_note)
+        except (ValueError, TypeError):
+            evidence.append("due/published timestamps unparseable — "
+                            "TA checks the release date by hand")
+    band_note = ""
+    if params.get("min_words") and n_words < params["min_words"]:
+        band_note = " (%d words UNDER the %d-word band — TA judges)" % (
+            n_words, params["min_words"])
+    elif params.get("max_words") and n_words > params["max_words"]:
+        band_note = " (%d words OVER the %d-word band — TA judges)" % (
+            n_words, params["max_words"])
+    if band_note:
+        evidence.append(band_note)
+        if params.get("band_enforced"):
+            return Finding(
+                criterion, "fail", 0, evidence,
+                "Word band missed%s. 0 pts projected (TA verifies)."
+                % band_note, ta_confirm=True,
+            )
+    return Finding(
+        criterion, "pass", criterion.points,
+        evidence + ["required body content present"],
+        "All mechanical body requirements present — %d pts projected"
+        "%s. TA subtracts for substance (specific PR summaries, "
+        "non-generic learnings, diagram-vs-repo truth).%s"
+        % (criterion.points, band_note, late_note), ta_confirm=True,
+    )
+
+
+def _release_ci_green(ctx, criterion):
+    """CI green on the tagged commit (A-line close row, 5 pts).
+
+    The master speaks plainly: 'A red commit forfeits all 5, no
+    appeal.' Combined status on the tag ref decides: success → full
+    points; failure/error → 0; pending/none → needs-review (GH
+    Actions lag, or no status configured on the tag).
+    """
+    parsed = parse_github_url(ctx.pr_url)
+    if parsed is None or parsed["kind"] != "release":
+        return Finding(
+            criterion, "needs-review", None, [],
+            "Submission is not a GitHub Release URL — no tagged commit "
+            "to check.",
+        )
+    owner, repo, tag = parsed["owner"], parsed["repo"], parsed["ref"]
+    evidence = ["repo: %s/%s" % (owner, repo), "tag: %s" % tag]
+    try:
+        state = ctx.client.get_commit_status(owner, repo, tag)
+    except SubmissionNotFoundError:
+        return Finding(
+            criterion, "fail", 0, evidence,
+            "Tag '%s' not reachable — the close's CI row cannot be "
+            "verified from the tag. 0 pts (TA verifies whether the tag "
+            "was pushed at all)." % tag, ta_confirm=True,
+        )
+    except (AuthFailureError, RateLimitError):
+        return Finding(
+            criterion, "needs-review", None, evidence,
+            "CI status fetch failed (auth/rate) — TA reviews.",
+        )
+    evidence.append("combined CI state on tag: %s" % (state or "(none)"))
+    if state == "success":
+        return Finding(
+            criterion, "pass", criterion.points, evidence,
+            "%d pts — CI green on the tagged commit." % criterion.points,
+        )
+    if state in ("failure", "error"):
+        return Finding(
+            criterion, "fail", 0, evidence,
+            "CI state '%s' on the tagged commit — the page's rule: a "
+            "red commit forfeits all %d, no appeal. 0 pts (TA confirms)."
+            % (state, criterion.points), ta_confirm=True,
+        )
+    return Finding(
+        criterion, "needs-review", None, evidence,
+        "Combined state %s — pending, or no check status is "
+        "configured on the tag. TA clicks the SHA to confirm."
+        % (state or "(none)"),
+    )
+
+
+def _doc_in_pr(ctx, criterion):
+    """Document checks for a PR-shape submission (A_MJ01-B): the doc
+    rides the PR's HEAD branch. Resolves the PR once (title/head_ref),
+    then runs the doc_contains content logic on the file AT THE HEAD
+    REF — the decision lands on `decision/sql-nosql`, not main, so a
+    main-only fetch would miss it.
+
+    Params: expected_path, require_headers, must_contain,
+    expected_branch (regex the head ref must match),
+    expected_title (regex the PR title must match),
+    min/max words, band_enforced — as in doc_contains.
+    """
+    params = criterion.params
+    parsed = parse_github_url(ctx.pr_url)
+    if parsed is None or parsed["kind"] != "pull":
+        return Finding(
+            criterion, "needs-review", None, [],
+            "Submission is not a PR URL — the team decision rides a "
+            "pull request.",
+        )
+    owner, repo, number = parsed["owner"], parsed["repo"], parsed["number"]
+    try:
+        pr = ctx.client.get_pr(owner, repo, number)
+    except PRNotAccessibleError:
+        return Finding(
+            criterion, "needs-review", None,
+            ["pr #%d" % number], "PR not accessible — TA reviews.",
+        )
+    except (AuthFailureError, RateLimitError):
+        return Finding(
+            criterion, "needs-review", None, ["pr #%d" % number],
+            "PR fetch failed (auth/rate) — TA reviews.",
+        )
+    head = pr.head_ref
+    evidence = ["pr #%d" % number, "head ref: %s" % (head or "(none)")]
+    branch_pat = params.get("expected_branch")
+    if branch_pat and (not head or not re.search(branch_pat, head, re.I)):
+        evidence.append("MISSING: head ref does not match %s" % branch_pat)
+        return Finding(
+            criterion, "fail", 0, evidence,
+            "The PR's head branch is '%s'; the grading design requires "
+            "'%s'. 0 pts (TA verifies)." % (head or "(none)", branch_pat),
+            ta_confirm=True,
+        )
+    title_pat = params.get("expected_title")
+    if title_pat and (not pr.title or not re.search(title_pat, pr.title, re.I)):
+        evidence.append("MISSING: PR title('%s') does not match %s"
+                        % (pr.title, title_pat))
+        return Finding(
+            criterion, "fail", 0, evidence,
+            "The PR title is '%s'; the page names the expected title "
+            "pattern '%s'. 0 pts (TA verifies)." % (pr.title, title_pat),
+            ta_confirm=True,
+        )
+    path = params.get("expected_path")
+    if not path:
+        return Finding(
+            criterion, "needs-review", None, evidence,
+            "Rubric row lacks expected_path — tool config error (TA "
+            "reviews the rubric).",
+        )
+    kind, text = ctx.client.get_file_contents(owner, repo, path, ref=head)
+    if kind == "missing":
+        # Merged-and-deleted head branches: try main; then, when the
+        # rubric allows basename tolerance, scan the PR's own changed
+        # files for the doc at a drifted path (decisions/ vs docs/).
+        kind, text = ctx.client.get_file_contents(owner, repo, path, ref=None)
+        found = kind == "file" and bool((text or "").strip())
+        if found:
+            evidence.append("head branch carries no copy — reading the "
+                            "MERGED file on main (PR merged)")
+        elif params.get("allow_basename_match") or params.get("allow_name_regex"):
+            try:
+                diff = ctx.client.get_pr_diff(owner, repo, number)
+            except Exception:
+                diff = ""
+            for m in re.finditer(r"diff --git a/(\S+)", diff or ""):
+                cand = m.group(1)
+                if not (_same_basename(cand, path)
+                        or (params.get("allow_name_regex") and re.search(
+                            params["allow_name_regex"],
+                            cand.rsplit("/", 1)[-1], re.IGNORECASE))):
+                    continue
+                k2, t2 = ctx.client.get_file_contents(
+                    owner, repo, cand, ref=None)
+                if k2 == "file" and (t2 or "").strip():
+                    kind, text = k2, t2
+                    found = True
+                    evidence.append(
+                        "path deviation: doc lives at '%s' (expected "
+                        "'%s'); resolved from the PR's changed files — "
+                        "reading the merged copy (TA verifies the "
+                        "convention)" % (cand, path))
+                    break
+        if not found:
+            evidence.append("MISSING: no file '%s' at head ref, main, or "
+                            "the PR's changed files" % path)
+            return Finding(
+                criterion, "fail", 0, evidence,
+                "No file at '%s' on the PR's head branch, main, or "
+                "among the PR's changed files — 0 pts (TA verifies the "
+                "path and whether it belongs to this PR)." % path,
+                ta_confirm=True,
+            )
+    if kind == "dir" or not (text or "").strip():
+        return Finding(
+            criterion, "fail", 0, evidence,
+            "The document file is empty (or a directory) on the head "
+            "branch — 0 pts (TA confirms).", ta_confirm=True,
+        )
+    finding = _doc_content_check(criterion, text, params)
+    if (finding.assessment == "pass"
+            and params.get("require_all_usernames")):
+        absent = _missing_team_usernames(ctx, text)
+        if absent:
+            ev = evidence + list(finding.evidence) + [
+                "MISSING: member entries for %s" % ", ".join(absent)]
+            return Finding(
+                criterion, "fail", 0, ev,
+                "The document is missing entries for %s — one "
+                "attributable entry per team member is this row's bar. "
+                "0 pts projected (TA verifies)." % ", ".join(absent),
+                ta_confirm=True)
+    return Finding(
+        criterion, finding.assessment, finding.points_recommended,
+        evidence + list(finding.evidence), finding.notes,
+        ta_confirm=finding.ta_confirm,
+    )
+
+
+def _same_basename(path, expected):
+    """Basename equality, case-insensitive (path-convention tolerance)."""
+    return path.replace("\\", "/").rsplit("/", 1)[-1].lower() == \
+        expected.replace("\\", "/").rsplit("/", 1)[-1].lower()
+
+
+def _missing_team_usernames(ctx, text):
+    """Submitter's team members absent from TEXT (per-member bars).
+
+    A_MJ01-B requires one attributable position entry per member; the
+    A_MJ03 process row requires all members listed. Returns the
+    missing username list, or [] when roster info is unavailable —
+    a data gap is never a false fail.
+    """
+    username = getattr(ctx, "username", None)
+    roster = getattr(ctx, "roster", None)
+    if not username or roster is None:
+        return []
+    try:
+        team_key = roster.find_team(username)
+        if not team_key:
+            return []
+        members = roster.members(team_key) or []
+    except Exception:
+        return []
+    return [m for m in members
+            if m and not re.search(re.escape(m), text or "", re.IGNORECASE)]
+
+
+def _doc_content_check(criterion, text, params):
+    """Core: headers/tokens/word-band against document TEXT.
+
+    Shared by _doc_contains (fetched blob) and _doc_in_pr (fetched at
+    the head ref). params: require_headers, must_contain, min_words,
+    max_words, band_enforced. Returns a Finding projected on content
+    presence (plus band note/enforcement).
+    """
+    require_headers = params.get("require_headers") or []
+    must_contain = params.get("must_contain") or []
+    min_words = params.get("min_words")
+    max_words = params.get("max_words")
+    band_enforced = bool(params.get("band_enforced"))
+    missing = []
+    headers = [ln for ln in text.splitlines()
+               if re.match(r"^#{1,4}\s+\S", ln.strip())]
+    for pat in require_headers:
+        if not any(re.search(pat, h, re.IGNORECASE) for h in headers):
+            missing.append("header '%s'" % pat)
+    for pat in must_contain:
+        if not re.search(pat, text, re.IGNORECASE):
+            missing.append("content '%s'" % pat)
+    if missing:
+        return Finding(
+            criterion, "fail", 0,
+            ["MISSING: %s" % m for m in missing],
+            "Required section/content missing from the document: %s — "
+            "0 pts projected (TA verifies; the missing piece is what "
+            "the page's grading design requires for this row)."
+            % "; ".join(missing[:6]), ta_confirm=True,
+        )
+    n_words = len(_word_count(text))
+    evidence = ["total word count: %d" % n_words]
     band_note = ""
     if min_words and n_words < min_words:
         band_note = " (%d words is UNDER the %d-word band" % (n_words, min_words)
@@ -2111,6 +2588,9 @@ CHECKERS = {
     "pr_commits_by_wall": _pr_commits_by_wall,
     "pr_body_contains": _pr_body_contains,
     "doc_contains": _doc_contains,
+    "doc_in_pr": _doc_in_pr,
+    "release_contains": _release_contains,
+    "release_ci_green": _release_ci_green,
     "reflection_entry": _reflection_entry,
 }
 

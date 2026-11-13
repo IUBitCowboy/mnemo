@@ -134,6 +134,22 @@ class _FakeClient:
         self.pr_commit_error = None
         self.pulls = []
         self.calls = []
+        # A-line fixtures (releases, CI on tags, PR head refs)
+        self.release = {"body": "x", "published_at": "2026-10-24T20:00:00Z"}
+        self.release_error = None
+        self.status_state = "success"
+        self.pr_data.setdefault("head_ref", "main")
+        self.last_file_ref = None
+
+    def get_release(self, owner, repo, tag):
+        self.calls.append(("release", owner, repo, tag))
+        if self.release_error:
+            raise self.release_error
+        return dict(self.release)
+
+    def get_commit_status(self, owner, repo, ref):
+        self.calls.append(("status", owner, repo, ref))
+        return self.status_state
 
     def get_pr(self, owner, repo, number):
         self.calls.append(("pr", owner, repo, number))
@@ -167,6 +183,7 @@ class _FakeClient:
         self.calls.append(("contents", owner, repo, path, ref))
         if self.file_error:
             raise self.file_error
+        self.last_file_ref = ref
         return (self.file_kind, self.file_text)
 
     def get_commits_for_path(self, owner, repo, path=None):
@@ -190,6 +207,12 @@ class _FakeClient:
 
 def _criterion(checker, params=None, name="Criterion", points=1):
     return Criterion(name=name, points=points, checker=checker, params=params or {})
+
+
+def _roster_with_team(team_key, members):
+    """Roster stub for per-member checks (A_MJ01-B rows)."""
+    from roster import Roster
+    return Roster({team_key: list(members)})
 
 
 def _finding(criterion, ctx):
@@ -540,6 +563,9 @@ def test_registry_has_expected_checkers():
         "pr_commits_by_wall",
         "pr_body_contains",
         "doc_contains",
+        "doc_in_pr",
+        "release_contains",
+        "release_ci_green",
         "reflection_entry",
     }
 

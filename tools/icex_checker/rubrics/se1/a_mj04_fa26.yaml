@@ -1,0 +1,62 @@
+# Rubric for SE1 A_MJ04 FA26 — Cycle 2 Close: The Front Desk and Its
+# Minutes. 30 pts, TEAM, one submission per team. Same release shape
+# as A_MJ02 (tag moj-c2-v1.0), due Monday 11:59 PM
+# (2026-11-09T23:59:00-05:00), late cap −5%/day (note computes; TA
+# applies).
+#
+# DESIGN (amass-then-subtract) — the page's rubric table:
+#   CI green 5 (hard, no appeal) / Sprint report 10 (did 4 / learned 3
+#   / different 3) / Spec-vs-scheme diff 5 (both directions, placed)
+#   / Architecture 5 / Responsibility map + CONTRIBUTIONS 5.
+
+assignment: A_MJ04
+course: SE1
+semester: FA26
+type: team
+total_points: 30
+semester_start: 2026-08-24
+canvas_points: 30
+ownership_check: team
+
+criteria:
+  - name: "CI green on the tagged commit"
+    points: 5
+    checker: release_ci_green
+    params: {}
+
+  - name: "Sprint report — did / learned / different (merged PRs linked)"
+    points: 10
+    checker: release_contains
+    params:
+      expected_repo_pattern: "fa26-team-"
+      require_headers: ["did|what we did", "learned", "different"]
+      min_pr_links: 2
+      due: "2026-11-09T23:59:00-05:00"
+
+  - name: "Spec-vs-scheme diff (both directions, wants placed)"
+    points: 5
+    checker: release_contains
+    params:
+      expected_repo_pattern: "fa26-team-"
+      require_headers: ["diff"]
+
+  - name: "Architecture diagram (app / blueprints / ORM / logging flow)"
+    points: 5
+    checker: release_contains
+    params:
+      expected_repo_pattern: "fa26-team-"
+      must_contain: ["diagram|architecture|!\\[|<img|```"]
+
+  - name: "Responsibility map + cycle-close CONTRIBUTIONS entry"
+    points: 5
+    checker: release_contains
+    params:
+      expected_repo_pattern: "fa26-team-"
+      require_headers: ["responsib"]
+      must_contain: ["contributions"]
+
+  - name: "Substance adjustment (+ late cap signal)"
+    points: 0
+    checker: manual_review
+    params:
+      label: "TA subtracts per the page: PR links without capability summaries (row 2), generic learnings, fewer than 3 adjustments; one-sided diff caps the row at 3 of 5 (both directions + placed unmet wants required); diagram boxes not in the repo (false statement of work); responsibility map without owner+role per component or an incomplete CONTRIBUTIONS entry (all members, cycle summary, Vision-gap line). Late-cap note rows carry the −5%/day computation."

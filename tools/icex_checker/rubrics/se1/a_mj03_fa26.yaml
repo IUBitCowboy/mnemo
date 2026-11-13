@@ -1,0 +1,95 @@
+# Rubric for SE1 A_MJ03 FA26 — Logging Requirements: Team Best.
+# 30 pts, TEAM, one submission per team (list all members).
+#
+# Canvas: "Week 10 | A_MJ03 - Logging Requirements", due Monday
+# 11:59 PM (2026-11-02T23:59:00-04:00). Submission = the team
+# document (blob at docs/logging_requirements.md in the TEAM repo;
+# several teams shipped it as a PR instead — both accepted).
+#
+# DESIGN (amass-then-subtract): the page's rubric rows project on
+# section presence; the process row enforces ALL members listed
+# (roster-driven, missing members named). allow_basename_match
+# carries the observed path drift (decisions/logging-requirements.md
+# on some teams) as an evidence note, not a zero; the TA verifies the
+# convention. The TA subtracts for the page's bars (specific events
+# and fields, 10-20 events with log level + dimension mapping +
+# priority, genuine conflict with reasoned resolution, STRIDE
+# connection explicit, specific event+safeguard in the ethical
+# response, consistent spec-table formatting).
+
+assignment: A_MJ03
+course: SE1
+semester: FA26
+type: team
+total_points: 30
+semester_start: 2026-08-24
+canvas_points: 30
+ownership_check: team
+
+criteria:
+  - name: "Team doc at docs/logging_requirements.md"
+    points: 0
+    checker: blob_link_valid
+    params:
+      expected_path: "docs/logging_requirements.md"
+      expected_repo_pattern: "fa26-team-"
+      allow_basename_match: true
+      allow_name_regex: "logging|mj.?03"
+
+  - name: "Individual summaries (per member, specific, AI noted)"
+    points: 5
+    checker: doc_contains
+    params:
+      expected_path: "docs/logging_requirements.md"
+      expected_repo_pattern: "fa26-team-"
+      allow_basename_match: true
+      allow_name_regex: "logging|mj.?03"
+      require_headers: ["individual|summaries|dimension"]
+
+  - name: "Unified specification (10-20 events, fields, levels)"
+    points: 10
+    checker: doc_contains
+    params:
+      expected_path: "docs/logging_requirements.md"
+      expected_repo_pattern: "fa26-team-"
+      allow_basename_match: true
+      allow_name_regex: "logging|mj.?03"
+      require_headers: ["unified|specific"]
+
+  - name: "Conflicts and resolutions (genuine conflict, reasoned)"
+    points: 5
+    checker: doc_contains
+    params:
+      expected_path: "docs/logging_requirements.md"
+      expected_repo_pattern: "fa26-team-"
+      allow_basename_match: true
+      allow_name_regex: "logging|mj.?03"
+      require_headers: ["conflict"]
+
+  - name: "Synthesis reflection + ethical challenge (STRIDE explicit)"
+    points: 5
+    checker: doc_contains
+    params:
+      expected_path: "docs/logging_requirements.md"
+      expected_repo_pattern: "fa26-team-"
+      allow_basename_match: true
+      allow_name_regex: "logging|mj.?03"
+      require_headers: ["synthesis|reflection", "ethical|stride"]
+      must_contain: ["stride|threat"]
+
+  - name: "Process — all members listed, structure followed"
+    points: 5
+    checker: doc_contains
+    params:
+      expected_path: "docs/logging_requirements.md"
+      expected_repo_pattern: "fa26-team-"
+      allow_basename_match: true
+      allow_name_regex: "logging|mj.?03"
+      require_headers: ["process|members|team"]
+      require_all_usernames: true
+
+  - name: "Substance adjustment"
+    points: 0
+    checker: manual_review
+    params:
+      label: "TA subtracts per the page: category-level events vs named events+fields (row 2), event count out of 10-20, missing dimension mapping or log-level justification (row 2), merged-lists-without-tradeoffs (row 3), generic privacy statements vs a specific event+safeguard (row 4), inconsistent spec-table formatting or unlisted members/dimensions (row 5). Per-member AI-use notes are required by the page but read, not graded."

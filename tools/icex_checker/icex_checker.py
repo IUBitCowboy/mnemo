@@ -68,6 +68,13 @@ _BLOB_URL_RE = re.compile(
     r"https?://(?P<host>[^/\"'\s<]+)/(?P<owner>[A-Za-z0-9_.-]+)/(?P<repo>[A-Za-z0-9_.-]+)/blob/(?P<tail>[^\"'\s<>]+)"
 )
 
+# A-line cycle closes (A_MJ02/A_MJ04) submit ONE GitHub Release URL —
+# the release (tag + body) is the deliverable. /releases/tag/<tag>;
+# backslash-escaped tags are not supported (tags here are plain).
+_RELEASE_URL_RE = re.compile(
+    r"https?://(?P<host>[^/\"'\s<]+)/(?P<owner>[A-Za-z0-9_.-]+)/(?P<repo>[A-Za-z0-9_.-]+)/releases/tag/(?P<tag>[^/?#\"'\s<>]+)"
+)
+
 # Canvas titles in the MoJ weeks: 'Week 12 | A_MJ05 - Ethics Opener'
 # (pipe form, no colon after the assignment, space after Week). The
 # assignment token may itself carry spaces ('Team PR') — the split is
@@ -189,8 +196,10 @@ def _parse_filename(path, sub):
 
 
 def _is_submission_url(url):
-    """True for a pull or blob URL (MoJ accepts both submission forms)."""
-    return _PR_URL_RE.match(url) is not None or _BLOB_URL_RE.match(url) is not None
+    """True for a pull, blob, or release URL (MoJ accepts all forms)."""
+    return (_PR_URL_RE.match(url) is not None
+            or _BLOB_URL_RE.match(url) is not None
+            or _RELEASE_URL_RE.match(url) is not None)
 
 
 def _is_pr_url(url):
@@ -216,6 +225,14 @@ def validate_pr_url(url, github_host):
                 )
             if not url.startswith("https://"):
                 return False, "PR URL must use HTTPS scheme"
+            return True, None
+        r = _RELEASE_URL_RE.match(url)
+        if r:
+            if r.group("host") != github_host:
+                return False, "Release URL points to %s, expected %s" % (
+                    r.group("host"),
+                    github_host,
+                )
             return True, None
         return False, "malformed URL or not a PR URL"
     if m.group("host") != github_host:
@@ -537,15 +554,18 @@ def _resolve_rubric(args, sub):
 
 
 def _split_pr_url(url):
-    """Extract owner/repo/number from a pull URL; blob URLs give
-    (owner, repo, None) — used only for course inference (MoJ)."""
+    """Extract owner/repo/number from a pull URL; blob and release URLs
+    give (owner, repo, None) — used only for course inference (MoJ)."""
     m = re.match(
         r"https?://[^/]+/(?P<owner>[^/]+)/(?P<repo>[^/]+)/pull/(?P<number>\d+)", url
     )
     if not m:
         m = _BLOB_URL_RE.match(url or "")
         if not m:
-            return None, None, None
+            r = _RELEASE_URL_RE.match(url or "")
+            if not r:
+                return None, None, None
+            return r.group("owner"), r.group("repo"), None
         return m.group("owner"), m.group("repo"), None
     return m.group("owner"), m.group("repo"), int(m.group("number"))
 

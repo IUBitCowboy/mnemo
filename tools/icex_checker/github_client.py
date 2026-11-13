@@ -310,6 +310,30 @@ class GitHubClient:
                 return "file", None
         return "missing", None
 
+    def get_release(self, owner, repo, tag):
+        """GET /repos/{owner}/{repo}/releases/tags/{tag} (A-line closes).
+
+        Returns the release JSON dict, or raises SubmissionNotFoundError
+        on a 404 (no release with that tag).
+        """
+        return self._request(
+            "GET",
+            "/repos/%s/%s/releases/tags/%s" % (owner, repo, tag),
+        )
+
+    def get_commit_status(self, owner, repo, ref):
+        """GET /repos/{owner}/{repo}/commits/{ref}/status — combined CI.
+
+        Returns the combined status state string ('success', 'failure',
+        'error', 'pending') or '' when no statuses exist. `ref` accepts
+        a SHA, branch, or tag name; the A-line closes tag commits.
+        """
+        data = self._request(
+            "GET",
+            "/repos/%s/%s/commits/%s/status" % (owner, repo, ref),
+        )
+        return (data or {}).get("state") or ""
+
     def get_commits_for_path(self, owner, repo, path=None):
         """GET /repos/{owner}/{repo}/commits[?path=]&per_page=100 (MoJ).
 

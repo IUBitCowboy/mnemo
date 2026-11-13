@@ -1,0 +1,74 @@
+# Rubric for SE1 A_MJ01 (B half) FA26 — SQL vs NoSQL: Team Decision.
+#
+# Canvas: "Week 9 | A_MJ01b", 20 pts, TEAM. Submission = the PR URL
+# (branch `decision/sql-nosql`, doc decisions/sql_nosql.md, PR titled
+# "Decision: SQL vs NoSQL Database Engine", 2-3 sentence PR
+# description of the MEETING PROCESS). Five sections; individual
+# positions one per member, attributable by GitHub username.
+#
+# DESIGN (amass-then-subtract): a 0-pt shape row verifies branch +
+# title + doc-on-head; the page's table rows (4 each) project on
+# section presence; require_all_usernames enforces the per-member
+# positions bar mechanically (missing members named). The TA
+# subtracts for the page's substance bars (MoJ-grounded reasons,
+# specific capabilities, named tables/weeks, non-restating synthesis).
+
+assignment: A_MJ01
+course: SE1
+semester: FA26
+type: team
+total_points: 20
+semester_start: 2026-08-24
+canvas_points: 20
+ownership_check: team
+
+criteria:
+  - name: "PR shape: decision/sql-nosql branch, decisions/sql_nosql.md, named title"
+    points: 0
+    checker: doc_in_pr
+    params:
+      expected_branch: "decision/sql-nosql"
+      expected_title: "decision: ?sql vs nosql"
+      expected_path: "decisions/sql_nosql.md"
+
+  - name: "Decision Summary (4)"
+    points: 4
+    checker: doc_in_pr
+    params:
+      expected_path: "decisions/sql_nosql.md"
+      require_headers: ["decision summary|section 1"]
+
+  - name: "Strongest Counterargument (4)"
+    points: 4
+    checker: doc_in_pr
+    params:
+      expected_path: "decisions/sql_nosql.md"
+      require_headers: ["strongest counterargument|section 2"]
+
+  - name: "Ethical Challenge (4)"
+    points: 4
+    checker: doc_in_pr
+    params:
+      expected_path: "decisions/sql_nosql.md"
+      require_headers: ["ethical challenge|section 3"]
+
+  - name: "Synthesis Reflection (4)"
+    points: 4
+    checker: doc_in_pr
+    params:
+      expected_path: "decisions/sql_nosql.md"
+      require_headers: ["synthesis reflection|section 4"]
+
+  - name: "Individual Positions — one per member (4)"
+    points: 4
+    checker: doc_in_pr
+    params:
+      expected_path: "decisions/sql_nosql.md"
+      require_headers: ["individual positions|section 5"]
+      require_all_usernames: true
+
+  - name: "Substance adjustment"
+    points: 0
+    checker: manual_review
+    params:
+      label: "TA subtracts per the page's rubric: reasons grounded in MoJ's data model, not generic properties (row 1); specific capabilities of the unchosen engine, not generic praise (row 2); both ethical questions with named tables/relationships and a specific week/ICEX (row 3); what the discussion surfaced beyond individual research, not a restatement (row 4); each position affirm-or-dissent with a Vision-requirement warrant (row 5). The PR description must summarize the MEETING PROCESS (2-3 sentences) — page Submission step 4."

@@ -1,0 +1,76 @@
+# Rubric for SE1 A_MJ01 (A half) FA26 — SQL vs NoSQL: Individual
+# Research (SP26 a/b pages retitled and live per the W9 ruling).
+#
+# Canvas: "Week 8 | A_MJ01a" (title carries the "A - SQL vs NoSQL"
+# prefix), 10 pts, INDIVIDUAL. Submission = blob URL of
+# assignments/a_mj01a_sql_nosql.md in the student's private devlog
+# repo. Four answers, four questions — the page's own rubric table
+# (2/3/2/3) is the of-record design.
+#
+# DESIGN (amass-then-subtract): section presence projects each row;
+# the TA subtracts for the page's stated bars (two prompts WITH the
+# refinement text; specific references to AI's actual output; the
+# named verification method; a specific engine with MoJ-grounded
+# reasons). No word band is stated on the page — none enforced.
+# allow_basename_match: a handful of devlog repos carry the answer
+# file at a drifted path; the basename pins the doc identity.
+
+assignment: A_MJ01
+course: SE1
+semester: FA26
+type: individual
+total_points: 10
+semester_start: 2026-08-24
+canvas_points: 10
+ownership_check: self
+
+criteria:
+  - name: "Research doc resolves in the devlog repo"
+    points: 0
+    checker: blob_link_valid
+    params:
+      expected_path: "assignments/a_mj01a_sql_nosql.md"
+      expected_repo_pattern: "fa26-devlog-"
+      allow_basename_match: true
+
+  - name: "Prompt Construction (2)"
+    points: 2
+    checker: doc_contains
+    params:
+      expected_path: "assignments/a_mj01a_sql_nosql.md"
+      expected_repo_pattern: "fa26-devlog-"
+      allow_basename_match: true
+      require_headers: ["prompt construction|question 1"]
+
+  - name: "Output Evaluation (3)"
+    points: 3
+    checker: doc_contains
+    params:
+      expected_path: "assignments/a_mj01a_sql_nosql.md"
+      expected_repo_pattern: "fa26-devlog-"
+      allow_basename_match: true
+      require_headers: ["output evaluation|question 2"]
+
+  - name: "Verification (2)"
+    points: 2
+    checker: doc_contains
+    params:
+      expected_path: "assignments/a_mj01a_sql_nosql.md"
+      expected_repo_pattern: "fa26-devlog-"
+      allow_basename_match: true
+      require_headers: ["verification|question 3"]
+
+  - name: "Position Formation (3)"
+    points: 3
+    checker: doc_contains
+    params:
+      expected_path: "assignments/a_mj01a_sql_nosql.md"
+      expected_repo_pattern: "fa26-devlog-"
+      allow_basename_match: true
+      require_headers: ["position formation|question 4"]
+
+  - name: "Substance adjustment"
+    points: 0
+    checker: manual_review
+    params:
+      label: "TA subtracts per the page's rubric: rows need the SPECIFICS, not presence — 2 prompts with the refinement text (row 1: 'I refined my prompt' without showing it does not earn full credit); accurate-useful output AND an identified oversimplification with specific references (row 2); the verification method NAMED and at least one claim verified (row 3); a specific engine with MoJ-grounded reasons, AI-research vs independent-research distinction (row 4). AI disclosure is noted, not graded."
