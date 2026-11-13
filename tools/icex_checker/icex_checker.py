@@ -412,6 +412,8 @@ def _process_one(args, submission_path):
                 )
                 return 0, None
     owner, repo, number = _split_pr_url(sub.pr_url)
+    is_blob = number is None  # blob-URL submissions (EngLog, AGR memos):
+    # no PR exists; the checkers fetch the blob file themselves.
 
     # Pre-flight: the repo must be reachable (EF-6 fatal path). A missing
     # PR number with a valid repo is NOT fatal — pr_url_valid handles it
@@ -432,29 +434,37 @@ def _process_one(args, submission_path):
 
     # Best-effort PR metadata for the report (FR-4). A 404 here just means
     # the PR number is wrong — the checkers surface that as partial.
+    # Blob submissions carry no pull request; skip the fetch entirely
+    # (the file itself is the artifact and the blob checkers read it).
     pr_details = {}
-    try:
-        pr = client.get_pr(owner, repo, number)
-        pr_details = {
-            "title": pr.title,
-            "description": pr.body,
-            "head_ref": pr.head_ref,
-            "base_ref": pr.base_ref,
-            "commits": pr.commits,
-            "state": pr.state,
-            "merged": pr.merged,
-        }
-    except PRNotAccessibleError:
-        pass
-    except (AuthFailureError, RateLimitError, NetworkError) as exc:
-        return 1, str(exc)
+    if not is_blob:
+        try:
+            pr = client.get_pr(owner, repo, number)
+            pr_details = {
+                "title": pr.title,
+                "description": pr.body,
+                "head_ref": pr.head_ref,
+                "base_ref": pr.base_ref,
+                "commits": pr.commits,
+                "state": pr.state,
+                "merged": pr.merged,
+            }
+        except PRNotAccessibleError:
+            pass
+        except (AuthFailureError, RateLimitError, NetworkError) as exc:
+            return 1, str(exc)
 
     if args.verbose:
-        print(
-            "API: PR #%d %s (%s)"
-            % (number, pr_details.get("title", "?"), pr_details.get("state", "?")),
-            file=sys.stderr,
-        )
+        if is_blob:
+            _m = re.search(r"/blob/[^/]+/(.+)$", sub.pr_url or "")
+            print("API: blob %s/%s  path %s" % (
+                owner, repo, _m.group(1) if _m else "?"), file=sys.stderr)
+        else:
+            print(
+                "API: PR #%d %s (%s)"
+                % (number, pr_details.get("title", "?"), pr_details.get("state", "?")),
+                file=sys.stderr,
+            )
 
     ctx = CheckerContext(
         client=client,
@@ -636,7 +646,7 @@ def _print_team_results(requested, groups):
         g = groups[team]
         print("%s" % team)
         for url, entry in sorted(g["prs"].items()):
-            print("  PR %-55s -> %s/%s pts (projected, TA subtracts)" % (
+            print("  url %-53s -> %s/%s pts (projected, TA subtracts)" % (
                 url, entry["recommended"], entry["total"]))
         if g["students"]:
             cols = sorted({k for v in g["students"].values() for k in v})

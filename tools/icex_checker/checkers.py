@@ -18,14 +18,19 @@ downgraded to needs-review because it would lose the points signal.
 import csv
 import datetime
 import difflib
+import json
 import pathlib
 import re
+import urllib.error
+import urllib.parse
+import urllib.request
 from typing import Optional
 
 from errors import (
     AuthFailureError,
     PRNotAccessibleError,
     RateLimitError,
+    SubmissionNotFoundError,
 )
 from rubric import Criterion
 
@@ -1286,6 +1291,254 @@ def _devlog_before_canvas(ctx, criterion):
 
 
 
+def _word_count(text):
+    """Word count for reflection bars; markdown/punct don't inflate it."""
+    return re.findall(r"[A-Za-z0-9'’\-]+", text)
+
+
+def _ollama_judge(endpoint, model, text, timeout=90):
+    """Local-model judgment of a devlog reflection (FERPA: loopback only).
+
+    Returns (verdict, reason) with verdict 'pass'|'fail', or (None, tail)
+    when the reply doesn't parse. Raises OSError/URLError on transport
+    failure — the caller degrades to needs-review.
+    """
+    payload = {
+        "model": model,
+        "stream": False,
+        "options": {"temperature": 0},
+        "messages": [
+            {"role": "system", "content": (
+                "You are grading an engineering student's weekly devlog "
+                "reflection. Decide whether the text contains (a) a "
+                "specific lesson learned or observation about the week's "
+                "work, and (b) a justification or cause for it (why it "
+                "held, what caused it). Ignore grammar, formatting and "
+                "word count. Answer with exactly two lines and nothing "
+                "else:\n"
+                "VERDICT: pass|fail\n"
+                "REASON: <one sentence>")},
+            {"role": "user", "content": text[:6000]},
+        ],
+    }
+    req = urllib.request.Request(
+        endpoint.rstrip("/") + "/api/chat",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+    content = (data.get("message") or {}).get("content") or ""
+    m = re.search(r"VERDICT:\s*(pass|fail)", content, re.IGNORECASE)
+    if not m:
+        return None, content.strip()[:200]
+    r = re.search(r"REASON:\s*(.+)", content)
+    return m.group(1).lower(), (r.group(1).strip() if r else "")
+
+
+def _reflection_text_evidence(evidence, text, cap=1100):
+    """Prefix the entry into the evidence so the TA verifies from the
+    report without fetching anything; hard-capped for sane reports."""
+    used = 0
+    for line in text.splitlines():
+        if used >= cap:
+            evidence.append("entry: …(truncated at %d chars by the tool)" % cap)
+            return
+        cut = line[:140]
+        evidence.append("entry: %s" % cut)
+        used += len(cut) + 8
+
+
+def _reflection_entry(ctx, criterion):
+    """Devlog reflection quality bar (EngLog; Kurt's 2026-11-12 ruling).
+
+    A reflection earns its points when it carries (a) a specific lesson
+    learned or observation AND (b) a justification or cause, in about
+    100–200 words. The checker does the mechanical part (blob resolves
+    in the student's own devlog repo, word count) and runs a LOCAL
+    small model for the semantic part; the FULL entry text rides the
+    evidence so the TA verifies from the report without running
+    anything themselves.
+
+    Params:
+        min_words (default 100) — below it the projection fails.
+        max_words (default 200) — soft: "at least" is the bar; a longer
+            entry passes but the note carries the target.
+        expected_path (optional) — require exactly this file (W8's
+            wk08.md). Absent → any path in the devlog repo.
+        expected_repo_pattern (default 'fa26-devlog-') — the blob must
+            live in the student's own devlog repo (prefix or regex).
+        llm_model (optional) — local judge (e.g. 'llama3.1:8b'); OMIT
+            for a report-only run (TA judges from the entry text).
+        llm_endpoint — default 'http://127.0.0.1:11434'; a non-loopback
+            endpoint is REFUSED (student text must not leave the
+            machine — FERPA standing rule).
+    """
+    params = criterion.params
+    min_words = int(params.get("min_words", 100))
+    max_words = int(params.get("max_words", 200))
+    pattern = params.get("expected_repo_pattern") or "fa26-devlog-"
+    expected_path = params.get("expected_path")
+    llm_model = params.get("llm_model")
+    endpoint = params.get("llm_endpoint") or "http://127.0.0.1:11434"
+
+    if llm_model:
+        host = urllib.parse.urlparse(endpoint).hostname or ""
+        if host not in ("127.0.0.1", "localhost", "::1"):
+            return Finding(
+                criterion, "needs-review", None, [],
+                "llm_endpoint %s refused — student text must not leave "
+                "this machine (FERPA standing rule). Use a loopback "
+                "endpoint or drop llm_model for a report-only run."
+                % endpoint,
+            )
+
+    parsed = parse_github_url(ctx.pr_url)
+    if parsed is None or parsed["kind"] != "blob":
+        return Finding(
+            criterion, "needs-review", None, [],
+            "Submission is not a blob URL — the reflection rides a file "
+            "in the devlog repo; run this rubric against that Canvas "
+            "submission.",
+        )
+    owner, repo, path = parsed["owner"], parsed["repo"], parsed["path"]
+    evidence = [
+        "repo: %s/%s" % (owner, repo),
+        "path: %s" % path,
+    ]
+
+    if pattern == "fa26-devlog-":
+        repo_ok = bool(re.fullmatch(r"fa26-devlog-.+", repo, re.IGNORECASE))
+    else:
+        repo_ok = bool(re.search(pattern, repo, re.IGNORECASE))
+    if not repo_ok:
+        evidence.append("MISSING: blob must live in the student's own "
+                        "devlog repo (%s)" % pattern)
+        return Finding(
+            criterion, "fail", 0, evidence,
+            "The blob does not live in the student's own devlog repo — "
+            "no evidence the entry is theirs. 0 pts (TA verifies).",
+            ta_confirm=True,
+        )
+    if expected_path and path != expected_path:
+        evidence.append("MISSING: expected entry file %s" % expected_path)
+        return Finding(
+            criterion, "fail", 0, evidence,
+            "The submission points at %r, not the entry file the "
+            "grading design requires (%r). 0 pts (TA confirms)."
+            % (path, expected_path), ta_confirm=True,
+        )
+
+    try:
+        kind, text = ctx.client.get_file_contents(owner, repo, path)
+    except PRNotAccessibleError:
+        return Finding(
+            criterion, "needs-review", None, evidence,
+            "Devlog block not accessible — TA reads the entry directly.",
+        )
+    except (AuthFailureError, RateLimitError):
+        return Finding(
+            criterion, "needs-review", None, evidence,
+            "Devlog fetch failed (auth/rate) — TA reviews.",
+        )
+    if kind == "missing":
+        evidence.append("MISSING: no file at this blob path")
+        return Finding(
+            criterion, "fail", 0, evidence,
+            "No file at the submitted blob path (404/moved) — 0 pts "
+            "projected. TA verifies the URL and re-runs if the student "
+            "renamed the entry.", ta_confirm=True,
+        )
+    if kind == "dir":
+        return Finding(
+            criterion, "fail", 0, evidence,
+            "The blob URL points to a DIRECTORY, not a file — the "
+            "submission should carry the FILE's blob URL. 0 pts "
+            "(TA confirms).", ta_confirm=True,
+        )
+    if not text or not text.strip():
+        evidence.append("entry file EMPTY")
+        return Finding(
+            criterion, "fail", 0, evidence,
+            "The entry file is EMPTY — nothing to grade. 0 pts (TA "
+            "confirms).", ta_confirm=True,
+        )
+
+    n_words = len(_word_count(text))
+    evidence.append("word count: %d" % n_words)
+    _reflection_text_evidence(evidence, text)
+
+    short = n_words < min_words
+    short_note = "Entry is %d words — below the %d-word bar." % (n_words, min_words)
+    over_note = ""
+    if n_words > max_words:
+        over_note = " (%d words runs past the %d-word target — soft; " \
+                    "'at least' is the bar)" % (n_words, max_words)
+
+    if not llm_model:
+        if short:
+            return Finding(
+                criterion, "needs-review", None, evidence,
+                "%s Report-only run — TA judges: ONE-POINT deduction "
+                "(%d of %d) if the entry text above carries the "
+                "lesson+justification bar, 0 otherwise."
+                % (short_note, max(criterion.points - 1, 0),
+                   criterion.points), ta_confirm=True,
+            )
+        return Finding(
+            criterion, "needs-review", None, evidence,
+            "Report-only run (no llm_model) — TA judges the entry text "
+            "above; full points when the lesson + justification bar is "
+            "met.%s" % over_note, ta_confirm=True,
+        )
+    try:
+        verdict, reason = _ollama_judge(endpoint, llm_model, text)
+    except (OSError, urllib.error.URLError, ValueError) as e:
+        return Finding(
+            criterion, "needs-review", None, evidence,
+            "Local model unreachable (%s: %.120s) — TA judges the "
+            "entry text above (is ollama running? is llm_model pulled?)."
+            % (type(e).__name__, str(e)), ta_confirm=True,
+        )
+    ferpa_note = "judged locally (%s on %s) — nothing left this machine%s" % (
+        llm_model, endpoint, over_note)
+    if verdict is None:
+        return Finding(
+            criterion, "needs-review", None, evidence,
+            "Model reply unparseable (%.160s) — TA judges from the "
+            "entry text above." % reason, ta_confirm=True,
+        )
+    if verdict == "fail":
+        detail = ("no lesson/observation WITH its justification (%s)"
+                  % reason)
+        if short:
+            detail = short_note + " " + detail
+        return Finding(
+            criterion, "fail", 0,
+            evidence + ["model verdict: fail — %s" % reason],
+            "%s — 0 pts projected; the TA verifies from the entry text "
+            "above and overrules if the assertion erred. %s"
+            % (detail, ferpa_note), ta_confirm=True,
+        )
+    if short:
+        return Finding(
+            criterion, "pass", max(criterion.points - 1, 0),
+            evidence + ["model verdict: pass — %s" % reason],
+            "%s ONE-POINT deduction applied (%d of %d): the assertion "
+            "passed but the entry is short of the word minimum. TA "
+            "verifies from the entry text above. %s"
+            % (short_note, max(criterion.points - 1, 0),
+               criterion.points, ferpa_note), ta_confirm=True,
+        )
+    return Finding(
+        criterion, "pass", criterion.points,
+        evidence + ["model verdict: pass — %s" % reason],
+        "Lesson/observation with justification present — full points "
+        "projected. TA verifies from the entry text above. %s"
+        % ferpa_note, ta_confirm=True,
+    )
+
+
 def _pr_body_contains(ctx, criterion):
     """Mechanical completeness of the Team PR body (MoJ amass-then-subtract).
 
@@ -1682,6 +1935,7 @@ CHECKERS = {
     "devlog_before_canvas": _devlog_before_canvas,
     "pr_commits_by_wall": _pr_commits_by_wall,
     "pr_body_contains": _pr_body_contains,
+    "reflection_entry": _reflection_entry,
 }
 
 

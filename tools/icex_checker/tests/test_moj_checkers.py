@@ -18,6 +18,7 @@ from icex_checker import (
     parse_submission,
 )
 import rubric
+import checkers
 from roster import Roster
 
 from test_checkers import _FakeClient, _ctx, _ctx_v11, _criterion, _finding
@@ -721,6 +722,136 @@ class TestPrBodyContains:
              "require": r"\|\s*\d+\s*\|[^|]*[^\s|]"},
         ])
         assert f2.assessment == "fail"
+
+
+class TestReflectionEntry:
+    """Devlog reflection bar: word count + local-assertion judge."""
+
+    GOOD_ENTRY = (
+        "# Week 9\n\nType 2 — Observation with cause.\n\n"
+        "Our CI failure on Tuesday taught me that a test suite can pass "
+        "locally and still be wrong about the contract. The suite "
+        "asserted only HTTP status codes, not the JSON body, so any "
+        "handler change that kept the status but dropped the payload "
+        "slipped through green. That happened because our fixtures built "
+        "the expected envelope by hand instead of reading it from the "
+        "router. Once we pinned the envelope in one place and let every "
+        "test import it, the false green disappeared and the next "
+        "handler refactor was caught immediately. The lesson is that "
+        "'green' only means the assertions you wrote, and weak "
+        "assertions quietly define a weaker contract than the one the "
+        "spec describes."
+    )
+    TOO_SHORT = "I learned a lot this week. CI was useful and the team worked well together."
+
+    def _finding(self, repo="fa26-devlog-jdoe", path="icex_mj03.md",
+                 kind="file", text=GOOD_ENTRY, judge=("pass", "ok"),
+                 judge_raises=None, **params):
+        import test_checkers as tck
+        c = tck._FakeClient()
+        c.file_kind = kind
+        c.file_text = text
+        params.setdefault("expected_repo_pattern", "fa26-devlog-")
+        monkey = pytest.MonkeyPatch()
+
+        def _noop(*a, **k):
+            return judge
+
+        if judge_raises is not None:
+            def _raise(*a, **k):
+                raise judge_raises
+            monkey.setattr(checkers, "_ollama_judge", _raise)
+        elif "llm_model" in params or True:
+            monkey.setattr(checkers, "_ollama_judge", _noop)
+        params.setdefault("llm_model", "test-judge")
+        cr = _criterion("reflection_entry", params, points=10)
+        url = "https://github.iu.edu/jdoe/%s/blob/main/%s" % (repo, path)
+        ctx = _ctx(c, pr_url=url)
+        try:
+            return _finding(cr, ctx)
+        finally:
+            monkey.undo()
+
+    def test_healthy_entry_projects_full_points(self):
+        f = self._finding()
+        assert f.assessment == "pass"
+        assert f.points_recommended == 10
+        assert f.ta_confirm is True
+        assert any("model verdict: pass" in e for e in f.evidence)
+        assert any("word count:" in e for e in f.evidence)
+        assert any(e.startswith("entry: ") for e in f.evidence)
+
+    def test_too_short_judge_pass_gets_one_point_deduction(self):
+        f = self._finding(text=self.TOO_SHORT)
+        # TOO_SHORT is 14 words: too short, but the assertion (stubbed
+        # pass) carries it — Kurt's 2026-11-12 rule: -1, not zero.
+        assert f.assessment == "pass"
+        assert f.points_recommended == 9
+        assert "ONE-POINT deduction" in f.notes
+        assert "below the 100-word bar" in f.notes
+
+    def test_too_short_judge_fail_is_zero(self):
+        f = self._finding(text=self.TOO_SHORT,
+                          judge=("fail", "an announcement, no lesson"))
+        assert f.assessment == "fail" and f.points_recommended == 0
+        assert "below the 100-word bar" in f.notes
+        assert "announcement, no lesson" in f.notes
+
+    def test_too_short_report_only_carries_pending_deduction(self):
+        f = self._finding(text=self.TOO_SHORT, **{"llm_model": None})
+        assert f.assessment == "needs-review"
+        assert "ONE-POINT deduction" in f.notes
+        assert f.points_recommended is None
+
+    def test_judge_fail_is_lost_points_with_reason(self):
+        f = self._finding(
+            judge=("fail", "a summary without a personal claim"))
+        assert f.assessment == "fail" and f.points_recommended == 0
+        assert any("model verdict: fail" in e for e in f.evidence)
+        assert "summary without a personal claim" in f.notes
+
+    def test_missing_file_fails_with_url_note(self):
+        f = self._finding(kind="missing")
+        assert f.assessment == "fail"
+        assert any("no file at this blob path" in e for e in f.evidence)
+
+    def test_directory_blob_fails(self):
+        f = self._finding(kind="dir")
+        assert f.assessment == "fail"
+        assert "DIRECTORY" in f.notes
+
+    def test_wrong_repo_fails_before_fetch(self):
+        f = self._finding(repo="fa26-team-07-moj")
+        assert f.assessment == "fail"
+        assert any("own devlog repo" in e for e in f.evidence)
+
+    def test_expected_path_mismatch_fails(self):
+        f = self._finding(path="junk.md", **{"expected_path": "icex_mj03.md"})
+        assert f.assessment == "fail"
+        assert any("expected entry file" in e for e in f.evidence)
+
+    def test_report_only_run_needs_review_with_text(self):
+        f = self._finding(**{"llm_model": None})
+        assert f.assessment == "needs-review"
+        assert any(e.startswith("entry: ") for e in f.evidence)
+        assert "report-only" in f.notes.lower()
+
+    def test_unreachable_local_model_needs_review(self):
+        f = self._finding(judge_raises=OSError("connection refused"))
+        assert f.assessment == "needs-review"
+        assert "ollama" in f.notes.lower()
+
+    def test_non_loopback_endpoint_refused(self):
+        f = self._finding(**{"llm_endpoint": "http://api.example.com:11434"})
+        assert f.assessment == "needs-review"
+        assert "FERPA" in f.notes
+
+    def test_over_target_note_but_passes(self):
+        long_text = self.GOOD_ENTRY + " " + " ".join(
+            "w%d" % i for i in range(120))
+        f = self._finding(text=long_text)
+        assert f.assessment == "pass"
+        assert "200-word target" in f.notes
 
 
 class TestWallProjections:

@@ -1,0 +1,65 @@
+# Rubric for SE1 EngLog04-FA26 (Week 11)
+#
+# Canvas assignment: 10 points. Rubric total = 10 = canvas_points.
+# SUBMISSION SHAPE: the blob URL of the entry file in the student's
+# PRIVATE devlog repo (fa26-devlog-<username>) pasted into the
+# "Week 11 | EngLog04" Canvas box.
+#
+# QUALITY BAR (Kurt, 2026-11-12): a reflection earns its points when it
+# carries a specific lesson learned or observation AND the
+# justification or cause for it — at least a few sentences, 100–200
+# words. Students pick one of the four entry types (stated on the
+# entry-type line) or write about the team assignment for the week.
+# The checker verifies the blob + word count mechanically and runs a
+# SMALL LOCAL MODEL for the lesson+justification judgment; the full
+# entry text rides the report so the TA verifies from it without
+# running the model themselves. A non-loopback LLM endpoint is
+# refused — student text never leaves the machine (FERPA).
+#
+# STANDING RULES (EngLog page lineage):
+#   - One entry per student for the week: "the ONE specific moment
+#     that stuck", with the concrete artifact proving it.
+#   - Four entry types (choose one) — the pick is stated on the
+#     entry-type line; writing about the team assignment is allowed.
+#   - NO late submissions: the contemporaneous value IS the point.
+#     One grace miss per semester exists; use it deliberately.
+#
+# FERPA: the devlog repos are private per-student repos; the roster
+# maps usernames (OneDrive share, never in git).
+
+assignment: EngLog04
+course: SE1
+semester: FA26
+type: individual
+total_points: 10
+semester_start: 2026-08-24
+canvas_points: 10
+ownership_check: self
+
+criteria:
+  # ── Evidence (0 pts) ──
+
+  - name: "Entry file resolves in the devlog repo"
+    points: 0
+    checker: blob_link_valid
+    params:
+      expected_repo_pattern: "fa26-devlog-"
+
+  # ── Projected point row (10) ──
+
+  - name: "Reflection bar — lesson + justification, 100-200 words"
+    points: 10
+    checker: reflection_entry
+    params:
+      min_words: 100
+      max_words: 200
+      expected_repo_pattern: "fa26-devlog-"
+      llm_model: "llama3.1:8b"
+
+  # ── Manual adjustment (TA subtracts from the projection) ──
+
+  - name: "Evidence-quality adjustment"
+    points: 0
+    checker: manual_review
+    params:
+      label: "TA subtracts from the 10 projected: evidence thin (assertions without the artifact) → 7; a summary of what the team did with no personal moment (reconstruction, not a log) → 5; missing/empty entry → 0 (the checker already fails that)."
