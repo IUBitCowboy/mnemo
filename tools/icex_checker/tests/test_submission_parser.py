@@ -25,6 +25,48 @@ def _write_html(base_dir, body, title="Week01 - ICEX01: Jane Doe", extra_head=""
     return p
 
 
+def test_extracts_pr_url_from_plain_text_span(tmp_path):
+    """Tier 3: Canvas text submissions may carry the PR URL as plain
+    text (span-wrapped rich paste) with no anchor anywhere — the real
+    ICEX07 FA26 shape (2026-11-15: 8 such files, e.g. Alfalahi)."""
+    body = ('<p class="p1"><span class="s1">'
+            "https://github.iu.edu/ealfalah/fa26_c291/pull/8</span></p>"
+            '<p class="p1">a: letter</p>')
+    p = _write_html(tmp_path, body=body)
+    sub = parse_submission(p)
+    assert sub.pr_url == "https://github.iu.edu/ealfalah/fa26_c291/pull/8"
+
+
+def test_text_submission_filename_and_late_flag(tmp_path):
+    """The filename regex must accept {user}[_LATE]_{id}_text.html and
+    carry the LATE flag (it drives the late policy from the filename)."""
+    html = ('<html><head><title>Week05 - ICEX07: X</title></head><body>'
+            '<a href="https://github.iu.edu/x/fa26_c291/pull/2">PR</a>'
+            "</body></html>")
+    p = pathlib.Path(tmp_path) / "nickensjake_LATE_6787975_text.html"
+    p.write_text(html, encoding="utf-8")
+    sub = parse_submission(p)
+    assert sub.username == "nickensjake"
+    assert sub.is_late is True
+
+
+def test_non_pr_text_url_still_raises(tmp_path):
+    """A compare/tree URL pasted as plain text is NOT a PR: the tier
+    must not over-accept (stay NoPRUrlError -> exception row)."""
+    body = ('<p class="p1"><span class="s1">'
+            "https://github.iu.edu/DRRROBIN/fa26_c291/compare/ICEX02"
+            "?expand=1</span></p>")
+    p = _write_html(tmp_path, body=body)
+    with pytest.raises(NoPRUrlError):
+        parse_submission(p)
+
+
+def test_no_url_at_all_raises(tmp_path):
+    p = _write_html(tmp_path, body="<p>notes only, no link</p>")
+    with pytest.raises(NoPRUrlError):
+        parse_submission(p)
+
+
 def test_extracts_pr_url_from_meta_refresh():
     """FR-1/SC-1: PR URL is extracted from the meta refresh tag."""
     sub = parse_submission(FIXTURES / "sample_submission.html")

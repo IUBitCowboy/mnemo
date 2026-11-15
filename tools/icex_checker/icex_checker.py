@@ -57,6 +57,13 @@ _META_REFRESH_RE = re.compile(
 
 _LINK_HREF_RE = re.compile(r'<a[^>]+href\s*=\s*["\']([^"\']+)["\']', re.IGNORECASE)
 
+# Third URL tier: Canvas text submissions (the student typed the URL
+# into a text box; Canvas saves {user}[_LATE]_{id}_text.html) may carry
+# the PR URL as PLAIN TEXT (span-wrapped rich paste), not an anchor.
+# The char class excludes whitespace and markup/entity delimiters so a
+# mid-sentence URL extracts clean.
+_PLAINTEXT_URL_RE = re.compile(r"https?://[^\s<>\"'&]+")
+
 _PR_URL_RE = re.compile(
     r"https?://(?P<host>[^/\"'\s<]+)/(?P<owner>[A-Za-z0-9_.-]+)/(?P<repo>[A-Za-z0-9_.-]+)/pull/(?P<number>\d+)"
 )
@@ -89,7 +96,9 @@ _TITLE_RE = re.compile(
 
 # Canvas downloads submissions as {username}[_LATE]_{canvas_id}_link.html
 # (V1-3). Example: aldhaherirashed_LATE_6789124_link.html
-_CANVAS_FILENAME_RE = re.compile(r"^(?P<user>.+?)(?:_(?P<late>LATE))?_(\d+)_link\.html$", re.IGNORECASE)
+_CANVAS_FILENAME_RE = re.compile(
+    r"^(?P<user>.+?)(?:_(?P<late>LATE))?_(\d+)_(?:link|text)\.html$",
+    re.IGNORECASE)
 
 
 class Submission:
@@ -155,6 +164,12 @@ def parse_submission(path):
     elif body_url:
         sub.pr_url = body_url
     else:
+        for m in _PLAINTEXT_URL_RE.finditer(text):
+            cand = m.group(0).strip()
+            if _is_pr_url(cand):
+                sub.pr_url = cand
+                break
+    if not sub.pr_url:
         raise NoPRUrlError(str(p))
 
     return sub
