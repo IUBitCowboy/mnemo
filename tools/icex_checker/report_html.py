@@ -22,6 +22,9 @@ Design rulings baked in:
   coefficient defaults to 100% and the TA adjusts per peer eval.
 - Every page states RECOMMENDED, NOT FINAL — the TA enters gradebook
   scores and comments.
+- Update tracking: each manifest entry keeps the last HISTORY_MAX
+  previous-run snapshots; score/commit deltas render as a Δ badge on
+  the page and the index row (empty while unchanged).
 """
 
 import html
@@ -54,6 +57,7 @@ th { color:var(--mut); font-weight:600; font-size:12px;
 .b.ok { background:#1a7f4b; } .b.fail { background:#b3261e; }
 .b.part { background:#8a6d00; } .b.review { background:#5c3bd6; }
 .b.missing { background:#b3261e; } .b.late { background:#8a6d00; }
+.b.delta { background:#0a6e5c; }
 a { color:#0b57d0; }
 .chips { display:flex; flex-wrap:wrap; gap:6px; margin:8px 0 16px; }
 .chip { border:1px solid var(--line); background:var(--card);
@@ -99,24 +103,32 @@ function select(btn){
  apply();
 }
 function chip(btn){
- if(btn.classList.contains('on') && btn.dataset.team!=='*'){
+ if(btn.classList.contains('on')&&(btn.dataset.team&&btn.dataset.team!=='*'
+     ||btn.dataset.half)){
    select(null);            // deselect -> nothing picked -> all
  } else { select(btn); }
 }
 function apply(){
- const chosen=[];
- document.querySelectorAll('.chip.on').forEach(b=>chosen.push(
-   b.dataset.team));
- const filtered = chosen.length>0 && chosen.indexOf('*')<0;
- document.querySelectorAll('[data-team]').forEach(el=>{
-  if(el.classList.contains('chip'))return;
-  el.classList.toggle('hide', filtered&&chosen.indexOf(el.dataset.team)<0);});
- document.querySelectorAll('details.lane').forEach(d=>{
-  let vis=0;
-  d.querySelectorAll('[data-team]').forEach(r=>{
-   if(!r.classList.contains('hide'))vis++;});
-  d.open = filtered ? vis>0 : false;
- });
+// single active chip; team chips filter data-team, half chips filter
+// data-half. Rows without a data-half (unknown student) stay visible
+// under a half filter rather than silently vanishing. The <details>
+// grouping open-state is NEVER touched: chips only change which rows
+// show inside lanes the reader has already opened.
+const onchips=[]; document.querySelectorAll('.chip.on').forEach(
+  b=>{if((b.dataset.team&&b.dataset.team!=='*')||b.dataset.half)
+    onchips.push(b);});
+const team=(onchips.find(b=>b.dataset.team)||{dataset:{}}).dataset.team;
+const half=(onchips.find(b=>b.dataset.half)||{dataset:{}}).dataset.half;
+const filtered=!!(team||half);
+document.querySelectorAll('[data-team]').forEach(el=>{
+ if(el.classList.contains('chip'))return;
+ let show=true;
+ if(filtered){
+   if(team) show=show&&el.dataset.team===team;
+   if(half) show=show&&(!el.dataset.half
+       ||el.dataset.half==='none'||el.dataset.half===half);
+ }
+ el.classList.toggle('hide', !show);});
 }
 function copyable(btn){const t=btn.getAttribute('data-text');
  navigator.clipboard.writeText(t).then(()=>{btn.textContent='copied';
@@ -139,6 +151,15 @@ def _esc(s):
 
 def _esc_url(u):
     return _esc(u)
+
+
+def _fmt_num(v):
+    """Point values render integral (7, not 7.0); halves keep meaning
+    (6.5). Non-numeric falls through to str."""
+    try:
+        return "%g" % float(v)
+    except (TypeError, ValueError):
+        return str(v)
 
 
 def now_ts():
@@ -244,6 +265,67 @@ def _assignment_title(batch_dir, first_result):
 # Lane emission
 # ---------------------------------------------------------------------------
 
+HISTORY_MAX = 5   # previous-run snapshots kept per entry (delta badges)
+
+
+def _prev_snapshot(lane_dir):
+    """Previous run's manifest for history carry-over (delta badges).
+
+    Returns (run_ts, entries_by_file); ("", {}) on a first run or an
+    unreadable manifest.
+    """
+    try:
+        data = json.loads((pathlib.Path(lane_dir) / "manifest.json")
+                          .read_text())
+    except (OSError, ValueError):
+        return "", {}
+    by_file = {e.get("file"): e for e in data.get("entries", [])}
+    return data.get("run_ts", ""), by_file
+
+
+def _commits_of(assessment):
+    """Commit count from this run's PR metadata (blob subs: None).
+
+    github_client's PR model carries the API's commit COUNT integer
+    (github_client.py: `.commits = data.get("commits") or 0`); accept a
+    raw list defensively too.
+    """
+    det = getattr(assessment, "pr_details", None) or {}
+    commits = det.get("commits")
+    if isinstance(commits, bool):
+        return None
+    if isinstance(commits, (list, tuple)):
+        return len(commits)
+    if isinstance(commits, (int, float)):
+        return int(commits)
+    return None
+
+
+def _delta_html(rec, commits, prev):
+    """Update badge (score delta and/or commit delta vs previous run).
+
+    prev is the newest previous snapshot {"ts","recommended","commits"}
+    or None. Empty string when nothing changed or nothing is comparable —
+    unchanged lanes stay badge-free.
+    """
+    if not prev:
+        return ""
+    parts = []
+    prev_rec = prev.get("recommended")
+    if prev_rec is not None and rec is not None and rec != prev_rec:
+        arrow = "&#9650;" if rec > prev_rec else "&#9660;"
+        parts.append("%s %s &rarr; %s" % (
+            arrow, ("%g" % prev_rec), ("%g" % rec)))
+    prev_commits = prev.get("commits")
+    if (prev_commits is not None and commits is not None
+            and commits != prev_commits):
+        parts.append("commits %d &rarr; %d" % (prev_commits, commits))
+    if not parts:
+        return ""
+    return '<span class="b delta">&#916; %s%s</span>' % (
+        " &middot; ".join(parts),
+        " &middot; since %s" % _esc(prev.get("ts") or "previous run"))
+
 
 def emit_lane(batch_dir, results, out_root, run_ts, rubric, roster_obj,
               lanes_dir=None, filtered_teams=None, roster_csv=None):
@@ -259,6 +341,7 @@ def emit_lane(batch_dir, results, out_root, run_ts, rubric, roster_obj,
     lane_dir = pathlib.Path(
         lanes_dir or (out_root / "TA-reports" / lane_slug))
     lane_dir.mkdir(parents=True, exist_ok=True)
+    prev_ts, prev_by_file = _prev_snapshot(lane_dir)
 
     roster_view = _collect_roster_view(csv_path=roster_csv,
                                        roster_obj=roster_obj)
@@ -278,6 +361,17 @@ def emit_lane(batch_dir, results, out_root, run_ts, rubric, roster_obj,
     entries = []
     for r in processed:
         a = r["_assessment"]
+        prev_e = prev_by_file.get(r["file"])
+        commits = _commits_of(a)
+        if prev_e:
+            history = list(prev_e.get("history") or []) + [{
+                "ts": prev_ts,
+                "recommended": prev_e.get("recommended"),
+                "commits": prev_e.get("commits"),
+            }]
+            history = history[-HISTORY_MAX:]
+        else:
+            history = []
         netid = _canonical_username(
             roster_obj, _submitter_from_filename(r["file"]))
         team = r.get("team") or _roster_team_of(roster_view, netid)
@@ -288,7 +382,10 @@ def emit_lane(batch_dir, results, out_root, run_ts, rubric, roster_obj,
             lane_dir / page_name, a, run_ts, rubric,
             team=team, ta=(roster_view.get(team, {}) or {}).get("ta", ""),
             roster_row=row, coeff_default=coeff_default,
-            is_team=is_team, lane_title=title)
+            is_team=is_team, lane_title=title,
+            prev=({"ts": prev_ts, "recommended": prev_e.get("recommended"),
+                   "commits": prev_e.get("commits")} if prev_e else None),
+            commits=commits)
         entry = {
             "file": r["file"],
             "netid": netid or "",
@@ -298,6 +395,8 @@ def emit_lane(batch_dir, results, out_root, run_ts, rubric, roster_obj,
             "ta": (roster_view.get(team, {}) or {}).get("ta", ""),
             "status": "processed",
             "recommended": r.get("recommended_points"),
+            "commits": commits,
+            "history": history,
             "total": r.get("total_points"),
             "is_late": bool(getattr(a, "is_late", False)),
             "pr_url": r.get("pr_url") or getattr(a, "pr_url", "") or "",
@@ -424,7 +523,7 @@ def emit_lane(batch_dir, results, out_root, run_ts, rubric, roster_obj,
 
 def _write_report_page(path, a, run_ts, rubric, team="", ta="",
                        roster_row=None, coeff_default=1.0, is_team=False,
-                       lane_title=""):
+                       lane_title="", prev=None, commits=None):
     findings = list(a.findings)
     rec = sum(f.points_recommended for f in findings
               if f.points_recommended is not None)
@@ -505,9 +604,13 @@ def _write_report_page(path, a, run_ts, rubric, team="", ta="",
             a.course, a.semester,
             " · Canvas ID: %s" % canvas_id if canvas_id else "")))
     late = ' <span class="b late">LATE</span>' if a.is_late else ""
+    update_html = _delta_html(rec, commits, prev)
     links_html = ""
+    if update_html:
+        links_html = ('<div class="card"><strong>Score update since '
+                      "previous run:</strong> %s</div>" % update_html)
     if links:
-        links_html = "<div class='card links'>%s</div>" % "".join(links)
+        links_html += "<div class='card links'>%s</div>" % "".join(links)
 
     page = """<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
@@ -552,6 +655,246 @@ Canvas gradebook.</div>
 # ---------------------------------------------------------------------------
 
 
+def _halves_map(netids, out_root):
+    """A/B split of the class for the two-TA, swap-per-assignment model.
+
+    ``halves.csv`` at the share root (comment lines with # allowed;
+    columns: username,half) overrides. Default is an alphabetical
+    split: first half of the sorted netids -> A, rest -> B, computed
+    from every netid seen in the lane manifests.
+    """
+    netids = sorted({str(n or "").strip().lower() for n in netids if n})
+    halves: dict = {}
+    csvp = pathlib.Path(out_root) / "halves.csv"
+    if csvp.exists():
+        for line in csvp.read_text(errors="replace").splitlines()[1:]:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            parts = [p.strip().lower() for p in line.split(",")]
+            if len(parts) >= 2 and parts[1] in ("a", "b"):
+                halves[parts[0]] = parts[1].upper()
+    for i, n in enumerate(netids):
+        halves.setdefault(n, "A" if i < (len(netids) + 1) // 2 else "B")
+    return halves
+
+
+def _half_of(halves, netid):
+    return halves.get(str(netid or "").strip().lower(), "none")
+
+
+def _emit_students(out_root, lanes, halves, run_ts):
+    """Write students.html (gradebook view: one row per student, one
+    column per lane) plus TA-reports/students/<netid>.html review pages
+    listing each student's full evidence trail across lanes."""
+    out_root = pathlib.Path(out_root)
+
+    def wk(lane):
+        m = re.search(r"Week\s*(\d+)", lane.get("assignment_title") or "",
+                      re.IGNORECASE)
+        return (int(m.group(1)) if m else 999, lane.get("lane"))
+
+    lanes_ord = sorted(lanes, key=wk)
+
+    students: dict = {}
+
+    def stu(netid, name=""):
+        key = str(netid or "").strip().lower()
+        if not key:
+            return None
+        s = students.setdefault(key, {
+            "netid": netid, "name": name, "cid": "", "entries": {},
+            "exc": [], "miss": []})
+        if name and not s["name"]:
+            s["name"] = name
+        return s
+
+    for lane in lanes_ord:
+        code = lane.get("assignment_code") or lane["lane"]
+        title = lane.get("assignment_title") or code
+        for e in lane.get("entries", []):
+            s = stu(e["netid"], e.get("name") or "")
+            if s:
+                s["entries"][code] = dict(e, lane_title=title)
+                s["cid"] = s["cid"] or e.get("canvas_id") or ""
+        for x in lane.get("exceptions", []):
+            s = stu(x.get("netid"), x.get("name") or "")
+            if s:
+                s["exc"].append(dict(x, lane_code=code, lane_title=title))
+        for m_ in lane.get("missing", []):
+            s = stu(m_.get("iu"), m_.get("name") or "")
+            if s:
+                s["miss"].append(code)
+
+    # half stays the SAME netid-keyed split across all lanes (the swap
+    # is which TA takes which half each assignment, not who is in it)
+    for s in students.values():
+        s["half"] = _half_of(halves, s["netid"])
+
+    codes = [lane.get("assignment_code") or lane["lane"]
+             for lane in lanes_ord]
+
+    def cell(s, code):
+        e = s["entries"].get(code)
+        half = s["half"]
+        if e is not None:
+            rec = e.get("recommended")
+            rec_html = ("<strong>%s</strong>/%s"
+                        % (_fmt_num(rec), e.get("total", "")))
+            if e.get("recommended") is None:
+                rec_html = "<span class='b review'>TA call</span>"
+            links = []
+            if e.get("speedgrader"):
+                links.append('<a href="%s">SG</a>'
+                             % _esc_url(e["speedgrader"]))
+            if e.get("pr_url"):
+                links.append('<a href="%s">PR</a>'
+                             % _esc_url(e["pr_url"]))
+            late = ' <span class="b late">L</span>' if e.get(
+                "is_late") else ""
+            return "%s%s <span class='mut small'>%s</span>" % (
+                rec_html, late, " ".join(links))
+        if x := next((x for x in s["exc"] if x["lane_code"] == code), None):
+            return ("<a href=\"#%s\"><span class=\"b fail\">!"
+                    "</span><span class='mut small'> exception</span></a>"
+                    % _esc(str(x.get("file") or code)))
+        if code in s["miss"]:
+            return '<span class="b fail">MISSING</span>'
+        return "<span class='mut'>·</span>"
+
+    safe_half = []
+    rows = []
+    for s in sorted(students.values(), key=lambda s: s["name"]
+                    or s["netid"]):
+        safe = re.sub(r"[^a-z0-9._-]", "", s["netid"].strip().lower()) \
+            or "student"
+        safe_half.append((s, safe))
+        cells = "".join("<td>%s</td>" % cell(s, code) for code in codes)
+        pg = "TA-reports/students/%s.html" % safe
+        rows.append(
+            '<tr data-half="%s"><td><a href="%s">%s</a>'
+            "<span class='mut small'> · %s</span></td><td>%s</td>%s</tr>"
+            % (s["half"], _esc(pg), _esc(s["name"] or s["netid"]),
+               _esc(s["netid"]),
+               ("<span class='b part'>%s</span>" % s["half"]
+                if s["half"] in ("A", "B") else "—"), cells))
+
+    chips = ['<button class="chip on" data-team="*" onclick="chip(this)">'
+             "<strong>All</strong></button>"]
+    chips += ['<button class="chip" data-half="A" onclick="chip(this)">'
+              "Half A</button>",
+              '<button class="chip" data-half="B" onclick="chip(this)">'
+              "Half B</button>"]
+
+    header = ("<tr><th>student</th><th>half</th>"
+              + "".join("<th>%s</th>" % _esc(code) for code in codes)
+              + "</tr>")
+    page = """<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<title>student review — gradebook</title>
+<style>%(_CSS)s</style>
+<script>%(_JS)s</script>
+</head><body><main>
+<h1>Student review</h1>
+<p class="small mut">One row per student, one column per assignment
+(cell links to SpeedGrader / report page; <span class="b fail">!</span>
+= needs TA review; MISSING = no submission file). Click a name for the
+per-student page with every lane's evidence. Halves: %(src)s — chip
+filters one half.</p>
+<div class="chips">%(chips)s</div>
+<table>%(header)s%(rows)s</table>
+<p class="small mut">%(nstudents)d students · %(nlane)s lanes ·
+run %(ts)s</p>
+</main></body></html>""" % {
+        "_CSS": _CSS, "_JS": _JS, "src": _esc(halves_source_note(out_root)),
+        "chips": "".join(chips), "header": header,
+        "rows": "".join(rows), "nstudents": len(students),
+        "nlane": len(lanes_ord), "ts": _esc(run_ts)}
+    out = out_root / "students.html"
+    out.write_text(page)
+
+    # per-student detail pages
+    sdir = out_root / "TA-reports" / "students"
+    sdir.mkdir(parents=True, exist_ok=True)
+    for s, safe in safe_half:
+        entries = []
+        for code, e in sorted(s["entries"].items(),
+                              key=lambda kv: codes.index(kv[0])):
+            rec = e.get("recommended")
+            rec_html = ("<strong>%s</strong>/%s"
+                        % (_fmt_num(rec), e.get("total", ""))
+                        if rec is not None
+                        else "<span class='b review'>TA call</span>")
+            links = []
+            if e.get("page"):
+                links.append('<a href="%s">report</a>' % _esc(e["page"]))
+            if e.get("speedgrader"):
+                links.append('<a href="%s">SpeedGrader</a>'
+                             % _esc_url(e["speedgrader"]))
+            if e.get("pr_url"):
+                links.append('<a href="%s">GitHub</a>'
+                             % _esc_url(e["pr_url"]))
+            hist = e.get("history") or []
+            delta = _delta_html(e.get("recommended"), e.get("commits"),
+                                hist[-1] if hist else None)
+            entries.append(
+                "<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td>"
+                "<td class='small'>%s</td></tr>" % (
+                    _esc(code + " · " + (e.get("lane_title") or "")),
+                    rec_html,
+                    (' <span class="b late">LATE</span>'
+                     if e.get("is_late") else ""),
+                    (str(e["commits"]) if e.get("commits") is not None
+                     else "—"),
+                    (" ".join(links) + (" " + delta if delta else ""))))
+        n_rec = [e for e in s["entries"].values()
+                 if e.get("recommended") is not None]
+        sum_rec = sum(e["recommended"] for e in n_rec)
+        sum_tot = sum(e.get("total", 0) or 0 for e in n_rec)
+        exc_rows = "".join(
+            "<tr class='warnrow'><td>%s</td><td>%s</td><td>%s</td></tr>"
+            % (_esc(x["lane_code"]), _esc(x.get("file") or ""),
+               _esc(x.get("error") or "")) for x in s["exc"])
+        miss_html = ", ".join(s["miss"]) if s["miss"] else "—"
+        spage = """<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<title>%(name)s — student review</title>
+<style>%(_CSS)s</style>
+</head><body><main>
+<p><a href="../../students.html">&larr; all students</a></p>
+<h1>%(name)s</h1>
+<p class="small mut">netid %(net)s · canvas id %(cid)s ·
+half <span class='b part'>%(half)s</span></p>
+<p><strong>Graded sum: %(sum_rec)s / %(sum_tot)s</strong>
+<span class="mut small">(over %(nrec)d recorded
+submission%(pl)s; recommended, not final)</span></p>
+<table><tr><th>assignment</th><th>recommended</th><th>on time</th>
+<th>commits</th><th>links</th></tr>%(entries)s</table>
+<h3>Needs TA review</h3>
+<table><tr><th>assignment</th><th>file</th><th>error</th></tr>
+%(exc_rows)s</table>
+<h3>MISSING submissions</h3><p>%(miss_html)s</p>
+<p class="small mut">run %(ts)s</p>
+</main></body></html>""" % {
+            "name": _esc(s["name"] or s["netid"]),
+            "net": _esc(s["netid"]), "cid": _esc(s["cid"] or "—"),
+            "half": s["half"], "sum_rec": _fmt_num(sum_rec),
+            "sum_tot": _fmt_num(sum_tot),
+            "nrec": len(n_rec),
+            "pl": "s" if len(n_rec) != 1 else "",
+            "entries": "".join(entries), "exc_rows": exc_rows,
+            "miss_html": _esc(miss_html), "ts": _esc(run_ts),
+            "_CSS": _CSS}
+        (sdir / ("%s.html" % safe)).write_text(spage)
+    return out
+
+
+def halves_source_note(out_root):
+    return ("halves.csv at the submissions root"
+            if (pathlib.Path(out_root) / "halves.csv").exists()
+            else "alphabetical default (halves.csv can override)")
+
+
 def emit_index(out_root, run_ts):
     """Rebuild submissions/report.html: assignments grouped by week,
     each assignment a click-to-open card; absences visible at a glance
@@ -571,15 +914,33 @@ def emit_index(out_root, run_ts):
         for t, info in lane.get("teams", {}).items():
             teams.setdefault(t, info.get("ta", ""))
 
+    # A/B halves: one netid-keyed split across ALL lanes; the TAs swap
+    # halves each assignment, so assignment-specific TA mapping is NOT
+    # part of the split (that lives in the gradebook, not here).
+    _nets = set()
+    for lane in lanes:
+        for e in lane.get("entries", []):
+            _nets.add(e.get("netid"))
+        for x in lane.get("exceptions", []):
+            _nets.add(x.get("netid"))
+        for m_ in lane.get("missing", []):
+            _nets.add(m_.get("iu"))
+    halves = _halves_map(_nets, out_root)
+
     chips = ['<button class="chip on" data-team="*" onclick="chip(this)">'
              "<strong>All</strong></button>"]
     chips += ['<button class="chip" data-team="%s" onclick="chip(this)">'
               "%s</button>" % (_esc(t), _esc(t)) for t in sorted(teams)]
+    chips += ['<button class="chip" data-half="A" onclick="chip(this)">'
+              "Half A</button>",
+              '<button class="chip" data-half="B" onclick="chip(this)">'
+              "Half B</button>"]
 
-    # group lanes by the Week N in their Canvas export title
+    # group lanes by the Week N in their Canvas export title (both
+    # "Week 05" and the no-space "Week05" form C291 pages use)
     grouped = {}
     for lane in lanes:
-        m = re.search(r"Week (\d+)", lane.get("assignment_title") or "",
+        m = re.search(r"Week\s*(\d+)", lane.get("assignment_title") or "",
                       re.IGNORECASE)
         grouped.setdefault(int(m.group(1)) if m else 999,
                            []).append(lane)
@@ -622,13 +983,18 @@ def emit_index(out_root, run_ts):
                     adj = round(rec * coeff)
                     rec_html = ("<strong>%s</strong>/%s <span class='mut "
                                 "small'>&times;%s &rarr; %s/student</span>"
-                                % (rec, e.get("total", ""),
+                                % (_fmt_num(rec), e.get("total", ""),
                                    ("%g" % coeff), adj))
                 elif rec is not None:
                     rec_html = "<strong>%s</strong>/%s" % (
-                        rec, e.get("total", ""))
+                        _fmt_num(rec), e.get("total", ""))
                 else:
                     rec_html = "—"
+                hist = e.get("history") or []
+                delta = _delta_html(rec, e.get("commits"),
+                                    hist[-1] if hist else None)
+                if delta:
+                    rec_html = "%s %s" % (rec_html, delta)
                 late = (' <span class="b late">LATE</span>'
                         if e.get("is_late") else "")
                 link = ('<a href="%s">open report</a>' % _esc(e["page"])
@@ -644,10 +1010,16 @@ def emit_index(out_root, run_ts):
                 pr = " · ".join(
                     l_ for l_ in links_cell if l_ and l_ not in (" · ",))
                 rows.append(
-                    '<tr data-team="%s"><td>%s%s<span class="mut small">'
+                    '<tr data-team="%s" data-half="%s"><td>%s%s'
+                    "<span class='b part'>%s</span>"
+                    '<span class="mut small">'
                     " &middot; %s &middot; %s</span></td><td>%s</td>"
                     "<td>%s</td><td class='small'>%s</td></tr>" % (
-                        _esc(e["team"]), _esc(e["name"]), late,
+                        _esc(e["team"]), _half_of(halves, e["netid"]),
+                        _esc(e["name"]), late,
+                        _half_of(halves, e["netid"])
+                        if _half_of(halves, e["netid"]) in ("A", "B")
+                        else "—",
                         _esc(e["netid"]), _esc(e["canvas_id"]),
                         _esc(e["team"]), rec_html, pr))
 
@@ -657,19 +1029,22 @@ def emit_index(out_root, run_ts):
                     "<h3>Member gap in team deliverable</h3><table>"
                     "<tr><th>team</th><th>student</th><th>netid</th></tr>%s"
                     "</table>" % "".join(
-                        '<tr class="warnrow" data-team="%s"><td>%s</td>'
-                        "<td>%s</td><td>%s</td></tr>"
-                        % (_esc(g["team"]), _esc(g["team"]),
+                        '<tr class="warnrow" data-team="%s" data-half="%s">'
+                        "<td>%s</td><td>%s</td><td>%s</td></tr>"
+                        % (_esc(g["team"]),
+                           _half_of(halves, g.get("iu")),
+                           _esc(g["team"]),
                            _esc(g["name"]), _esc(g["iu"])) for g in gaps))
             if exc:
                 body.append(
                     "<h3>Needs TA review — tool produced no report</h3>"
                     "<table><tr><th>student</th><th>file</th><th>error"
                     "</th></tr>%s</table>" % "".join(
-                        '<tr class="warnrow" data-team="%s"><td>%s<'
-                        'span class="mut small"> · %s</span></td>'
+                        '<tr class="warnrow" data-team="%s" data-half="%s">'
+                        '<td>%s<span class="mut small"> · %s</span></td>'
                         "<td>%s</td><td>%s</td></tr>"
-                        % (_esc(x["team"]), _esc(x["name"]),
+                        % (_esc(x["team"]), _half_of(halves, x.get("netid")),
+                           _esc(x["name"]),
                            _esc(x["netid"]), _esc(x["file"]),
                            _esc(x["error"])) for x in exc))
             if missing:
@@ -677,9 +1052,10 @@ def emit_index(out_root, run_ts):
                     "<h3>MISSING — no Canvas submission file found</h3>"
                     "<table><tr><th>student</th><th>team</th>"
                     "<th>netid</th><th>TA</th></tr>%s</table>" % "".join(
-                        '<tr class="warnrow" data-team="%s"><td>%s</td>'
-                        "<td>%s</td><td>%s</td><td>%s</td></tr>"
-                        % (_esc(m["team"]), _esc(m["name"]),
+                        '<tr class="warnrow" data-team="%s" data-half="%s">'
+                        "<td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>"
+                        % (_half_of(halves, m.get("iu")),
+                           _esc(m["team"]), _esc(m["name"]),
                            _esc(m["team"]), _esc(m["iu"]),
                            _esc(m.get("ta", ""))) for m in missing))
 
@@ -720,7 +1096,9 @@ Coefficient, then enter scores in the Canvas gradebook. Red badges on a
 folded row mean gaps you must see
 (<span class="b fail">exception</span> /
 <span class="b fail">MISSING</span>). Re-runs overwrite; each
-assignment's timestamp is its latest run. Filter with the chips.</p>
+assignment's timestamp is its latest run. Filter with the chips
+(Half A / Half B = the two-TA class split). Review a student
+end-to-end in the <a href="students.html">student gradebook</a>.</p>
 <div class="chips">%s</div>
 %s
 <footer>Generated %s &middot; icex_checker &middot; submissions/
@@ -731,4 +1109,5 @@ report.html rebuilt on every batch run &middot; lanes: %s</footer>
 
     out = out_root / "report.html"
     out.write_text(page)
+    _emit_students(out_root, lanes, halves, run_ts)
     return out

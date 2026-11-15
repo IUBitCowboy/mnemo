@@ -58,7 +58,7 @@ class _StubRubric:
 
 
 def _assessment(name="Smith, Caleb", netid="cs155", rec=None,
-                late=False, findings=None):
+                late=False, findings=None, pr_details=None):
     if findings is None:
         findings = [
             Finding(_c("Presence"), "pass", 3,
@@ -71,7 +71,7 @@ def _assessment(name="Smith, Caleb", netid="cs155", rec=None,
         assignment="A_TEST", course="SE1", semester="FA26",
         student_name=name, pr_url="https://github.iu.edu/o/r/pull/3",
         timestamp="2026-11-13T09:00:00", tool_version="v-test",
-        pr_details=None, findings=findings,
+        pr_details=pr_details, findings=findings,
         is_late=late, canvas_points=20,
     )
 
@@ -293,3 +293,161 @@ class TestChips:
         assert index.count('data-team="SE_TEAM03"') >= 1
         # the hide rule must ship with the page or filtering is a no-op
         assert ".hide { display:none" in index
+
+
+class TestHalvesAndStudentView:
+    """Two-TA model: A/B halves (alphabetical default, halves.csv
+    override) + the per-student review surface (students.html
+    gradebook + TA-reports/students/<netid>.html pages)."""
+
+    def _index(self, tmp_path):
+        results = [
+            {"file": "cs155_1_link.html", "status": "processed",
+             "recommended_points": 3, "total_points": 6,
+             "team": "", "pr_url": "", "_assessment":
+             _assessment(rec=3)},
+            {"file": "jakecole_2_link.html", "status": "processed",
+             "recommended_points": 4, "total_points": 6,
+             "team": "", "pr_url": "", "_assessment":
+             _assessment(name="Cole, Jackson", rec=4)},
+        ]
+        m, index, out = _run_emit(
+            tmp_path, results,
+            ["cs155_1_link.html", "jakecole_2_link.html"])
+        return m, out
+
+    def test_half_chips_present(self, tmp_path):
+        m, out = self._index(tmp_path)
+        index = (out / "report.html").read_text()
+        assert 'data-half="A"' in index and 'data-half="B"' in index
+
+    def test_rows_carry_half(self, tmp_path):
+        m, out = self._index(tmp_path)
+        index = (out / "report.html").read_text()
+        # both students carry a data-half attribute on their rows
+        assert index.count('data-half="') >= 2
+
+    def test_halves_csv_override_wins(self, tmp_path):
+        m, out = self._index(tmp_path)
+        (out / "halves.csv").write_text("# manual\njakecole,b\n")
+        report_html.emit_index(out, "2026-11-15 12:00 EST")
+        index = (out / "report.html").read_text()
+        # alphabetical default: cs155 < jakecole, so cs155 -> A; the
+        # csv listed only jakecole and must not disturb that
+        srow = [l for l in index.splitlines()
+                if 'data-half=' in l and "cs155" in l]
+        assert srow and 'data-half="A"' in srow[0]
+
+    def test_students_gradebook_and_pages(self, tmp_path):
+        m, out = self._index(tmp_path)
+        sgb = out / "students.html"
+        assert sgb.exists()
+        g = sgb.read_text()
+        assert "Half A" in g and "Half B" in g
+        assert "/6" in g            # score cells
+        spages = sorted((out / "TA-reports" / "students").glob("*.html"))
+        assert spages
+        page = spages[0].read_text()
+        assert "Graded sum:" in page
+        assert "A_TEST" in page
+        assert "&larr; all students" in page
+
+    def test_students_rows_carry_half(self, tmp_path):
+        m, out = self._index(tmp_path)
+        g = (out / "students.html").read_text()
+        assert 'data-half="' in g
+
+
+class TestUpdateHistory:
+    """Delta tracking: first run ships no badge; a changed later run
+    badges the page and the index row; an unchanged run stays badge-free
+    while still recording the snapshot; history is capped."""
+
+    def _results(self, rec, commits=None, pr_details=None):
+        if commits is not None:
+            pr_details = {"commits": [{"sha": str(i)}
+                                      for i in range(commits)]}
+        # the score rides the FINDINGS: the page recomputes rec from
+        # them, so the entry-level recommended_points must mirror the
+        # same sum or page and index badges diverge
+        return [{"file": "cs155_1_link.html", "status": "processed",
+                 "recommended_points": rec, "total_points": 6,
+                 "team": "SE_TEAM01",
+                 "pr_url": "https://github.iu.edu/o/r/pull/3",
+                 "_assessment": _assessment(
+                     findings=[Finding(_c("Presence"), "pass", rec,
+                                       ["evidence: ok"], "note", False)],
+                     pr_details=pr_details)}]
+
+    def test_first_run_records_no_history_no_badge(self, tmp_path):
+        m, index, root = _run_emit(tmp_path, self._results(3),
+                                   ["cs155_1_link.html"])
+        e = m["entries"][0]
+        assert e["history"] == [] and e["commits"] is None
+        page = (root / "TA-reports/lane-test/cs155.html").read_text()
+        assert "Score update since" not in page
+        assert "b delta" not in index.read_text()
+
+    def test_delta_badge_on_score_change(self, tmp_path):
+        _run_emit(tmp_path, self._results(3), ["cs155_1_link.html"])
+        m, index, root = _run_emit(tmp_path, self._results(5),
+                                   ["cs155_1_link.html"])
+        e = m["entries"][0]
+        assert len(e["history"]) == 1
+        assert e["history"][0]["recommended"] == 3
+        assert e["history"][0]["ts"] == "2026-11-13 09:00 EST"
+        page = (root / "TA-reports/lane-test/cs155.html").read_text()
+        assert "Score update since" in page
+        assert "&#9650; 3 &rarr; 5" in page
+        assert "since 2026-11-13 09:00 EST" in page
+        assert "&#9650; 3 &rarr; 5" in index.read_text()
+
+    def test_score_down_arrow(self, tmp_path):
+        _run_emit(tmp_path, self._results(5), ["cs155_1_link.html"])
+        _, _, root = _run_emit(tmp_path, self._results(3),
+                               ["cs155_1_link.html"])
+        page = (root / "TA-reports/lane-test/cs155.html").read_text()
+        assert "&#9660; 5 &rarr; 3" in page
+
+    def test_no_badge_when_unchanged(self, tmp_path):
+        _run_emit(tmp_path, self._results(3), ["cs155_1_link.html"])
+        m, index, root = _run_emit(tmp_path, self._results(3),
+                                   ["cs155_1_link.html"])
+        e = m["entries"][0]
+        assert e["history"] and e["history"][0]["recommended"] == 3
+        page = (root / "TA-reports/lane-test/cs155.html").read_text()
+        assert "Score update since" not in page
+        assert "b delta" not in index.read_text()
+
+    def test_commit_delta_without_score_change(self, tmp_path):
+        _run_emit(tmp_path, self._results(5, commits=2),
+                  ["cs155_1_link.html"])
+        m, index, root = _run_emit(tmp_path, self._results(5, commits=4),
+                                   ["cs155_1_link.html"])
+        e = m["entries"][0]
+        assert e["history"][0]["commits"] == 2 and e["commits"] == 4
+        page = (root / "TA-reports/lane-test/cs155.html").read_text()
+        assert "commits 2 &rarr; 4" in page
+        assert "&#9650;" not in page and "&#9660;" not in page
+        assert "commits 2 &rarr; 4" in index.read_text()
+
+    def test_history_capped_at_five(self, tmp_path):
+        m = index = root = None
+        for rec in [3, 4, 5, 6, 7, 8, 9]:
+            m, _, _ = _run_emit(tmp_path, self._results(rec),
+                                ["cs155_1_link.html"])
+        e = m["entries"][0]
+        assert len(e["history"]) == 5
+        assert [s["recommended"] for s in e["history"]] == [4, 5, 6, 7, 8]
+
+    def test_commits_of_shapes(self):
+        # the real PR model carries the API commit COUNT int
+        # (github_client.py); lists are accepted defensively
+        assert report_html._commits_of(
+            _assessment(pr_details={"commits": 3})) == 3
+        assert report_html._commits_of(
+            _assessment(pr_details={"commits": [1, 2]})) == 2
+        assert report_html._commits_of(_assessment(pr_details={})) is None
+        assert report_html._commits_of(_assessment(pr_details=None)) is None
+        assert report_html._commits_of(
+            _assessment(pr_details={"commits": True})) is None
