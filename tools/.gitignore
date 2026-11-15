@@ -1,0 +1,24 @@
+# Local-only, this machine — never commit.
+
+# The symlink to Kurt's OneDrive submissions share (rosters, wall
+# timestamps, downloaded Canvas submissions shared with the TAs).
+# The link target is an absolute ~/Library/CloudStorage path that only
+# resolves on his Mac, so the link itself must stay out of git. The
+# target folder holds FERPA-protected student data — nothing it
+# contains may EVER enter a repo.
+#
+#   tools/submissions -> ~/Library/CloudStorage/OneDrive-IndianaUniversity/
+#                        Teaching/P465 - Project Management/FA26-P465/submissions
+#
+submissions
+
+# FERPA sidecar CSVs that belong on the OneDrive share next to the
+# submissions (roster.csv, wall timestamps, Canvas text-entry
+# timestamps). Ignore any copies that stray into the tools tree —
+# the checker reads them from the run's working directory.
+roster*.csv
+walls_*.csv
+times_*.csv
+
+# Editor leftovers (vim swap files, e.g. the stale .gitignore.swp).
+*.swp
