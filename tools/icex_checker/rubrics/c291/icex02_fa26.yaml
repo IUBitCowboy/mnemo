@@ -27,7 +27,10 @@ ag_url: https://autograder.luddy.indiana.edu/web/project/2502
 ag_max_points: 85
 handgrading_points: 15
 canvas_points: 10
-
+# TA-bundle Canvas links (assignments-PDF ids; course+assignment
+# click-verified 2026-11-15).
+canvas_course_id: 2411657
+canvas_assignment_id: 19305889
 criteria:
   # ── GitHub-side compliance (mechanical, 0 pts — evidence only) ──
 

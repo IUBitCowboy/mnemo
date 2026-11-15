@@ -1,0 +1,151 @@
+# Rubric for ICEX16-FA26-C291 (random access: fetch one record by address)
+#
+# Canvas assignment: 10 points. Rubric total = 10 = canvas_points.
+# (Numbering note: ICEX15 was given in W11 as a reuse of an SP26
+# exercise and has no checker rubric. ICEX16/17 are the W12 pair.)
+#
+# THE STANDING ICEX STANDARD (Kurt, 2026-11-08, in force for the rest
+# of the semester): the ICEX's main goal is WORKING CODE FOR THE
+# SPECIFICATION -- committed and the PR URL pasted into Canvas. The
+# theory/proofs/reflection work is EXTRA CREDIT, NOT base criteria:
+#   EC 1 (+1): ec_theory.md -- ALL rows of the theory table answered
+#     BEFORE running or delegating (predict-before-run).
+#   EC 2 (+1): ec_proofs.md -- all three proofs with pasted runs
+#     (count arithmetic end to end; padding bytes caught at offset
+#     74; the endian read).
+#   EC 3 (+1): ec_reflection.md -- one complete THEORIZE /
+#     EXPERIMENT / MODIFY / TEST loop for a real bug or a rejected
+#     agent fragment.
+# EC mechanics: each task is its OWN FILE committed to the exercise
+# directory; EC may be submitted AFTER the due date as an update --
+# the student creates a NEW PR for the commit containing the EC
+# files and resubmits the update PR's URL into the Canvas
+# assignment, where it appears as a new submission the TA
+# evaluates. An EC attempt NEVER reduces the base score. The three
+# EC awards (+3 max) sit OUTSIDE this rubric's criteria sum.
+#
+# Base spec graded below: get_record.bin DATAFILE RECNO opens "rb"
+# (checked), derives the record count from SEEK_END + ftell /
+# sizeof(Client), range-checks RECNO (pinned stderr line + exit 2),
+# seeks to (recno - 1) * sizeof(Client) (checked), freads ONE
+# record (item count checked), prints the pinned stdout shape
+# "%d %s %.2f". Usage pinned character-for-character ("usage: %s
+# datafile record-number", stderr, exit 1). Exits: 0 success;
+# 1 usage/open/seek/short read; 2 outside the table. stderr
+# instrumentation behind the student's DEBUG gate (starter ships
+# none; it SHIPS the TAG_OPEN/TAG_COUNT/TAG_SEEK/TAG_READ label
+# macros). Submission: WK12 branch born this meeting; DRAFT PR by
+# 4 PM (the safe-harbor push IS the standing one-week extension);
+# the student flips the draft to Ready when they submit the PR URL
+# to Canvas within the extension.
+#
+# Auditor phase: FIRST Auditor-phase ICEX since the W11 delegation
+# unlock (agent code presumed wrong until the student's own runs
+# verify it; accept/reject log). The core Task includes the
+# check-by-observation runs -- but no EC work is required for the
+# base 10.
+#
+# Grading-relative notes:
+#  - the record VALUES (Jones 24.98 etc.) come from the student's
+#    copy of clients.dat (identical bytes ship with the exercise);
+#    the pinned strings in criteria 2 and 3 are the format strings
+#    the student's CODE must carry, not run output.
+#  - criterion 1's needle counts fseek calls (>= 2: one SEEK_END
+#    count + one SEEK_SET fetch); the TA confirms the (N-1)*sizeof
+#    arithmetic and the fread != 1 check in the diff.
+#
+# Ground truth verified 2026-11-08 on BOTH classroom platforms:
+#   - silo (gcc 13.3.0, Ubuntu 24.04):
+#     fa26/lectures/probes/wk12d1_random_access/ICEX16_SILO.txt
+#     (battery_icex16.sh, rerunnable)
+#   - Mac (Apple clang 21.0.0): ICEX16_LOCAL.txt, same battery
+#   Deterministic across platforms: all five records print
+#   (100 Jones 24.98 ... 500 Rich 224.62, exit 0); record 6/0/abc
+#   print the pinned range line and exit 2 (abc -> atoi -> 0);
+#   missing file prints perror text and exits 1; the -DDEBUG=0
+#   build silences narration (err.log 0 bytes); the starter
+#   compiles -Wall clean, ships no #define DEBUG (grep audit in
+#   the transcript), and answers a bare run with the usage line
+#   + exit 1.
+#   Reference solution (INSTRUCTOR COPY, never in the class repo):
+#   fa26/lectures/wk12_icex16_get_record_solved.c (probe-dir twin:
+#   probes/wk12d1_random_access/icex16_solved.c).
+
+assignment: ICEX16
+course: C291
+semester: FA26
+total_points: 10
+canvas_points: 10
+# TA-bundle Canvas links (assignments-PDF ids; course+assignment
+# click-verified 2026-11-15).
+canvas_course_id: 2411657
+canvas_assignment_id: 19599797
+semester_start: 2026-08-24
+
+criteria:
+  - name: "The fetch: count from SEEK_END, seek to (recno - 1) * sizeof(Client), fread ONE record -- every call checked"
+    points: 3
+    checker: pattern_count
+    params:
+      target_file: "get_record.c"
+      pattern: "fseek\\s*\\("
+      expected_count: 2
+      comparison: "at_least"
+    ratings:
+      - { points: 3, description: "The count is derived from the file itself (SEEK_END + ftell divided by sizeof(Client) -- no counting loop), the record number is parsed with atoi and range-checked against that count BEFORE the seek, the seek lands at (recno - 1) * sizeof(Client) from SEEK_SET with its return checked, and ONE record is fread with the item count checked (short read is a failure, not a success) -- TA confirms the arithmetic and the checks' positions in the diff" }
+      - { points: 1.5, description: "The record fetches but a structural miss: the count hard-coded or read by looping instead of derived from SEEK_END, the offset arithmetic off by one record, or the fread/fseek returns unchecked (a short read can pass as success)" }
+      - { points: 0, description: "No seek-and-read fetch -- the program loops over records or prints nothing address-based" }
+
+  - name: "The pinned error contract: usage line, the range line, exits 1 and 2"
+    points: 2
+    checker: diff_content_check
+    params:
+      target_file: "get_record.c"
+      must_contain_modified: "is outside the table: 1..%d"
+    ratings:
+      - { points: 2, description: "The usage line prints to stderr (pinned, with argv[0]) and exits 1 on any argc other than 3; a record number below 1 or above the count prints the PINNED line (record %d is outside the table: 1..%d) to stderr and exits 2; the open failure perrors and exits 1 -- the exit codes ride the failure that earned them" }
+      - { points: 1, description: "Bounds behavior present but imperfect: the range line paraphrased (not character-for-character), the wrong exit code on the range failure, or the bounds check trusts an unparsed record number" }
+      - { points: 0, description: "No bounds check -- a record number outside the table freads garbage or crashes" }
+
+  - name: "The success line: the pinned %d %s %.2f shape, one record, stdout clean"
+    points: 2
+    checker: diff_content_check
+    params:
+      target_file: "get_record.c"
+      must_contain_modified: "%d %s %.2f"
+    ratings:
+      - { points: 2, description: "A successful fetch prints exactly ONE stdout line in the pinned shape %d %s %.2f -- account whole, name, balance to two decimals -- and stdout carries nothing else; all narration rides stderr behind the DEBUG gate" }
+      - { points: 1, description: "The record prints but the shape deviates (extra text on stdout, wrong decimal handling, or narration leaking to stdout)" }
+      - { points: 0, description: "No pinned success line on stdout" }
+
+  - name: "Instrumentation: #ifndef-DEBUG gate, tag-prefixed stderr narration, quiet build silent"
+    points: 1
+    checker: manual_review
+    params:
+      label: "TA judges from the diff: #define DEBUG (wrapped #ifndef) defined by the student in get_record.c (starter ships none), with the starter's TAG_OPEN/TAG_COUNT/TAG_SEEK/TAG_READ labels carrying every tag -- the commented example fprintf line extended, not reinvented; every stderr line tagged and gated; verify with a -DDEBUG=0 run that the build is silent."
+    ratings:
+      - { points: 1, description: "DEBUG gate present (starter ships none -- the definition is the student's), narration tag-prefixed behind if (DEBUG), stdout clean, and the -DDEBUG=0 build runs SILENT" }
+      - { points: 0.5, description: "Gate or tags present but narration leaks to stdout, or the quiet build still babbles" }
+      - { points: 0, description: "No instrumentation, or narration deleted instead of gated" }
+
+  - name: "Code Quality (Kurt's house style)"
+    points: 1
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 1, description: "Header comment block, consistent 2-space indent, meaningful names (nothing pre-named is renamed incoherently), clean plain gcc compile" }
+      - { points: 0, description: "Style sloppiness: missing header block, chaotic indentation, or does not compile without flags" }
+
+  - name: "PR Workflow & Submission (WK12 draft, Ready at submission)"
+    points: 1
+    checker: pr_url_valid
+    params:
+      github_host: "github.iu.edu"
+      min_comment_length: 10
+    ratings:
+      - { points: 1, description: "WK12 branch born this meeting (checkout -b from an up-to-date main), the PR opened AS A DRAFT by 4:00 PM (the safe-harbor push IS the extension request), the Auditor verification output (the check-by-observation runs: the records, the pinned out-of-range line, the perror text, the zero-byte err.log) posted in the PR description or a comment -- the evidence is part of a complete submission -- the PR flipped to Ready for review at submission time (within the extension), and the PR URL pasted into the Canvas ICEX16 assignment" }
+      - { points: 0, description: "No PR / merged early / wrong branch / URL invalid or missing / never flipped to Ready at submission / the Auditor verification output missing from the PR" }
+# ICEX16 rubric ends. Base criteria sum: 3+2+2+1+1+1 = 10. ✓
+# EC (OUTSIDE the sum): ec_theory.md +1, ec_proofs.md +1,
+# ec_reflection.md +1 -- TA-evaluated from the update PR's gradebook
+# submission; never reduces base.

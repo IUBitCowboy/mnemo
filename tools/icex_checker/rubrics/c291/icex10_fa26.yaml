@@ -46,6 +46,10 @@ course: C291
 semester: FA26
 total_points: 10
 canvas_points: 10
+# TA-bundle Canvas links (ids from the Assignments-page PDF link
+# annotations; click-verified in the gradebook 2026-11-15).
+canvas_course_id: 2411657
+canvas_assignment_id: 19305902
 semester_start: 2026-08-24
 
 criteria:

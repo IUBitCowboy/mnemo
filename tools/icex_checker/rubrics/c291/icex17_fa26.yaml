@@ -1,0 +1,158 @@
+# Rubric for ICEX17-FA26-C291 (directories: walk the table of names)
+#
+# Canvas assignment: 10 points. Rubric total = 10 = canvas_points.
+# (Numbering note: ICEX15 was given in W11 as a reuse of an SP26
+# exercise and has no checker rubric. ICEX16/17 are the W12 pair.)
+#
+# THE STANDING ICEX STANDARD (Kurt, 2026-11-08, in force for the rest
+# of the semester): the ICEX's main goal is WORKING CODE FOR THE
+# SPECIFICATION -- committed and the PR URL pasted into Canvas. The
+# theory/proofs/reflection work is EXTRA CREDIT, NOT base criteria:
+#   EC 1 (+1): ec_theory.md -- ALL rows of the theory table answered
+#     BEFORE running or delegating (predict-before-run).
+#   EC 2 (+1): ec_proofs.md -- all three proofs with pasted runs
+#     (the row order across two runs + ls -a; stat-vs-lstat on the
+#     symlink; the hard-link survivor: one inode two rows, rm
+#     drops the row not the bytes).
+#   EC 3 (+1): ec_reflection.md -- one complete THEORIZE /
+#     EXPERIMENT / MODIFY / TEST loop for a real bug or a rejected
+#     agent fragment.
+# EC mechanics: each task is its OWN FILE committed to the exercise
+# directory; EC may be submitted AFTER the due date as an update --
+# the student creates a NEW PR for the commit containing the EC
+# files and resubmits the update PR's URL into the Canvas
+# assignment, where it appears as a new submission the TA
+# evaluates. An EC attempt NEVER reduces the base score. The three
+# EC awards (+3 max) sit OUTSIDE this rubric's criteria sum.
+#
+# Base spec graded below: inventory.bin DIR opens the directory
+# (opendir NULL checked, perror + exit 1), loops readdir, SKIPS
+# every row whose name starts with '.' (one test removes '.'/'..'
+# AND hidden files), builds the full path with snprintf (d_name is
+# ONLY the name -- lstat on the bare name is the number-one
+# first-attempt bug), lstats the built path (perror + continue on
+# -1), derives the type char from st_mode (S_ISDIR 'd' / S_ISLNK
+# 'l' / else '-'), prints the pinned row shape "%c %llu %s" (an
+# unsigned long long cast carries the inode), counts the printed
+# rows, closes the DIR*, and prints the pinned count line
+# "%d names in the table." last on stdout. The row ORDER is the
+# kernel's -- the contract never promises sorted output. Usage
+# pinned character-for-character ("usage: %s directory", stderr,
+# exit 1). stderr instrumentation behind the student's DEBUG gate
+# (starter ships none; it SHIPS the TAG_OPEN/TAG_ROW label macros).
+# Submission: WK12 branch GREW this meeting (checkout WK12, NOT -b
+# -- get_record.c from ICEX16 sits at its tip); the SAME PR now
+# carries both programs; the student flips it to Ready at
+# submission (within the extension) if still draft; the PR URL is
+# pasted into the Canvas ICEX17 assignment (same link as ICEX16).
+#
+# Auditor phase in force (agent code presumed wrong until the
+# student's own runs verify it). The core Task includes the
+# check-by-observation runs -- but no EC work is required for the
+# base 10.
+#
+# Grading-relative notes:
+#  - inode VALUES and row ORDER are the student's machine's --
+#    criteria pin shapes and behaviors, never bytes.
+#  - criterion 2's needle is lstat (the traversal truth: a symlink
+#    must be seen AS a row of its own; stat would follow it and
+#    the 'l' branch could never fire); the TA confirms the snprintf
+#    path build in the diff.
+#
+# Ground truth verified 2026-11-08 on BOTH classroom platforms:
+#   - silo (gcc 13.3.0, Ubuntu 24.04):
+#     fa26/lectures/probes/wk12d2_dir_stat_file/ICEX17_SILO.txt
+#     (battery_icex17.sh, rerunnable)
+#   - Mac (Apple clang 21.0.0): ICEX17_LOCAL.txt, same battery
+#   Deterministic across platforms: 4-row known directory (two
+#   files, one subdir, one symlink, one hidden) prints 4 rows +
+#   "4 names in the table." exit 0; same order across consecutive
+#   runs per platform but a DIFFERENT order per platform (the
+#   README's honest caveat); the symlink prints 'l' under lstat;
+#   a missing directory perrors and exits 1; the -DDEBUG=0 build
+#   silences narration (err.log 0 bytes); the starter compiles
+#   -Wall clean, ships no #define DEBUG (grep audit in the
+#   transcript), and answers a bare run with the usage line +
+#   exit 1.
+#   Reference solution (INSTRUCTOR COPY, never in the class repo):
+#   fa26/lectures/wk12_icex17_inventory_solved.c (probe-dir twin:
+#   probes/wk12d2_dir_stat_file/icex17_solved.c).
+
+assignment: ICEX17
+course: C291
+semester: FA26
+total_points: 10
+canvas_points: 10
+# TA-bundle Canvas links (assignments-PDF ids; course+assignment
+# click-verified 2026-11-15).
+canvas_course_id: 2411657
+canvas_assignment_id: 19599801
+semester_start: 2026-08-24
+
+criteria:
+  - name: "The walk: opendir/readdir/closedir loop with the dot-skip and the checked stream"
+    points: 3
+    checker: pattern_count
+    params:
+      target_file: "inventory.c"
+      pattern: "readdir\\s*\\("
+      expected_count: 1
+      comparison: "at_least"
+    ratings:
+      - { points: 3, description: "opendir's NULL is checked (perror(argv[1]) + exit 1), the readdir loop walks one row at a time until NULL, every row whose name starts with '.' is skipped (one test removes '.'/'..' AND hidden files), and the DIR* is closed -- TA confirms the loop's shape in the diff" }
+      - { points: 1.5, description: "The loop walks but a structural miss: dot rows printed (the '.'-skip test missing), the opendir NULL unchecked, or the DIR* never closed" }
+      - { points: 0, description: "No directory walk -- rows never read from the table" }
+
+  - name: "The path built before the kernel is asked: snprintf join + lstat (not stat), failure handled"
+    points: 2
+    checker: diff_content_check
+    params:
+      target_file: "inventory.c"
+      must_contain_modified: "lstat("
+    ratings:
+      - { points: 2, description: "The full path is built with snprintf (the directory argument joined to d_name) BEFORE the kernel is asked, and the built path is lstat-ed -- not stat -- with -1 handled (perror(path) + continue); a symlink is seen AS a row of its own, so the 'l' type can actually fire" }
+      - { points: 1, description: "lstat present but the walk is blind on one side: the bare name stat-ed instead of the built path (the number-one first-attempt bug -- works only when DIR is the working directory), or stat used where the contract requires lstat and the 'l' branch can never fire" }
+      - { points: 0, description: "No stat-family call -- the type char is invented from the name" }
+
+  - name: "The pinned rows and count: %c %llu %s type/inode/name + the count line, stdout clean"
+    points: 2
+    checker: diff_content_check
+    params:
+      target_file: "inventory.c"
+      must_contain_modified: "%c %llu %s"
+    ratings:
+      - { points: 2, description: "Each printed row carries the pinned shape %c %llu %s -- type char from st_mode via S_ISDIR/S_ISLNK (d/l/-), the row's inode behind an unsigned long long cast, the name -- and the pinned count line (%d names in the table.) prints LAST on stdout; no sort, no promised order, all narration on stderr behind the gate" }
+      - { points: 1, description: "Rows print but the contract deviates: the shape paraphrased, the count line missing or mid-stream, the inode printed without the widening cast, or sorting added against the kernel's order" }
+      - { points: 0, description: "No row output in the pinned shape" }
+
+  - name: "Instrumentation: #ifndef-DEBUG gate, tag-prefixed stderr narration, quiet build silent"
+    points: 1
+    checker: manual_review
+    params:
+      label: "TA judges from the diff: #define DEBUG (wrapped #ifndef) defined by the student in inventory.c (starter ships none), with the starter's TAG_OPEN/TAG_ROW labels carrying every tag -- the commented example fprintf line extended, not reinvented; every stderr line tagged and gated; verify with a -DDEBUG=0 run that the build is silent."
+    ratings:
+      - { points: 1, description: "DEBUG gate present (starter ships none -- the definition is the student's), narration tag-prefixed behind if (DEBUG), stdout clean, and the -DDEBUG=0 build runs SILENT" }
+      - { points: 0.5, description: "Gate or tags present but narration leaks to stdout, or the quiet build still babbles" }
+      - { points: 0, description: "No instrumentation, or narration deleted instead of gated" }
+
+  - name: "Code Quality (Kurt's house style)"
+    points: 1
+    checker: manual_review
+    params: {}
+    ratings:
+      - { points: 1, description: "Header comment block, consistent 2-space indent, meaningful names (nothing pre-named is renamed incoherently), clean plain gcc compile" }
+      - { points: 0, description: "Style sloppiness: missing header block, chaotic indentation, or does not compile without flags" }
+
+  - name: "PR Workflow & Submission (WK12 grows, same PR, Ready at submission)"
+    points: 1
+    checker: pr_url_valid
+    params:
+      github_host: "github.iu.edu"
+      min_comment_length: 10
+    ratings:
+      - { points: 1, description: "The WK12 branch GREW this meeting (checkout WK12, NOT -b -- get_record.c sits at its tip; both programs' commits on the one branch), the same PR carries both programs, the Auditor verification output (the check-by-observation runs: the scratch directory's rows run twice, the ls -a comparison, the perror text, the zero-byte err.log) posted in the PR description or a comment -- the evidence is part of a complete submission -- flipped to Ready for review at submission time if still draft, and the PR URL pasted into the Canvas ICEX17 assignment (the same link as ICEX16)" }
+      - { points: 0, description: "A second branch created instead of growing WK12 / no PR / merged early / URL invalid or missing / never Ready at submission / the Auditor verification output missing from the PR" }
+# ICEX17 rubric ends. Base criteria sum: 3+2+2+1+1+1 = 10. ✓
+# EC (OUTSIDE the sum): ec_theory.md +1, ec_proofs.md +1,
+# ec_reflection.md +1 -- TA-evaluated from the update PR's gradebook
+# submission; never reduces base.
