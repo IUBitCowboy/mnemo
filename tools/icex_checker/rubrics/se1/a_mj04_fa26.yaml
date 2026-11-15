@@ -60,3 +60,11 @@ criteria:
     checker: manual_review
     params:
       label: "TA subtracts per the page: PR links without capability summaries (row 2), generic learnings, fewer than 3 adjustments; one-sided diff caps the row at 3 of 5 (both directions + placed unmet wants required); diagram boxes not in the repo (false statement of work); responsibility map without owner+role per component or an incomplete CONTRIBUTIONS entry (all members, cycle summary, Vision-gap line). Late-cap note rows carry the −5%/day computation."
+
+
+# Canvas deep links (FA26 course 2411709; SpeedGrader pattern:
+# https://iu.instructure.com/courses/<course_id>/gradebook/speed_grader
+#   ?assignment_id=<assignment_id>&student_id=<roster ID>).
+# Extracted from the Canvas Assignments-page PDF (2026-11-13).
+canvas_course_id: 2411709
+canvas_assignment_id: 19305635

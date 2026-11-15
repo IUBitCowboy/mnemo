@@ -85,3 +85,14 @@ criteria:
     checker: manual_review
     params:
       label: "TA subtracts per row: file-level specifics / divergences surfaced (row 1); options at decision precision vs pasted (row 2); holds/breaks/forcing-signals using the Vision numbers (row 3); FOSS in the student's own words + sovereignty + plain tradeoffs (row 4). Also verify here: six sections IN ORDER, doc individually authored (two same-team P565 students share nothing), claims true of the actual repo. Late penalty per policy."
+
+
+# Canvas deep links (FA26 course 2411709; SpeedGrader pattern:
+# https://iu.instructure.com/courses/<course_id>/gradebook/speed_grader
+#   ?assignment_id=<assignment_id>&student_id=<roster ID>).
+# Extracted from the Canvas Assignments-page PDF (2026-11-13).
+canvas_course_id: 2411709
+canvas_assignment_id: 19305683
+
+# P565 differentiation: AGR artifacts are graduate-only (course design).
+expected_sections: ["CSCI-P565"]

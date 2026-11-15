@@ -57,6 +57,9 @@ class Rubric:
         ownership_check=None,
         team_mode=None,
         collaboration_coefficient=None,
+        canvas_course_id=None,
+        canvas_assignment_id=None,
+        expected_sections=None,
     ):
         self.assignment = assignment
         self.course = course
@@ -73,6 +76,15 @@ class Rubric:
         self.ownership_check = ownership_check
         self.team_mode = team_mode
         self.collaboration_coefficient = collaboration_coefficient
+        # Canvas deep links: course + assignment ids build SpeedGrader
+        # and per-student submission URLs (roster's ID column supplies
+        # the student_id; the per-student anonymous_id is not needed).
+        self.canvas_course_id = canvas_course_id
+        self.canvas_assignment_id = canvas_assignment_id
+        # roster Section filter: when set (list of substrings), only
+        # roster members whose Section matches are "expected" — MISSING
+        # rows then exclude out-of-scope students (e.g. AGR = P565 only).
+        self.expected_sections = expected_sections
 
 
 def load_rubric(path):
@@ -153,6 +165,9 @@ def load_rubric(path):
         ownership_check=data.get("ownership_check"),
         team_mode=data.get("team_mode"),
         collaboration_coefficient=data.get("collaboration_coefficient"),
+        canvas_course_id=data.get("canvas_course_id"),
+        canvas_assignment_id=data.get("canvas_assignment_id"),
+        expected_sections=data.get("expected_sections"),
     )
 
 

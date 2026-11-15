@@ -119,3 +119,11 @@ criteria:
         - label: "Standup Record table present with a filled row"
           section: "Standup Record"
           require: "\\|\\s*\\d+\\s*\\|[^|]*[^\\s|]"
+
+
+# Canvas deep links (FA26 course 2411709; SpeedGrader pattern:
+# https://iu.instructure.com/courses/<course_id>/gradebook/speed_grader
+#   ?assignment_id=<assignment_id>&student_id=<roster ID>).
+# Extracted from the Canvas Assignments-page PDF (2026-11-13).
+canvas_course_id: 2411709
+canvas_assignment_id: 19590772

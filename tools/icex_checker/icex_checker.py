@@ -303,6 +303,13 @@ def build_parser():
         help="Batch mode: write JSON files here (requires --batch)",
     )
     parser.add_argument(
+        "--html-out",
+        help="Batch mode: write the TA HTML bundle (report.html index + "
+        "per-submission pages) under this directory tree. Defaults to "
+        "the batch directory's parent (the submissions root). Pass "
+        "'--html-out off' to disable.",
+    )
+    parser.add_argument(
         "--verbose",
         action="store_true",
         help="Include API response details in output",
@@ -706,24 +713,37 @@ def _run_batch(args):
 
     # --teams: resolve the requested roster teams, then filter each
     # submission by its submitter's team before processing.
+    # The roster also loads for the HTML bundle (membership mapping)
+    # whenever a roster path is available.
     roster_obj = None
-    if getattr(args, "teams", None):
+    _need_roster = (getattr(args, "teams", None)
+                    or (getattr(args, "html_out", None)
+                        and args.html_out != "off"))
+    roster_path = None
+    if _need_roster:
         roster_path = args.roster or _rubric_roster_path(args, str(files[0]))
         if not roster_path:
+            if getattr(args, "teams", None):
+                print(
+                    "--teams needs team membership: pass --roster (or make the "
+                    "rubric's roster_file resolvable for this run).",
+                    file=sys.stderr,
+                )
+                return 1
             print(
-                "--teams needs team membership: pass --roster (or make the "
-                "rubric's roster_file resolvable for this run).",
+                "note: no roster available — HTML bundle will not map "
+                "submitters to teams/TA (pass --roster).",
                 file=sys.stderr,
             )
-            return 1
-        roster_obj = load_roster_file(roster_path)
-        if roster_obj is None:
-            print(
-                "roster file %s unreadable — --teams cannot resolve teams."
-                % roster_path,
-                file=sys.stderr,
-            )
-            return 1
+        else:
+            roster_obj = load_roster_file(roster_path)
+            if roster_obj is None:
+                print(
+                    "roster file %s unreadable — team mapping unavailable."
+                    % roster_path,
+                    file=sys.stderr,
+                )
+                return 1
     requested, unresolved = _resolve_requested_teams(args, roster_obj)
     if unresolved:
         print(
@@ -843,6 +863,43 @@ def _run_batch(args):
         (out_dir / "summary.json").write_text(
             json.dumps(summary_payload, indent=2), encoding="utf-8"
         )
+
+    html_out = getattr(args, "html_out", None)
+    if html_out is not None and html_out != "off":
+        from report_html import emit_lane
+
+        def _html_root_default(batch):
+            # Kurt's submissions tree nests the Canvas download lanes
+            # under submissions/canvas/ — walk up to the share root
+            # (the directory literally named "submissions") so the
+            # report bundle always lands where the TAs' share starts.
+            here = pathlib.Path(batch).resolve()
+            for anc in [here] + list(here.parents):
+                if anc.name == "submissions":
+                    return anc
+            return here.parent
+
+        rubric_path = args.rubric or _resolve_rubric(args, files[0])
+        rubric = load_rubric(rubric_path)
+        html_root = pathlib.Path(
+            html_out) if html_out else _html_root_default(batch_dir)
+        run_ts = datetime.datetime.now().astimezone().strftime(
+            "%Y-%m-%d %H:%M %Z")
+        try:
+            manifest, index_path = emit_lane(
+                batch_dir, results, html_root, run_ts, rubric, roster_obj,
+                filtered_teams=requested, roster_csv=roster_path,
+            )
+            print()
+            print("HTML: index  %s" % index_path)
+            print(
+                "HTML: lane    %s (%d pages, %d exception(s))"
+                % (manifest["lane_dir"],
+                   len(manifest["entries"]),
+                   len(manifest["exceptions"])),
+            )
+        except OSError as e:
+            print("HTML: emission failed (%s)" % e, file=sys.stderr)
 
     return 2 if failures else 0
 
