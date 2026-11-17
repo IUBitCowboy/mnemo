@@ -176,7 +176,8 @@ def sweep(cls, only, lane_timeout, logf):
             print("=== SKIP %s/%s (%d links) — %s"
                   % (cls, lane.name, n_links, skip), file=logf)
             rows.append({"cls": cls, "lane": lane.name, "rc": "SKIP",
-                         "note": skip, "pages": "", "exc": ""})
+                         "note": skip, "pages": "", "exc": "",
+                         "status": "SKIP"})
             continue
         print("=== RUN %s/%s rubric=%s (%d links) start=%s"
               % (cls, lane.name, rubric.name, n_links,

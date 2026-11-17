@@ -162,6 +162,22 @@ def _fmt_num(v):
         return str(v)
 
 
+def _name_sort_key(name):
+    """(last, first) sort key tolerant of both roster forms: SE1's
+    canonical 'Last, First' and C291's 'First Last' (compound Arabic
+    surnames sort under their final token, matching Canvas's sortable
+    name). Case-insensitive; empty names sort first.
+    """
+    s = str(name or "").strip()
+    if not s:
+        return ("", "", s)
+    if "," in s:
+        last, first = (p.strip() for p in s.split(",", 1))
+        return (last.lower(), first.lower(), s)
+    parts = s.split()
+    return (parts[-1].lower(), " ".join(parts[:-1]).lower(), s)
+
+
 def now_ts():
     return datetime.now().astimezone().strftime("%Y-%m-%d %H:%M %Z")
 
@@ -764,8 +780,8 @@ def _emit_students(out_root, lanes, halves, run_ts):
 
     safe_half = []
     rows = []
-    for s in sorted(students.values(), key=lambda s: s["name"]
-                    or s["netid"]):
+    for s in sorted(students.values(),
+                    key=lambda s: _name_sort_key(s["name"] or s["netid"])):
         safe = re.sub(r"[^a-z0-9._-]", "", s["netid"].strip().lower()) \
             or "student"
         safe_half.append((s, safe))
@@ -977,7 +993,8 @@ def emit_index(out_root, run_ts):
                     "<th>report &amp; links</th></tr>")
             rows = []
             for e in sorted(entries, key=lambda x: (x["team"] or "zz",
-                                                    x["name"])):
+                                                    _name_sort_key(
+                                                        x["name"]))):
                 rec = e.get("recommended")
                 if is_team and rec is not None:
                     adj = round(rec * coeff)

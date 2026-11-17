@@ -358,6 +358,37 @@ class TestHalvesAndStudentView:
         assert 'data-half="' in g
 
 
+class TestNameSort:
+    """Rows within an expanded assignment must sort by LAST name then
+    first name, for both roster forms (Kurt, 2026-11-16)."""
+
+    def test_both_roster_forms(self):
+        f = report_html._name_sort_key
+        assert f("Smith, Caleb")[:2] == ("smith", "caleb")
+        assert f("Caleb Smith")[:2] == ("smith", "caleb")
+        assert f("Al Mukhtar Al Barwani")[:2] == (
+            "barwani", "al mukhtar al")
+        assert f("")[:2] == ("", "")
+
+    def test_gradebook_last_name_order(self, tmp_path):
+        results = [
+            {"file": "zadams_1_link.html", "status": "processed",
+             "recommended_points": 3, "total_points": 6, "team": "",
+             "pr_url": "", "_assessment": _assessment(rec=3)},
+            {"file": "cbaker_2_link.html", "status": "processed",
+             "recommended_points": 4, "total_points": 6, "team": "",
+             "pr_url": "", "_assessment": _assessment(rec=4)},
+        ]
+        m, index, out = _run_emit(
+            tmp_path, results,
+            ["zadams_1_link.html", "cbaker_2_link.html"], roster=None)
+        report_html.emit_index(out, "2026-11-16 13:00 EST")
+        g = (out / "students.html").read_text()
+        # no roster -> name falls back to netid; string sort would put
+        # zadams first, last-name sort puts cbaker first
+        assert g.index("cbaker") < g.index("zadams")
+
+
 class TestUpdateHistory:
     """Delta tracking: first run ships no badge; a changed later run
     badges the page and the index row; an unchanged run stays badge-free
